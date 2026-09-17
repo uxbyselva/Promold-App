@@ -1,0 +1,704 @@
+<title>Promold Field</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap">
+<style>
+:root{
+  --ground:#EFF3F2; --surface:#FFFFFF; --surface-2:#F7FAF9;
+  --ink:#16211F; --muted:#5E6E6C; --faint:#8A9997;
+  --line:#DBE3E1; --line-strong:#C3CFCD;
+  --accent:#0F6B62; --accent-soft:#DDEDEA; --accent-ink:#0B4F48;
+  --ok:#2F7D4F; --ok-soft:#DFEFE4;
+  --warn:#A8690F; --warn-soft:#FAEBD3;
+  --crit:#A93524; --crit-soft:#F8E2DE;
+  --idle:#5E6E6C; --idle-soft:#E6EBEA;
+  --shadow:0 1px 2px rgba(22,33,31,.06), 0 4px 14px rgba(22,33,31,.05);
+  --radius:12px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0E1514; --surface:#18211F; --surface-2:#1E2826;
+    --ink:#E7EDEB; --muted:#9AAAA7; --faint:#7A8987;
+    --line:#2B3735; --line-strong:#3A4846;
+    --accent:#45B3A5; --accent-soft:#16332F; --accent-ink:#8FD8CD;
+    --ok:#5FC087; --ok-soft:#14301F;
+    --warn:#E0A44A; --warn-soft:#332614;
+    --crit:#E8796A; --crit-soft:#331A16;
+    --idle:#9AAAA7; --idle-soft:#242F2D;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 4px 14px rgba(0,0,0,.3);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0E1514; --surface:#18211F; --surface-2:#1E2826;
+  --ink:#E7EDEB; --muted:#9AAAA7; --faint:#7A8987;
+  --line:#2B3735; --line-strong:#3A4846;
+  --accent:#45B3A5; --accent-soft:#16332F; --accent-ink:#8FD8CD;
+  --ok:#5FC087; --ok-soft:#14301F;
+  --warn:#E0A44A; --warn-soft:#332614;
+  --crit:#E8796A; --crit-soft:#331A16;
+  --idle:#9AAAA7; --idle-soft:#242F2D;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 4px 14px rgba(0,0,0,.3);
+}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0; background:var(--ground); color:var(--ink);
+  font-family:'Barlow',system-ui,-apple-system,'Segoe UI',sans-serif;
+  font-size:15px; line-height:1.45; -webkit-font-smoothing:antialiased;
+}
+p{margin:0}
+button{font:inherit;color:inherit;cursor:pointer;border:none;background:none}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+
+.cond{font-family:'Barlow Condensed','Barlow',system-ui,sans-serif}
+.lbl{
+  font-family:'Barlow Condensed','Barlow',sans-serif; font-weight:600;
+  text-transform:uppercase; letter-spacing:.09em; font-size:12px; color:var(--faint);
+}
+.num{font-variant-numeric:tabular-nums}
+
+/* ---------- shell ---------- */
+.shell{max-width:480px;margin:0 auto;min-height:100%;background:var(--ground);
+  display:flex;flex-direction:column;padding-bottom:78px}
+.proto-note{
+  background:var(--warn-soft);color:var(--warn);padding:7px 16px;
+  font-size:12.5px;font-weight:500;text-align:center;border-bottom:1px solid var(--line);
+}
+.topbar{
+  position:sticky;top:env(safe-area-inset-top,0px);z-index:20;
+  background:var(--surface);border-bottom:1px solid var(--line);
+  padding:12px 16px;
+}
+.topbar-row{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.topbar h1{margin:0;font-size:21px;font-weight:600;letter-spacing:-.01em}
+.whoami{font-size:12.5px;color:var(--muted)}
+.whoami b{color:var(--ink);font-weight:600}
+
+.seg{display:flex;gap:2px;margin:12px -4px -2px;padding:0 4px}
+.seg button{
+  flex:1;padding:7px 4px;border-radius:8px;font-size:13.5px;font-weight:500;
+  color:var(--muted);background:var(--surface-2);border:1px solid transparent;
+}
+.seg button[aria-selected="true"]{
+  background:var(--accent-soft);color:var(--accent-ink);border-color:var(--accent);font-weight:600;
+}
+
+main{flex:1;padding:14px 16px 20px;display:flex;flex-direction:column;gap:12px}
+.section-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-top:4px}
+
+/* ---------- job card ---------- */
+.job{
+  display:grid;grid-template-columns:4px 1fr;background:var(--surface);
+  border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;
+  box-shadow:var(--shadow);width:100%;text-align:left;
+}
+.job:active{border-color:var(--line-strong)}
+.stripe{background:var(--idle)}
+.stripe[data-s="in_progress"],.stripe[data-s="on_site"]{background:var(--ok)}
+.stripe[data-s="en_route"]{background:var(--accent)}
+.stripe[data-s="blocked"]{background:var(--crit)}
+.stripe[data-s="assigned"]{background:var(--warn)}
+.job-body{padding:12px 13px 13px;display:flex;flex-direction:column;gap:7px;min-width:0}
+.job-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.job-no{font-size:12px;letter-spacing:.06em;font-weight:600;color:var(--faint)}
+.job-title{font-size:16px;font-weight:600;margin:0;line-height:1.25;text-wrap:balance}
+.job-meta{display:flex;flex-direction:column;gap:3px;font-size:13.5px;color:var(--muted)}
+.job-meta .addr{color:var(--ink)}
+.job-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding-top:8px;border-top:1px solid var(--line)}
+.crew{font-size:12.5px;color:var(--muted);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.time{font-weight:600;font-size:14px}
+
+.pill{
+  display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;
+  font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:12.5px;
+  text-transform:uppercase;letter-spacing:.06em;white-space:nowrap;
+  background:var(--idle-soft);color:var(--idle);
+}
+.pill[data-t="ok"]{background:var(--ok-soft);color:var(--ok)}
+.pill[data-t="warn"]{background:var(--warn-soft);color:var(--warn)}
+.pill[data-t="crit"]{background:var(--crit-soft);color:var(--crit)}
+.pill[data-t="accent"]{background:var(--accent-soft);color:var(--accent-ink)}
+.dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex:none}
+
+/* ---------- kanban ---------- */
+.board{display:flex;gap:10px;overflow-x:auto;padding-bottom:6px;margin:0 -16px;padding-inline:16px}
+.col{flex:0 0 250px;display:flex;flex-direction:column;gap:9px}
+.col-head{display:flex;align-items:center;justify-content:space-between;padding:0 2px}
+.count{font-size:12px;font-weight:600;color:var(--faint);
+  background:var(--surface-2);border-radius:999px;padding:1px 8px}
+.col .job{box-shadow:none}
+.col-empty{font-size:13px;color:var(--faint);padding:14px 10px;text-align:center;
+  border:1px dashed var(--line-strong);border-radius:var(--radius)}
+
+/* ---------- calendar ---------- */
+.week{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+.day{
+  background:var(--surface);border:1px solid var(--line);border-radius:10px;
+  padding:7px 2px 6px;text-align:center;
+}
+.day[aria-current="date"]{border-color:var(--accent);background:var(--accent-soft)}
+.day .dn{font-size:11px;color:var(--faint);text-transform:uppercase;letter-spacing:.05em}
+.day .dd{font-size:16px;font-weight:600;line-height:1.2}
+.day .marks{display:flex;gap:2px;justify-content:center;margin-top:4px;height:5px}
+.day .marks i{width:5px;height:5px;border-radius:50%;background:var(--accent);display:block}
+
+/* ---------- equipment ---------- */
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+  padding:11px 11px 10px}
+.tile .v{font-family:'Barlow Condensed',sans-serif;font-size:30px;font-weight:700;
+  line-height:1;font-variant-numeric:tabular-nums}
+.tile .k{margin-top:3px}
+.tile[data-t="warn"]{border-color:var(--warn);background:var(--warn-soft)}
+.tile[data-t="warn"] .v,.tile[data-t="warn"] .k{color:var(--warn)}
+.tile[data-t="ok"] .v{color:var(--ok)}
+
+.unit{display:flex;align-items:center;gap:11px;width:100%;text-align:left;
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+  padding:11px 12px}
+.tag{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:15px;
+  letter-spacing:.05em;background:var(--surface-2);border:1px solid var(--line-strong);
+  border-radius:6px;padding:4px 7px;flex:none;min-width:58px;text-align:center}
+.unit-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.unit-name{font-weight:600;font-size:14.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.unit-where{font-size:13px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.unit-right{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex:none}
+.days{font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:13px;color:var(--muted);
+  font-variant-numeric:tabular-nums}
+
+/* ---------- sheet ---------- */
+.scrim{position:fixed;inset:0;background:rgba(10,18,17,.5);z-index:40;
+  opacity:0;pointer-events:none;transition:opacity .18s ease}
+.scrim.open{opacity:1;pointer-events:auto}
+.sheet{
+  position:fixed;left:0;right:0;bottom:0;z-index:50;background:var(--ground);
+  border-radius:18px 18px 0 0;max-height:92%;display:flex;flex-direction:column;
+  transform:translateY(102%);transition:transform .22s cubic-bezier(.32,.72,0,1);
+  max-width:480px;margin:0 auto;box-shadow:0 -6px 30px rgba(10,18,17,.22);
+}
+.sheet.open{transform:translateY(0)}
+.sheet-head{padding:10px 16px 12px;border-bottom:1px solid var(--line);background:var(--surface);
+  border-radius:18px 18px 0 0}
+.grab{width:34px;height:4px;border-radius:2px;background:var(--line-strong);margin:0 auto 10px}
+.sheet-body{overflow-y:auto;padding:14px 16px calc(18px + env(safe-area-inset-bottom,0px));
+  display:flex;flex-direction:column;gap:13px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+  padding:12px 13px;display:flex;flex-direction:column;gap:9px}
+.panel.flag{border-color:var(--warn);background:var(--warn-soft)}
+.kv{display:flex;justify-content:space-between;gap:12px;font-size:14px}
+.kv dt{color:var(--muted)}
+.kv dd{margin:0;font-weight:500;text-align:right}
+dl.kv-list{margin:0;display:flex;flex-direction:column;gap:6px}
+
+.track{display:flex;align-items:center;gap:0;margin:2px 0 4px}
+.track .step{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;position:relative}
+.track .step::before{content:"";position:absolute;top:6px;left:-50%;width:100%;height:2px;
+  background:var(--line-strong)}
+.track .step:first-child::before{display:none}
+.track .step[data-on="1"]::before{background:var(--accent)}
+.track .bead{width:13px;height:13px;border-radius:50%;background:var(--line-strong);
+  border:2px solid var(--surface);position:relative;z-index:1}
+.track .step[data-on="1"] .bead{background:var(--accent)}
+.track .step[data-now="1"] .bead{box-shadow:0 0 0 4px var(--accent-soft)}
+.track .step span{font-family:'Barlow Condensed',sans-serif;font-size:10.5px;font-weight:600;
+  text-transform:uppercase;letter-spacing:.02em;color:var(--faint);text-align:center;
+  line-height:1.15;padding:0 4px}
+.track .step[data-on="1"] span{color:var(--ink)}
+
+.btn{display:flex;align-items:center;justify-content:center;gap:7px;width:100%;
+  padding:12px;border-radius:10px;font-weight:600;font-size:15px;
+  background:var(--accent);color:#fff;border:1px solid var(--accent)}
+.btn.ghost{background:var(--surface);color:var(--ink);border-color:var(--line-strong)}
+.btn.warn{background:var(--surface);color:var(--warn);border-color:var(--warn)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-row{display:flex;gap:8px}
+.btn-row .btn{flex:1}
+
+.blockers{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:7px}
+.blockers li{display:flex;align-items:center;gap:9px;font-size:13.5px}
+.blockers .x{width:17px;height:17px;border-radius:50%;background:var(--warn);color:var(--warn-soft);
+  display:grid;place-items:center;font-size:12px;font-weight:700;flex:none}
+.blockers .fix{margin-left:auto;font-size:12.5px;font-weight:600;color:var(--warn);
+  text-decoration:underline;text-underline-offset:2px;white-space:nowrap}
+
+.photos{display:flex;gap:7px;overflow-x:auto;padding-bottom:2px}
+.ph{flex:0 0 74px;height:74px;border-radius:9px;border:1px solid var(--line);
+  display:grid;place-items:center;text-align:center;line-height:1.15;
+  background:var(--surface-2);color:var(--faint);font-size:11px}
+.ph.add{border-style:dashed;color:var(--accent);border-color:var(--accent)}
+
+.money{display:flex;flex-direction:column;gap:5px}
+.money .row{display:flex;justify-content:space-between;font-size:14px}
+.money .row.total{border-top:1px solid var(--line);padding-top:6px;font-weight:600}
+.money .row .num{font-variant-numeric:tabular-nums}
+
+/* ---------- tabbar ---------- */
+.tabbar{
+  position:fixed;left:0;right:0;bottom:0;z-index:30;display:flex;
+  background:var(--surface);border-top:1px solid var(--line);
+  padding:0 0 env(safe-area-inset-bottom,0px);max-width:480px;margin:0 auto;
+}
+.tabbar button{position:relative;flex:1;padding:9px 4px 10px;display:flex;flex-direction:column;
+  align-items:center;gap:3px;color:var(--faint);font-size:11.5px;font-weight:600}
+.tabbar button[aria-selected="true"]{color:var(--accent)}
+.tabbar .ic{font-size:19px;line-height:1}
+.badge{position:absolute;transform:translate(13px,-4px);background:var(--crit);color:#fff;
+  font-size:10px;font-weight:700;border-radius:999px;padding:0 5px;line-height:15px}
+
+.toast{position:fixed;left:50%;bottom:92px;transform:translate(-50%,14px);z-index:60;
+  background:var(--ink);color:var(--ground);padding:9px 15px;border-radius:9px;
+  font-size:13.5px;font-weight:500;opacity:0;transition:all .2s ease;pointer-events:none;
+  max-width:88%;text-align:center}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div class="shell">
+  <p class="proto-note">Prototype · sample data · nothing is saved</p>
+
+  <header class="topbar">
+    <div class="topbar-row">
+      <h1 id="screenTitle">Today</h1>
+      <p class="whoami"><b>Marcus Bell</b> · Crew Lead</p>
+    </div>
+    <div class="seg" id="viewSeg" role="tablist" aria-label="Job view">
+      <button role="tab" data-view="list" aria-selected="true">List</button>
+      <button role="tab" data-view="board" aria-selected="false">Board</button>
+      <button role="tab" data-view="cal" aria-selected="false">Calendar</button>
+    </div>
+  </header>
+
+  <main id="main"></main>
+</div>
+
+<nav class="tabbar" role="tablist" aria-label="Sections">
+  <button role="tab" data-tab="jobs" aria-selected="true"><span class="ic">▤</span>My Jobs</button>
+  <button role="tab" data-tab="equip" aria-selected="false"><span class="ic">◈</span>Equipment<span class="badge" id="equipBadge">1</span></button>
+</nav>
+
+<div class="scrim" id="scrim"></div>
+<section class="sheet" id="sheet" aria-modal="true" role="dialog" aria-label="Detail">
+  <div class="sheet-head"><div class="grab"></div><div id="sheetHead"></div></div>
+  <div class="sheet-body" id="sheetBody"></div>
+</section>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+/* Sample data mirrors supabase/seed.sql so the screens show the real vernacular:
+   real asset tags, real crew, the 42 Oak St job actually mid-remediation. */
+const STEPS = ['accepted','en_route','on_site','in_progress','work_complete'];
+const STEP_LABEL = {accepted:'Accepted',en_route:'En route',on_site:'On site',
+  in_progress:'Working',work_complete:'Complete'};
+const NEXT_LABEL = {accepted:'On my way',en_route:'I have arrived',on_site:'Start work',
+  in_progress:'Mark complete'};
+
+let jobs = [
+  {
+    no:'J00102', title:'Basement remediation — day 3 of 3',
+    customer:'Helen Brooks', site:'42 Oak St — basement', city:'Springfield MA',
+    access:'Side gate code 4471. Dog in the yard.',
+    start:'08:00', end:'16:00', status:'in_progress', acceptance:'accepted',
+    crew:['Marcus Bell','Tomas Reyes','Priya Nair'], template:'Remediation Day',
+    base:8600, changeOrders:[{title:'Rot behind north wall', amount:1250, status:'approved'}],
+    photos:{before:6, during:11, after:0},
+    signed:false, materialsLogged:true, formsDone:['PPE and job hazard check'],
+    formsNeeded:['PPE and job hazard check'], openClocks:1,
+    equipment:['AS-001','AS-002','DH-001','MM-001'], rentalOpen:true
+  },
+  {
+    no:'J00103', title:'Unit 3B containment setup',
+    customer:'Cardinal Property Group', site:'Larkspur Apts — unit 3B', city:'Springfield MA',
+    access:'Keys at the leasing office, 9–5.',
+    start:'09:00', end:'15:00', status:'assigned', acceptance:'pending',
+    crew:['Marcus Bell','Priya Nair'], template:'Containment Setup',
+    base:2200, changeOrders:[], photos:{before:0,during:0,after:0},
+    signed:false, materialsLogged:false, formsDone:[],
+    formsNeeded:['Containment verification','PPE and job hazard check'], openClocks:0,
+    equipment:[], rentalOpen:false, when:'Tomorrow'
+  },
+  {
+    no:'J00104', title:'Post-remediation verification',
+    customer:'Helen Brooks', site:'42 Oak St — basement', city:'Springfield MA',
+    access:'Side gate code 4471. Dog in the yard.',
+    start:'11:00', end:'14:00', status:'accepted', acceptance:'accepted',
+    crew:['Marcus Bell'], template:'Post-Remediation Verification',
+    base:600, changeOrders:[], photos:{before:0,during:0,after:0},
+    signed:false, materialsLogged:false, formsDone:[],
+    formsNeeded:['Moisture readings','Sample chain of custody'], openClocks:0,
+    equipment:[], rentalOpen:false, when:'Thu'
+  },
+  {
+    no:'J00101', title:'Basement mold inspection',
+    customer:'Helen Brooks', site:'42 Oak St — basement', city:'Springfield MA',
+    access:'', start:'10:00', end:'12:00', status:'work_complete', acceptance:'accepted',
+    crew:['Marcus Bell'], template:'Mold Inspection',
+    base:450, changeOrders:[], photos:{before:8,during:0,after:4},
+    signed:true, materialsLogged:true, formsDone:['Moisture readings'],
+    formsNeeded:['Moisture readings'], openClocks:0,
+    equipment:[], rentalOpen:false, when:'3 weeks ago'
+  }
+];
+
+let units = [
+  {tag:'AS-001', name:'Air scrubber #1', cat:'Air scrubber', state:'staged',
+   where:'42 Oak St — basement', job:'J00102', days:2, due:'tomorrow', overdue:false, hours:1840},
+  {tag:'AS-002', name:'Air scrubber #2', cat:'Air scrubber', state:'staged',
+   where:'42 Oak St — basement', job:'J00102', days:2, due:'tomorrow', overdue:false, hours:1792},
+  {tag:'DH-001', name:'Dehumidifier #1', cat:'Dehumidifier', state:'staged',
+   where:'42 Oak St — basement', job:'J00102', days:2, due:'6 hours ago', overdue:true, hours:3106},
+  {tag:'MM-001', name:'Moisture meter', cat:'Meter', state:'checkout',
+   where:'With Marcus Bell', job:'J00102', days:2, due:null, overdue:false, hours:null},
+  {tag:'AS-003', name:'Air scrubber #3', cat:'Air scrubber', state:'available',
+   where:'Warehouse', job:null, days:0, due:null, overdue:false, hours:980}
+];
+
+const rentals = [{
+  desc:'HEPA air scrubber ×2', vendor:'Northside Equipment Rental', ref:'NER-88213',
+  job:'J00102', site:'42 Oak St', rate:'$45/day', due:'tomorrow', days:2, cost:270, overdue:false
+}];
+
+let tab='jobs', view='list', openJob=null, openUnit=null;
+
+/* ---------- helpers ---------- */
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const money = n => '$' + n.toLocaleString('en-US');
+
+function toast(msg){
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._id); t._id = setTimeout(()=>t.classList.remove('show'), 2300);
+}
+
+function statusPill(j){
+  if (j.acceptance === 'pending') return `<span class="pill" data-t="warn"><span class="dot"></span>Needs your answer</span>`;
+  if (j.acceptance === 'reschedule_requested') return `<span class="pill" data-t="accent">Reschedule asked</span>`;
+  const map = {in_progress:['ok','Working'], on_site:['ok','On site'], en_route:['accent','En route'],
+    accepted:['','Accepted'], assigned:['warn','Assigned'], blocked:['crit','Blocked'],
+    work_complete:['','Complete']};
+  const [t,l] = map[j.status] || ['', j.status];
+  return `<span class="pill"${t?` data-t="${t}"`:''}>${l}</span>`;
+}
+
+/* Mirrors job_completion_blockers() in SQL — the gate that keeps the record
+   honest and stops scrubbers being left behind at a finished job. */
+function blockers(j){
+  const out = [];
+  if (j.photos.before === 0) out.push(['Before photos required','Add photos']);
+  if (j.photos.after === 0) out.push(['After photos required','Add photos']);
+  if (!j.signed) out.push(['Customer sign-off required','Get signature']);
+  if (!j.materialsLogged) out.push(['Log materials used','Log now']);
+  j.formsNeeded.forEach(f => { if (!j.formsDone.includes(f)) out.push([`Not complete: ${f}`,'Fill in']); });
+  if (j.openClocks > 0) out.push([`${j.openClocks} person still clocked in`,'Clock out']);
+  const stranded = j.equipment.filter(t => {
+    const u = units.find(x => x.tag === t);
+    return u && u.state === 'staged' && !u.due;
+  });
+  if (stranded.length) out.push([`${stranded.length} item at site, no pickup set`,'Set pickup']);
+  if (j.rentalOpen) out.push(['Rental still out — set a return','Set return']);
+  return out;
+}
+
+/* ---------- job list ---------- */
+function jobCard(j, compact){
+  return `<button class="job" data-job="${j.no}">
+    <span class="stripe" data-s="${j.acceptance === 'pending' ? 'assigned' : j.status}"></span>
+    <span class="job-body">
+      <span class="job-top"><span class="job-no cond">${j.no}</span>${statusPill(j)}</span>
+      <h3 class="job-title">${esc(j.title)}</h3>
+      ${compact ? '' : `<span class="job-meta">
+        <span class="addr">${esc(j.site)}</span>
+        <span>${esc(j.customer)}</span>
+      </span>`}
+      <span class="job-foot">
+        <span class="crew">${esc(j.crew.join(', '))}</span>
+        <span class="time num">${j.when ? esc(j.when) + ' ' : ''}${j.start}</span>
+      </span>
+    </span>
+  </button>`;
+}
+
+function renderList(){
+  const today = jobs.filter(j => !j.when);
+  const soon  = jobs.filter(j => j.when && j.no !== 'J00101');
+  const past  = jobs.filter(j => j.no === 'J00101');
+  const needs = jobs.filter(j => j.acceptance === 'pending');
+
+  return `
+  ${needs.length ? `<div class="section-head"><p class="lbl">Waiting on you</p></div>
+    ${needs.map(j => jobCard(j)).join('')}` : ''}
+  <div class="section-head"><p class="lbl">Today · Wed 17 Sep</p><span class="lbl num">${today.length} job</span></div>
+  ${today.map(j => jobCard(j)).join('')}
+  <div class="section-head"><p class="lbl">Coming up</p></div>
+  ${soon.filter(j => j.acceptance !== 'pending').map(j => jobCard(j)).join('') || '<p class="col-empty">Nothing else scheduled</p>'}
+  <div class="section-head"><p class="lbl">Recently finished</p></div>
+  ${past.map(j => jobCard(j)).join('')}`;
+}
+
+function renderBoard(){
+  const cols = [
+    ['To do', j => j.status==='assigned'||j.status==='accepted'],
+    ['Working', j => ['en_route','on_site','in_progress'].includes(j.status)],
+    ['Blocked', j => j.status==='blocked'],
+    ['Done', j => ['work_complete','approved','closed'].includes(j.status)]
+  ];
+  return `<div class="board">${cols.map(([name,f]) => {
+    const list = jobs.filter(f);
+    return `<div class="col">
+      <div class="col-head"><p class="lbl">${name}</p><span class="count num">${list.length}</span></div>
+      ${list.map(j => jobCard(j,true)).join('') || '<p class="col-empty">Empty</p>'}
+    </div>`;
+  }).join('')}</div>`;
+}
+
+function renderCal(){
+  const days = [['Mon',15,0],['Tue',16,1],['Wed',17,1],['Thu',18,1],['Fri',19,0],['Sat',20,0],['Sun',21,0]];
+  return `<div class="week">${days.map(([n,d,m]) => `
+    <div class="day"${d===17?' aria-current="date"':''}>
+      <div class="dn">${n}</div><div class="dd num">${d}</div>
+      <div class="marks">${m?'<i></i>':''}</div>
+    </div>`).join('')}</div>
+  <div class="section-head"><p class="lbl">Wednesday 17 September</p></div>
+  ${jobs.filter(j => !j.when).map(j => jobCard(j)).join('')}
+  <div class="section-head"><p class="lbl">Thursday 18 September</p></div>
+  ${jobs.filter(j => j.when === 'Thu').map(j => jobCard(j)).join('')}`;
+}
+
+/* ---------- equipment ---------- */
+function unitRow(u){
+  const chip = u.state === 'staged'
+    ? `<span class="pill" data-t="${u.overdue?'crit':'ok'}"><span class="dot"></span>At site</span>`
+    : u.state === 'checkout'
+      ? `<span class="pill" data-t="accent">With crew</span>`
+      : `<span class="pill">Available</span>`;
+  return `<button class="unit" data-unit="${u.tag}">
+    <span class="tag">${u.tag}</span>
+    <span class="unit-main">
+      <span class="unit-name">${esc(u.name)}</span>
+      <span class="unit-where">${esc(u.where)}</span>
+    </span>
+    <span class="unit-right">${chip}
+      ${u.days ? `<span class="days num">${u.days}d out</span>` : ''}
+    </span>
+  </button>`;
+}
+
+function renderEquip(){
+  const out = units.filter(u => u.state !== 'available');
+  const free = units.filter(u => u.state === 'available');
+  const late = units.filter(u => u.overdue).length + rentals.filter(r => r.overdue).length;
+  return `
+  <div class="tiles">
+    <div class="tile"><p class="v num">${out.length}</p><p class="k lbl">Deployed</p></div>
+    <div class="tile" data-t="ok"><p class="v num">${free.length}</p><p class="k lbl">Available</p></div>
+    <div class="tile"${late?' data-t="warn"':''}><p class="v num">${late}</p><p class="k lbl">Overdue</p></div>
+  </div>
+  ${late ? `<div class="panel flag">
+    <p class="lbl" style="color:var(--warn)">Needs collecting</p>
+    ${units.filter(u=>u.overdue).map(u => `<p style="font-size:13.5px;margin:0">
+      <b>${u.tag}</b> ${esc(u.name)} — due ${esc(u.due)}, still at ${esc(u.where)}</p>`).join('')}
+  </div>` : ''}
+  <div class="section-head"><p class="lbl">Out on jobs</p><span class="lbl num">${out.length}</span></div>
+  ${out.map(unitRow).join('')}
+  <div class="section-head"><p class="lbl">In the warehouse</p><span class="lbl num">${free.length}</span></div>
+  ${free.map(unitRow).join('')}
+  <div class="section-head"><p class="lbl">Rented in</p></div>
+  ${rentals.map(r => `<div class="panel">
+    <div style="display:flex;justify-content:space-between;gap:10px;align-items:start">
+      <div><p style="margin:0;font-weight:600">${esc(r.desc)}</p>
+        <p style="margin:2px 0 0;font-size:13px;color:var(--muted)">${esc(r.vendor)} · ${r.ref}</p></div>
+      <span class="pill" data-t="${r.overdue?'crit':'warn'}">Due ${esc(r.due)}</span>
+    </div>
+    <dl class="kv-list">
+      <div class="kv"><dt>On job</dt><dd>${r.job} · ${esc(r.site)}</dd></div>
+      <div class="kv"><dt>Rate</dt><dd class="num">${r.rate} · ${r.days} days</dd></div>
+      <div class="kv"><dt>Cost so far</dt><dd class="num">${money(r.cost)}</dd></div>
+    </dl>
+    <button class="btn ghost" data-act="return-rental">Record return</button>
+  </div>`).join('')}`;
+}
+
+/* ---------- job sheet ---------- */
+function jobSheet(j){
+  const bl = blockers(j);
+  const co = j.changeOrders.reduce((s,c)=>c.status==='approved'?s+c.amount:s,0);
+  const idx = STEPS.indexOf(j.status);
+  const canAdvance = j.acceptance === 'accepted' && idx >= 0 && idx < STEPS.length-1;
+
+  $('#sheetHead').innerHTML = `
+    <div class="job-top" style="margin-bottom:5px">
+      <span class="job-no cond">${j.no}</span>${statusPill(j)}
+    </div>
+    <h2 style="margin:0;font-size:18px;font-weight:600;line-height:1.25">${esc(j.title)}</h2>
+    <p style="margin:3px 0 0;font-size:13.5px;color:var(--muted)">${esc(j.site)} · ${esc(j.customer)}</p>`;
+
+  $('#sheetBody').innerHTML = `
+    ${j.acceptance === 'pending' ? `<div class="panel flag">
+      <p class="lbl" style="color:var(--warn)">This job needs an answer</p>
+      <p style="margin:0;font-size:13.5px">${esc(j.when||'')} ${j.start}–${j.end} · ${esc(j.crew.join(', '))}</p>
+      <div class="btn-row">
+        <button class="btn" data-act="accept">Accept</button>
+        <button class="btn warn" data-act="reschedule">Ask to move</button>
+      </div>
+    </div>` : `<div class="panel">
+      <div class="track">${STEPS.map((s,i)=>`<div class="step" data-on="${i<=idx?1:0}" data-now="${i===idx?1:0}">
+        <div class="bead"></div><span>${STEP_LABEL[s]}</span></div>`).join('')}</div>
+      ${canAdvance ? `<button class="btn" data-act="advance">${NEXT_LABEL[j.status]}</button>` : ''}
+      ${j.status==='work_complete' ? `<p style="margin:0;font-size:13.5px;color:var(--ok);font-weight:500">Finished and sent for review.</p>`:''}
+    </div>`}
+
+    ${j.status==='in_progress' && bl.length ? `<div class="panel flag">
+      <p class="lbl" style="color:var(--warn)">${bl.length} thing${bl.length>1?'s':''} before you can finish</p>
+      <ul class="blockers">${bl.map(([t,a])=>`<li><span class="x">!</span><span>${esc(t)}</span>
+        <span class="fix">${esc(a)}</span></li>`).join('')}</ul>
+    </div>` : ''}
+
+    <div class="panel">
+      <p class="lbl">Site</p>
+      <dl class="kv-list">
+        <div class="kv"><dt>Address</dt><dd>${esc(j.site)}<br>${esc(j.city)}</dd></div>
+        <div class="kv"><dt>Hours</dt><dd class="num">${j.start} – ${j.end}</dd></div>
+        <div class="kv"><dt>Crew</dt><dd>${esc(j.crew.join(', '))}</dd></div>
+        <div class="kv"><dt>Job type</dt><dd>${esc(j.template)}</dd></div>
+      </dl>
+      ${j.access ? `<p style="margin:0;padding:8px 10px;background:var(--accent-soft);
+        color:var(--accent-ink);border-radius:8px;font-size:13.5px">
+        <b>Getting in:</b> ${esc(j.access)}</p>` : ''}
+    </div>
+
+    <div class="panel">
+      <p class="lbl">Photos</p>
+      <div class="photos">
+        <div class="ph add" data-act="photo">+<br>Add</div>
+        ${['before','during','after'].map(p=>`<div class="ph">${j.photos[p]}<br>${p}</div>`).join('')}
+      </div>
+    </div>
+
+    ${j.equipment.length ? `<div class="panel">
+      <p class="lbl">Equipment on this job</p>
+      ${j.equipment.map(t=>{const u=units.find(x=>x.tag===t);return `
+        <div class="kv"><dt><b class="cond">${u.tag}</b> ${esc(u.name)}</dt>
+        <dd>${u.state==='staged'?(u.overdue?'<span style="color:var(--warn)">pickup overdue</span>':'at site'):'with you'}</dd></div>`;}).join('')}
+    </div>` : ''}
+
+    <div class="panel">
+      <p class="lbl">Price agreed</p>
+      <div class="money">
+        <div class="row"><span>Quoted</span><span class="num">${money(j.base)}</span></div>
+        ${j.changeOrders.map(c=>`<div class="row"><span>${esc(c.title)}</span>
+          <span class="num">+${money(c.amount)}</span></div>`).join('')}
+        <div class="row total"><span>Contract price</span><span class="num">${money(j.base+co)}</span></div>
+      </div>
+      <button class="btn ghost" data-act="co">Found more work — raise a change order</button>
+    </div>
+
+    <button class="btn ghost" data-act="chat">Open job chat</button>`;
+
+  openSheet();
+}
+
+function unitSheet(u){
+  $('#sheetHead').innerHTML = `
+    <div class="job-top" style="margin-bottom:5px">
+      <span class="tag">${u.tag}</span>
+      ${u.overdue?'<span class="pill" data-t="crit"><span class="dot"></span>Pickup overdue</span>':''}
+    </div>
+    <h2 style="margin:0;font-size:18px;font-weight:600">${esc(u.name)}</h2>
+    <p style="margin:3px 0 0;font-size:13.5px;color:var(--muted)">${esc(u.cat)}</p>`;
+
+  $('#sheetBody').innerHTML = `
+    <div class="panel">
+      <p class="lbl">Right now</p>
+      <dl class="kv-list">
+        <div class="kv"><dt>Where</dt><dd>${esc(u.where)}</dd></div>
+        ${u.job?`<div class="kv"><dt>On job</dt><dd>${u.job}</dd></div>`:''}
+        ${u.days?`<div class="kv"><dt>Days out</dt><dd class="num">${u.days}</dd></div>`:''}
+        ${u.due?`<div class="kv"><dt>Pickup due</dt><dd${u.overdue?' style="color:var(--warn);font-weight:600"':''}>${esc(u.due)}</dd></div>`:''}
+        ${u.hours!==null?`<div class="kv"><dt>Hour meter</dt><dd class="num">${u.hours} h</dd></div>`:''}
+      </dl>
+    </div>
+    ${u.state==='available'?`<div class="panel"><p style="margin:0;font-size:13.5px;color:var(--muted)">
+      Sitting in the warehouse. Scan the tag to take it out.</p></div>`:''}
+    <div class="btn-row">
+      ${u.state!=='available'?`<button class="btn" data-act="collect">Collect it</button>`:''}
+      <button class="btn ghost" data-act="scan">Scan tag</button>
+    </div>
+    ${u.state==='staged'?`<button class="btn ghost" data-act="move">Move to another site</button>`:''}`;
+  openSheet();
+}
+
+/* ---------- plumbing ---------- */
+function openSheet(){ $('#sheet').classList.add('open'); $('#scrim').classList.add('open'); }
+function closeSheet(){ $('#sheet').classList.remove('open'); $('#scrim').classList.remove('open');
+  openJob=null; openUnit=null; }
+
+function render(){
+  $('#viewSeg').hidden = tab !== 'jobs';
+  $('#screenTitle').textContent = tab === 'jobs' ? 'Today' : 'Equipment';
+  $('#main').innerHTML = tab === 'equip' ? renderEquip()
+    : view === 'board' ? renderBoard()
+    : view === 'cal' ? renderCal()
+    : renderList();
+  const late = units.filter(u=>u.overdue).length + rentals.filter(r=>r.overdue).length;
+  $('#equipBadge').hidden = late === 0;
+  $('#equipBadge').textContent = late;
+}
+
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-tab],[data-view],[data-job],[data-unit],[data-act]');
+  if (e.target.id === 'scrim') return closeSheet();
+  if (!t) return;
+
+  if (t.dataset.tab){
+    tab = t.dataset.tab;
+    document.querySelectorAll('[data-tab]').forEach(b =>
+      b.setAttribute('aria-selected', b.dataset.tab === tab));
+    return render();
+  }
+  if (t.dataset.view){
+    view = t.dataset.view;
+    document.querySelectorAll('[data-view]').forEach(b =>
+      b.setAttribute('aria-selected', b.dataset.view === view));
+    return render();
+  }
+  if (t.dataset.job){ openJob = jobs.find(j => j.no === t.dataset.job); return jobSheet(openJob); }
+  if (t.dataset.unit){ openUnit = units.find(u => u.tag === t.dataset.unit); return unitSheet(openUnit); }
+
+  const j = openJob, u = openUnit;
+  switch (t.dataset.act){
+    case 'accept':
+      j.acceptance = 'accepted'; j.status = 'accepted';
+      toast(`${j.no} accepted`); jobSheet(j); render(); break;
+    case 'reschedule':
+      j.acceptance = 'reschedule_requested';
+      toast('Reschedule asked — Ray will see it now'); closeSheet(); render(); break;
+    case 'advance': {
+      const i = STEPS.indexOf(j.status);
+      if (j.status === 'in_progress'){
+        const bl = blockers(j);
+        if (bl.length){ toast(`Not yet — ${bl.length} thing${bl.length>1?'s':''} outstanding`); break; }
+      }
+      j.status = STEPS[i+1];
+      if (j.status === 'on_site') toast('Clocked in at 42 Oak St');
+      else if (j.status === 'work_complete') toast('Job finished — sent for review');
+      else toast(STEP_LABEL[j.status]);
+      jobSheet(j); render(); break;
+    }
+    case 'photo': j.photos.after += 2; toast('2 after photos added'); jobSheet(j); render(); break;
+    case 'collect':
+      u.state = 'available'; u.where = 'Warehouse'; u.days = 0; u.due = null; u.overdue = false;
+      jobs.forEach(x => { x.equipment = x.equipment.filter(tag => tag !== u.tag); });
+      toast(`${u.tag} collected`); closeSheet(); render(); break;
+    case 'return-rental':
+      rentals[0].overdue = false; jobs[0].rentalOpen = false;
+      toast('Rental return recorded'); render(); break;
+    case 'co': toast('Change order — not in this prototype'); break;
+    case 'chat': toast('Job chat — not in this prototype'); break;
+    case 'move': toast('Scan the tag at the new site'); break;
+    case 'scan': toast('Camera — not in this prototype'); break;
+  }
+});
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet(); });
+render();
+</script>
