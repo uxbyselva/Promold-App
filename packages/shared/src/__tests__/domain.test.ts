@@ -1,0 +1,361 @@
+import { describe, expect, it } from 'vitest';
+import {
+  can,
+  isLegalTransition,
+  transitionsFrom,
+  placementDays,
+  placementCost,
+  isAvailableForWindow,
+  isPickupOverdue,
+  daysOverdue,
+  completionBlockers,
+  canComplete,
+  findConflicts,
+  generateVisits,
+  shouldEscalate,
+  summarise,
+  entryHours,
+  isEditable,
+  canRecall,
+  needsOwnerApproval,
+  mileageLogSchema,
+  purchaseRequestSchema,
+  rescheduleRequestSchema,
+} from '../index.js';
+
+const day = 86_400_000;
+const at = (isoDay: number, hour = 0) =>
+  new Date(Date.UTC(2026, 0, isoDay, hour, 0, 0));
+
+describe('permissions', () => {
+  const tech = { permissions: { 'equipment.place': true } as const };
+
+  it('grants what the role grants', () => {
+    expect(can(tech, 'equipment.place')).toBe(true);
+  });
+
+  it('denies what the role does not grant', () => {
+    expect(can(tech, 'purchase.approve')).toBe(false);
+  });
+
+  it('honours a per-user override, which is the point of flags over role names', () => {
+    const senior = { ...tech, permissionOverrides: { 'purchase.approve': true } as const };
+    expect(can(senior, 'purchase.approve')).toBe(true);
+  });
+
+  it('denies everything to a deactivated user', () => {
+    expect(can({ ...tech, isActive: false }, 'equipment.place')).toBe(false);
+  });
+
+  it('denies everything when there is no user', () => {
+    expect(can(null, 'equipment.place')).toBe(false);
+  });
+});
+
+describe('job transitions', () => {
+  it('permits the normal path', () => {
+    expect(isLegalTransition('in_progress', 'work_complete')).toBe(true);
+  });
+
+  it('refuses a jump that skips the work', () => {
+    expect(isLegalTransition('draft', 'closed')).toBe(false);
+    expect(isLegalTransition('scheduled', 'work_complete')).toBe(false);
+  });
+
+  it('allows rework from work_complete back to in_progress', () => {
+    expect(isLegalTransition('work_complete', 'in_progress')).toBe(true);
+  });
+
+  it('offers no moves out of a closed job', () => {
+    expect(transitionsFrom('closed')).toHaveLength(0);
+  });
+
+  it('requires a reason to cancel', () => {
+    const cancel = transitionsFrom('in_progress').find((t) => t.to === 'cancelled');
+    expect(cancel?.guard).toBe('reason');
+  });
+});
+
+describe('equipment placement', () => {
+  it('rounds part days up, because availability is consumed by the day', () => {
+    const p = { startedAt: at(1, 9), expectedEndAt: null, endedAt: at(1, 17) };
+    expect(placementDays(p)).toBe(1);
+  });
+
+  it('counts a multi-day staging', () => {
+    const p = { startedAt: at(1), expectedEndAt: null, endedAt: at(4) };
+    expect(placementDays(p)).toBe(3);
+  });
+
+  it('keeps accruing cost while a unit is still out', () => {
+    const p = { startedAt: at(1), expectedEndAt: at(2), endedAt: null };
+    expect(placementCost(p, 18, at(4))).toBe(3 * 18);
+  });
+
+  it('flags an uncollected unit past its expected date', () => {
+    const p = { startedAt: at(1), expectedEndAt: at(2), endedAt: null };
+    expect(isPickupOverdue(p, at(5))).toBe(true);
+    expect(daysOverdue(p, at(5))).toBe(3);
+  });
+
+  it('does not flag a unit that came back on time', () => {
+    const p = { startedAt: at(1), expectedEndAt: at(3), endedAt: at(2) };
+    expect(isPickupOverdue(p, at(5))).toBe(false);
+  });
+
+  describe('availability', () => {
+    // Planning uses the expected end; custody uses the actual one.
+    const staged = { startedAt: at(1), expectedEndAt: at(3), endedAt: null };
+
+    it('refuses a window that overlaps the planned deployment', () => {
+      expect(isAvailableForWindow([staged], at(2), at(2, 12))).toBe(false);
+    });
+
+    it('allows a window after the planned return, even before collection', () => {
+      expect(isAvailableForWindow([staged], at(10), at(11))).toBe(true);
+    });
+
+    it('treats an open-ended placement as occupied indefinitely', () => {
+      const openEnded = { startedAt: at(1), expectedEndAt: null, endedAt: null };
+      expect(isAvailableForWindow([openEnded], at(100), at(101))).toBe(false);
+    });
+
+    it('frees a unit once its placement actually closed', () => {
+      const returned = { startedAt: at(1), expectedEndAt: at(9), endedAt: at(2) };
+      expect(isAvailableForWindow([returned], at(3), at(4))).toBe(true);
+    });
+  });
+});
+
+describe('completion gates', () => {
+  const requirements = {
+    photos_before: true,
+    photos_after: true,
+    customer_signature: true,
+    materials_logged: true,
+    forms: ['ppe_safety'],
+  };
+
+  const clean = {
+    hasBeforePhotos: true,
+    hasAfterPhotos: true,
+    hasCompletionSignature: true,
+    materialsLoggedOrNoneUsed: true,
+    completedFormKeys: ['ppe_safety'],
+    openTimeEntryCount: 0,
+    equipmentStagedWithoutPickup: 0,
+    rentalsOutstandingWithoutReturnDate: 0,
+  };
+
+  it('passes when everything is in place', () => {
+    expect(canComplete(requirements, clean)).toBe(true);
+  });
+
+  it('names each missing item rather than failing opaquely', () => {
+    const blockers = completionBlockers(requirements, {
+      ...clean,
+      hasAfterPhotos: false,
+      completedFormKeys: [],
+    });
+    expect(blockers.map((b) => b.key)).toEqual(['photos_after', 'form:ppe_safety']);
+  });
+
+  it('blocks on equipment left at site with no pickup scheduled', () => {
+    const blockers = completionBlockers(requirements, {
+      ...clean,
+      equipmentStagedWithoutPickup: 2,
+    });
+    expect(blockers).toHaveLength(1);
+    expect(blockers[0]!.action).toBe('schedule_pickup');
+  });
+
+  it('allows equipment to stay on site when a pickup is scheduled', () => {
+    // Equipment staying put between visits is normal; only the unscheduled
+    // case is a problem.
+    expect(canComplete(requirements, { ...clean, equipmentStagedWithoutPickup: 0 })).toBe(true);
+  });
+
+  it('blocks while anyone is still clocked in', () => {
+    const blockers = completionBlockers(requirements, { ...clean, openTimeEntryCount: 1 });
+    expect(blockers[0]!.action).toBe('clock_out');
+  });
+
+  it('skips requirements the template does not ask for', () => {
+    expect(canComplete({ photos_before: true }, { ...clean, hasAfterPhotos: false })).toBe(true);
+  });
+});
+
+describe('scheduling', () => {
+  it('reports approved time off as a conflict', () => {
+    const conflicts = findConflicts({
+      window: { start: at(5, 8), end: at(5, 16) },
+      assignments: [],
+      timeOff: [{ start: at(4), end: at(7), kind: 'vacation' }],
+    });
+    expect(conflicts[0]!.kind).toBe('time_off');
+  });
+
+  it('reports a double booking', () => {
+    const conflicts = findConflicts({
+      window: { start: at(5, 8), end: at(5, 16) },
+      assignments: [
+        { start: at(5, 12), end: at(5, 18), jobId: 'j1', jobNumber: 'J00101', title: 'Inspection' },
+      ],
+      timeOff: [],
+    });
+    expect(conflicts[0]!.kind).toBe('double_booked');
+  });
+
+  it('ignores the job being rescheduled', () => {
+    const conflicts = findConflicts({
+      window: { start: at(5, 8), end: at(5, 16) },
+      assignments: [
+        { start: at(5, 12), end: at(5, 18), jobId: 'j1', jobNumber: 'J00101', title: 'Inspection' },
+      ],
+      timeOff: [],
+      excludeJobId: 'j1',
+    });
+    expect(conflicts).toHaveLength(0);
+  });
+
+  it('treats back-to-back bookings as no conflict', () => {
+    const conflicts = findConflicts({
+      window: { start: at(5, 16), end: at(5, 20) },
+      assignments: [
+        { start: at(5, 8), end: at(5, 16), jobId: 'j1', jobNumber: 'J00101', title: 'Inspection' },
+      ],
+      timeOff: [],
+    });
+    expect(conflicts).toHaveLength(0);
+  });
+
+  it('splits a multi-day job into one visit per day', () => {
+    const visits = generateVisits(at(1), at(3), 8, 8);
+    expect(visits).toHaveLength(3);
+    expect(visits[0]!.start.getHours()).toBe(8);
+  });
+
+  it('returns no visits for an inverted range rather than looping', () => {
+    expect(generateVisits(at(5), at(1), 8, 8)).toHaveLength(0);
+  });
+
+  it('escalates an unaccepted assignment inside the window', () => {
+    const start = at(5, 8);
+    expect(shouldEscalate(start, 'pending', 12, new Date(start.getTime() - 6 * 3_600_000))).toBe(true);
+  });
+
+  it('does not escalate once accepted', () => {
+    const start = at(5, 8);
+    expect(shouldEscalate(start, 'accepted', 12, new Date(start.getTime() - 1 * 3_600_000))).toBe(false);
+  });
+
+  it('does not escalate while there is still time', () => {
+    const start = at(5, 8);
+    expect(shouldEscalate(start, 'pending', 12, new Date(start.getTime() - 2 * day))).toBe(false);
+  });
+});
+
+describe('costing', () => {
+  it('sums the components and derives margin', () => {
+    const s = summarise(
+      { labour: 660, materials: 300, purchases: 100, mileage: 40, equipment: 192, rentals: 270, other: 0 },
+      8600,
+    );
+    expect(s.totalCost).toBe(1562);
+    expect(s.margin).toBe(7038);
+    expect(s.marginPct).toBeCloseTo(81.84, 1);
+  });
+
+  it('reports a loss as a negative margin rather than hiding it', () => {
+    const s = summarise(
+      { labour: 5000, materials: 0, purchases: 0, mileage: 0, equipment: 0, rentals: 0, other: 0 },
+      4000,
+    );
+    expect(s.margin).toBe(-1000);
+  });
+
+  it('returns a null margin percentage when nothing was quoted', () => {
+    const s = summarise(
+      { labour: 100, materials: 0, purchases: 0, mileage: 0, equipment: 0, rentals: 0, other: 0 },
+      0,
+    );
+    expect(s.marginPct).toBeNull();
+  });
+
+  it('deducts breaks from clocked hours', () => {
+    expect(entryHours(at(1, 8), at(1, 16), 30)).toBe(7.5);
+  });
+
+  it('counts an open entry as zero hours', () => {
+    expect(entryHours(at(1, 8), null)).toBe(0);
+  });
+});
+
+describe('purchase requests', () => {
+  it('lets the requester edit a draft', () => {
+    expect(isEditable('draft', true, false)).toBe(true);
+  });
+
+  it('locks the requester out once submitted', () => {
+    expect(isEditable('submitted', true, false)).toBe(false);
+  });
+
+  it('lets an approver edit under review', () => {
+    expect(isEditable('under_review', false, true)).toBe(true);
+  });
+
+  it('allows recall while submitted and untouched', () => {
+    expect(canRecall('submitted', true)).toBe(true);
+    expect(canRecall('under_review', true)).toBe(false);
+  });
+
+  it('routes above-threshold spend to the owner', () => {
+    expect(needsOwnerApproval(750, 500)).toBe(true);
+    expect(needsOwnerApproval(500, 500)).toBe(false);
+  });
+});
+
+describe('validation', () => {
+  it('rejects a closing odometer below the opening one', () => {
+    const r = mileageLogSchema.safeParse({
+      vehicleId: '00000000-0000-0000-0000-000000000001',
+      tripDate: '2026-01-05',
+      odometerStart: 500,
+      odometerEnd: 400,
+    });
+    expect(r.success).toBe(false);
+  });
+
+  it('accepts a valid mileage log', () => {
+    const r = mileageLogSchema.safeParse({
+      vehicleId: '00000000-0000-0000-0000-000000000001',
+      tripDate: '2026-01-05',
+      odometerStart: 400,
+      odometerEnd: 428,
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it('requires at least one line on a purchase request', () => {
+    const r = purchaseRequestSchema.safeParse({ lines: [] });
+    expect(r.success).toBe(false);
+  });
+
+  it('requires a reason on a reschedule request', () => {
+    const r = rescheduleRequestSchema.safeParse({
+      assignmentId: '00000000-0000-0000-0000-000000000001',
+      reason: '',
+    });
+    expect(r.success).toBe(false);
+  });
+
+  it('accepts a reschedule request with a proposed time', () => {
+    const r = rescheduleRequestSchema.safeParse({
+      assignmentId: '00000000-0000-0000-0000-000000000001',
+      reason: 'Van in the shop',
+      proposedStart: '2026-01-06T08:00:00Z',
+      proposedEnd: '2026-01-06T16:00:00Z',
+    });
+    expect(r.success).toBe(true);
+  });
+});
