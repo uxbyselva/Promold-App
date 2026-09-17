@@ -109,7 +109,9 @@ what the customer was charged.
 - Equipment utilisation and rental-spend reports
 - Certification tracking with expiry alerts
 - Vehicle service, insurance and registration reminders; fuel logs
-- CSV / PDF exports, QuickBooks or Xero format
+- CSV / PDF exports for whoever keeps the books, including an approved
+  change orders report — the hand-off that stops agreed extra work going
+  unbilled
 - Change order history as a quoting input: which job types routinely grow,
   and by how much
 
@@ -119,8 +121,9 @@ the door.
 
 ## Phase 3 — Growth (as needed)
 
-- Invoicing or deeper accounting integration
-- Deposits and progress payments, if the business collects them
+- Richer exports for whoever keeps the books — never invoicing itself
+  (see the scope boundary in
+  [01-product-spec.md](01-product-spec.md) §5)
 - Customer portal — job status, reports, photos
 - Recurring job automation
 - Offline hardening if field reality demands it
@@ -160,15 +163,16 @@ the door.
 1. **Internal equipment day rate.** Needs a number per category to make
    costing meaningful. Straight-line depreciation over expected life is a
    reasonable starting basis.
-2. **Deposits and progress payments.** With no insurer, cash comes straight
-   from the homeowner. If deposits are taken or payment is staged, the app
-   should track what is owed against each job; if invoicing lives entirely
-   in the accounting package, it should not.
+2. ~~Deposits and progress payments.~~ **Answered: no.** This is a management
+   app, not a finance system. Money owed and money received are tracked
+   separately and stay that way. No payment state of any kind belongs here —
+   see the scope boundary in [01-product-spec.md](01-product-spec.md) §5.
 3. ~~Insurance / adjuster work volume.~~ **Answered:** none today, 100%
    billed direct to the customer. Documentation package deferred to Phase 2
    and driven by dispute protection rather than adjuster requirements.
 4. **Payroll export target.** Which package, so the time export matches it.
-5. **Accounting package.** QuickBooks and Xero need different export shapes.
+5. **Export format.** Which system the books are kept in, so the exports land
+   in a shape it can read. An export only — nothing is written back.
 6. **Who owns the master catalogue.** Someone has to enter and maintain the
    item list; the app cannot invent it.
 7. **Existing data.** Customer, site and inventory history to migrate, or a

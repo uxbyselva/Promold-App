@@ -10,7 +10,8 @@ remediation / restoration contractor.
 |---|---|
 | Industry | Mold remediation / restoration |
 | Team size | Under 15 (1 owner, 1–2 managers, rest field crew) |
-| Billing model | Flat price per job; a job may span multiple days |
+| Billing model | Flat price per job, billed direct to the customer; a job may span multiple days |
+| Scope | Management only — no finance, invoicing or payment tracking |
 | Connectivity | Mostly connected; short dead zones must not lose work |
 | Status | Specification — no code written yet |
 

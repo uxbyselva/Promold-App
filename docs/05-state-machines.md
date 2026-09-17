@@ -216,10 +216,14 @@ database enforces it. Detail in [06-equipment.md](06-equipment.md).
 ## 6. Rental
 
 ```
-reserved ──pick up──► on_hire ──return──► returned ──invoice reconciled──► closed
+reserved ──pick up──► on_hire ──return──► returned ──cost confirmed──► closed
                          │
                          └── past return_due ──► overdue  (alerts daily)
 ```
+
+Closing a rental means the vendor's actual charge is known and has landed on
+the job's cost. It says nothing about whether that vendor has been paid —
+that is tracked elsewhere.
 
 ## 7. Time off
 

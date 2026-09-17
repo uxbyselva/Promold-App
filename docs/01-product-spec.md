@@ -239,12 +239,42 @@ Build it in the same phase as the logging it depends on.
 - **Global audit log** across jobs, purchase requests, inventory, equipment
   and schedule changes.
 - **Reports and exports** — CSV/PDF for job costing, mileage, inventory
-  valuation, equipment utilisation, and a QuickBooks/Xero-compatible export.
+  valuation, equipment utilisation, and approved change orders. Exports feed
+  whoever keeps the books; nothing is read back in.
 
-## 5. Out of scope (for now)
+## 5. Scope boundary: management, not finance
 
-- Invoicing and payment collection — export to the accounting package
-  instead.
+This is a management app. It is not a finance system, and it must not grow
+into one. Money owed and money received are tracked separately, elsewhere,
+and that separation is deliberate.
+
+The line is:
+
+| In scope | Out of scope |
+|---|---|
+| What a job **cost us** — labour, materials, mileage, equipment days, rentals | What the customer **owes us** |
+| The quoted price, as the number margin is measured against | Invoices, statements, receivables |
+| Change orders as a record that scope and price were **agreed** | Billing that agreement |
+| Purchase approvals, as a spend control | Paying the supplier |
+| Exports for whoever does keep the books | Deposits, progress payments, payment status |
+
+The test: **cost to us is in, owed by the customer is out.** Job costing sits
+on the "in" side — it exists so the owner can see which jobs made money, not
+to work out what to bill.
+
+Two consequences worth stating plainly:
+
+1. **Approving a change order does not bill anything.** It records that the
+   customer agreed to extra scope at a price. Someone still keys that into
+   whatever tracks the money. A periodic "approved change orders" export
+   exists to make that hand-off reliable, because a change order agreed on
+   site and never billed is the same loss as one never agreed at all.
+2. **No feature may be added that tracks payment state**, however small it
+   seems — no "paid" flag, no deposit field, no balance. Once one exists, the
+   app becomes a second, worse source of financial truth, and the two drift.
+
+## 6. Also out of scope
+
 - Estimating / quoting workflow. A job carries a base quoted price entered by
   hand. Since the quote is the only revenue number, building the estimate
   moves to Phase 2 once costing data exists to inform it.
@@ -255,7 +285,7 @@ Build it in the same phase as the logging it depends on.
 - Multi-company / multi-tenant SaaS. The schema carries an `org_id` so this
   stays possible, but it is not a product goal.
 
-## 6. Design principles
+## 7. Design principles
 
 1. **Append-only history for anything people argue about** — schedules,
    approvals, stock, equipment location. Never edit history in place.
@@ -266,4 +296,6 @@ Build it in the same phase as the logging it depends on.
    form at the end of a hard day.
 4. **Nothing hard-deletes.** Soft delete with actor and reason.
 5. **Warn, don't block, on physical-world imprecision** (geofence radius,
-   odometer gaps). Hard-block only on money and compliance.
+   odometer gaps). Hard-block only on spend approval and compliance.
+6. **Management, not finance.** The app records what work cost and what was
+   agreed. It never records what is owed or what has been paid. See §5.
