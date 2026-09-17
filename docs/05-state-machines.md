@@ -88,6 +88,8 @@ pass. Equipment staged at the site legitimately stays put between visits.
 6. **No owned equipment is still staged at the site without a scheduled
    pickup**, and no rental for this job is still outstanding without a
    scheduled return.
+7. **No change order is still undecided.** Work billed flat and direct means
+   unagreed extra work is never collected once the crew drives away.
 
 Gate 6 is the one that stops air scrubbers being forgotten at finished jobs.
 The completion screen lists what is outstanding with a one-tap
@@ -168,6 +170,29 @@ or delete rights on that table.
 **Receipt → stock.** Marking a line received writes a `receipt` stock
 movement into the chosen location and updates the item's average cost. This
 is the single mechanism that keeps inventory numbers worth believing.
+
+## 4a. Change order
+
+```
+draft ──present (priced)──► presented ──┬─ approve ─► approved  → contract price moves
+  │                                      └─ decline ─► rejected  (reason required)
+  └──cancel──► cancelled
+```
+
+| From | To | Actor | Guard |
+|---|---|---|---|
+| draft | presented | Manager, Owner | Amount required |
+| presented | approved | Manager, Owner | Signature, or a named person for a verbal agreement |
+| presented | rejected | Manager, Owner | Reason required |
+| draft/presented | cancelled | Manager, Owner | — |
+
+Anyone with `changeorder.draft` may create a draft — the crew lead who opens
+the wall is the one who knows. Pricing and presenting need
+`changeorder.manage`.
+
+Approval records *how* the customer agreed, not only that they did.
+Residential work is often agreed verbally on site, and which it was matters
+if the final bill is later questioned.
 
 ## 5. Equipment placement
 

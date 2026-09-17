@@ -23,13 +23,21 @@ export interface CompletionState {
   openTimeEntryCount: number;
   equipmentStagedWithoutPickup: number;
   rentalsOutstandingWithoutReturnDate: number;
+  unsettledChangeOrders: number;
 }
 
 export interface Blocker {
   key: string;
   message: string;
   /** What the completion screen should offer to resolve it. */
-  action: 'add_photos' | 'sign' | 'log_materials' | 'fill_form' | 'clock_out' | 'schedule_pickup';
+  action:
+    | 'add_photos'
+    | 'sign'
+    | 'log_materials'
+    | 'fill_form'
+    | 'clock_out'
+    | 'schedule_pickup'
+    | 'settle_change_order';
 }
 
 export function completionBlockers(
@@ -92,6 +100,16 @@ export function completionBlockers(
       key: 'rentals',
       message: `${state.rentalsOutstandingWithoutReturnDate} rental(s) outstanding with no return date`,
       action: 'schedule_pickup',
+    });
+  }
+
+  // Billed flat and direct to the customer: extra work still waiting on an
+  // answer is money the job will never collect once the crew drives away.
+  if (state.unsettledChangeOrders > 0) {
+    blockers.push({
+      key: 'change_orders',
+      message: `${state.unsettledChangeOrders} change order(s) not yet agreed with the customer`,
+      action: 'settle_change_order',
     });
   }
 

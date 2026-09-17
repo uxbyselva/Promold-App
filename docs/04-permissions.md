@@ -46,6 +46,9 @@ Legend: ● full · ◐ limited (see notes) · ○ none
 | Approve reschedule request | ● | ● | ○ | ○ | ○ |
 | Change job status to done | ● | ● | ● | ● | ○ |
 | Manage job templates | ● | ● | ○ | ○ | ○ |
+| Draft a change order | ● | ● | ● | ● | ○ |
+| Price and present a change order | ● | ● | ○ | ○ | ○ |
+| Record the customer's decision | ● | ● | ○ | ○ | ○ |
 
 ¹ Own assignments plus jobs at sites their crew is scheduled to. A crew lead
 sees the whole crew's schedule; a technician sees their own.

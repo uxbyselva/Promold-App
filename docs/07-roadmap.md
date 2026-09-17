@@ -15,9 +15,17 @@ Exit: a user can log in on both clients and see a screen gated by their role.
 
 ## Phase 1 — MVP (8–10 weeks)
 
-The cut line is the three problems in
+The cut line is the four problems in
 [01-product-spec.md](01-product-spec.md) §1: schedule churn, lost equipment,
-unknown margin. Everything here serves one of them.
+unknown margin, and scope growth given away. Everything here serves one of
+them.
+
+**Revised for direct customer billing.** With no insurance work, the quote is
+the only revenue number and nothing absorbs an overrun. Two things moved into
+this phase as a result: **change orders**, because unpriced scope growth is
+the largest margin leak in flat-price work, and the **job costing
+dashboard**, because it is the only feedback loop on quoting. The insurance
+documentation package moved out.
 
 **Scheduling**
 - Customers and sites
@@ -39,6 +47,19 @@ unknown margin. Everything here serves one of them.
 - Photo capture with before/during/after and room tagging
 - Job chat
 - Completion gates
+
+**Change orders**
+- Draft from site with photos, by anyone on the job
+- Price and present, manager only
+- Customer decision recorded with method (signature / verbal / written)
+- Derived contract price = base quote + approved change orders
+- Completion blocked while a change order is undecided
+
+**Job costing**
+- Labour, materials, purchases, mileage, equipment and rentals against the
+  contract price
+- Margin per job, and margin by job type
+- Owner and manager only
 
 **Purchasing**
 - Requests with line items, tagged approver
@@ -68,15 +89,19 @@ because the completion gate depends on it.
 - Offline queue for field writes
 
 Exit: a job can be scheduled, accepted, worked, documented and closed
-entirely in the app, with materials, equipment and mileage recorded against
-it.
+entirely in the app, with materials, equipment, mileage and any change orders
+recorded against it — and the owner can see what it actually cost against
+what the customer was charged.
 
-## Phase 2 — Making the data pay (4–6 weeks)
+## Phase 2 — Quoting and proof (4–6 weeks)
 
-- **Job costing dashboard** — labour, materials, purchases, mileage,
-  equipment against the quoted price, with margin per job and per job type
+- **Estimating and quoting**, informed by Phase 1's costing data. With every
+  job billed flat and direct, quote accuracy is the profit lever; this is
+  where the costing history starts paying for itself.
 - Checklists and reading sheets (moisture, humidity, containment, PPE, chain
-  of custody) with PDF job reports
+  of custody) with PDF job reports — now driven by customer trust and
+  dispute protection rather than adjuster requirements, so before/after
+  evidence matters more than clinical per-room detail
 - Customer signature capture, both stages
 - Time-off requests and approval
 - Low-stock alerts generating draft purchase requests
@@ -85,20 +110,25 @@ it.
 - Certification tracking with expiry alerts
 - Vehicle service, insurance and registration reminders; fuel logs
 - CSV / PDF exports, QuickBooks or Xero format
+- Change order history as a quoting input: which job types routinely grow,
+  and by how much
 
-Phase 2 is where the crew's logging starts producing something the crew's
-boss can act on. Do not let it slip far past Phase 1 — logging without a
-visible payoff reads as surveillance and adoption decays.
+Phase 2 turns the Phase 1 record into better quotes. A job type whose change
+orders run 15% above quote every time is a job type that is underpriced at
+the door.
 
 ## Phase 3 — Growth (as needed)
 
-- Estimates and quoting, feeding `quoted_price`
 - Invoicing or deeper accounting integration
+- Deposits and progress payments, if the business collects them
 - Customer portal — job status, reports, photos
 - Recurring job automation
 - Offline hardening if field reality demands it
 - Subcontractor access
 - Analytics: revenue per job type, tech productivity, callback rate
+- Drying logs with psychrometrics (IICRC S500), lab result import and
+  clearance documentation — pulled forward if insurance work ever starts
+- Insurance claim handling, if the business takes it on
 
 ## Build order rationale
 
@@ -108,6 +138,9 @@ visible payoff reads as surveillance and adoption decays.
    is not faster than sending a text, nothing else matters.
 3. **Equipment early, not late.** The job completion gate depends on it, and
    it is the feature with the clearest cash return.
+   **Change orders for the same reason.** The completion gate depends on
+   them too, and unpriced scope growth costs more per job than a forgotten
+   scrubber.
 4. **Inventory before purchasing receipt.** Receiving must have somewhere to
    land or stock numbers are wrong from day one.
 5. **Costing after its inputs exist**, but in the very next phase.
@@ -127,14 +160,18 @@ visible payoff reads as surveillance and adoption decays.
 1. **Internal equipment day rate.** Needs a number per category to make
    costing meaningful. Straight-line depreciation over expected life is a
    reasonable starting basis.
-2. **Insurance / adjuster work volume.** If a large share of work is
-   insurance-funded, the checklist and PDF report package moves up into the
-   MVP — adjusters ask for documentation in a specific shape.
-3. **Payroll export target.** Which package, so the time export matches it.
-4. **Accounting package.** QuickBooks and Xero need different export shapes.
-5. **Who owns the master catalogue.** Someone has to enter and maintain the
+2. **Deposits and progress payments.** With no insurer, cash comes straight
+   from the homeowner. If deposits are taken or payment is staged, the app
+   should track what is owed against each job; if invoicing lives entirely
+   in the accounting package, it should not.
+3. ~~Insurance / adjuster work volume.~~ **Answered:** none today, 100%
+   billed direct to the customer. Documentation package deferred to Phase 2
+   and driven by dispute protection rather than adjuster requirements.
+4. **Payroll export target.** Which package, so the time export matches it.
+5. **Accounting package.** QuickBooks and Xero need different export shapes.
+6. **Who owns the master catalogue.** Someone has to enter and maintain the
    item list; the app cannot invent it.
-6. **Existing data.** Customer, site and inventory history to migrate, or a
+7. **Existing data.** Customer, site and inventory history to migrate, or a
    clean start.
-7. **Store accounts.** Apple Developer and Google Play enrolment should start
+8. **Store accounts.** Apple Developer and Google Play enrolment should start
    early — verification can take days to weeks.

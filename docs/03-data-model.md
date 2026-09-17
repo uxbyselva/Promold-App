@@ -54,7 +54,7 @@ required, signature required, forms required).
 | `priority` | |
 | `scheduled_start`, `scheduled_end` | May span multiple days |
 | `actual_start`, `actual_end` | |
-| `quoted_price` | The flat price billed for the whole job |
+| `quoted_price` | The BASE flat price. Amount owed is `job_contract_price()` |
 | `insurance_claim_no`, `adjuster_contact` | Nullable |
 | `recurrence_rule` | RRULE, nullable |
 | `parent_job_id` | For recurrence instances |
@@ -149,6 +149,32 @@ rather than rejecting the whole request and forcing it to be retyped.
 Written by a database trigger, not by application code, so nothing can bypass
 it. Never updatable or deletable — enforced by RLS.
 
+## 5a. Change orders
+
+All work is billed flat and direct to the customer, so scope growth is either
+priced and agreed or absorbed. A change order is that agreement.
+
+**`change_orders`** — `job_id`, `seq` (CO-1, CO-2, assigned server-side),
+`title`, `description`, `amount` (negative for a descope credit),
+`added_hours`, `status`, `presented_at`, `decided_at`, `approval_method`
+(signature / verbal / written), `customer_name`, `signature_id`,
+`decision_reason`, `created_by`, `presented_by`, `recorded_by`.
+
+**`change_order_photos`** — links the photos that justify the change to it.
+The crew lead who opens a wall photographs what they found.
+
+Constraints: a change order cannot be presented without a price; a signature
+approval requires the signature; a verbal approval requires a named person.
+
+**Contract price is derived**, not stored:
+
+```
+job_contract_price(job) = jobs.quoted_price + Σ approved change_orders.amount
+```
+
+The base quote stays visible beside it, so the growth over a job is
+auditable, and `job_costs` measures margin against the contract price.
+
 ## 6. Vehicles and mileage
 
 **`vehicles`** — `name`, `plate`, `make_model`, `year`,
@@ -210,7 +236,7 @@ mileage    = Σ mileage_logs.distance × org mileage rate
 equipment  = Σ owned placement days × internal day rate
            + Σ equipment_rentals.actual_cost
 other      = Σ manual cost entries
-margin     = jobs.quoted_price − total
+margin     = job_contract_price(job) − total
 ```
 
 Deriving rather than storing means the costing model can be reshaped later

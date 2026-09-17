@@ -5,4 +5,5 @@ export * from './domain/equipment.js';
 export * from './domain/costing.js';
 export * from './domain/scheduling.js';
 export * from './domain/completion.js';
+export * from './domain/change-orders.js';
 export * from './schemas/index.js';

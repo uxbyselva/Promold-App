@@ -271,8 +271,8 @@ select rental_cost into v_n from job_costs where job_id = v_job;
 perform assert(v_n = 270.00, format('rental cost lands on the job (got %s)', v_n));
 
 perform assert(
-  (select round(margin, 2) = round(quoted_price - total_cost, 2) from job_costs where job_id = v_job),
-  'margin is the quoted price less total cost');
+  (select round(margin, 2) = round(contract_price - total_cost, 2) from job_costs where job_id = v_job),
+  'margin is the contract price less total cost');
 
 -- 16. Permission flags -----------------------------------------------------
 perform assert(has_permission('purchase.approve_unlimited'),
@@ -301,6 +301,121 @@ where id = '00000000-0000-0000-0000-00000000a004';
 
 perform assert(has_permission('purchase.approve'),
   'a per-user override grants a permission the role does not');
+
+perform set_config('request.jwt.claim.sub', '', true);
+
+-- 17. Change orders ---------------------------------------------------------
+-- Work is billed flat and direct to the customer, so scope growth is either
+-- agreed and priced or done for free.
+perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000a002', true);
+
+insert into change_orders (id, org_id, job_id, title, description, created_by)
+values ('00000000-0000-0000-0000-00000000ca01', v_org, v_job,
+        'Rot behind north wall',
+        'Framing behind the north wall is rotted through; removal and replacement of 3 studs.',
+        '00000000-0000-0000-0000-00000000a003');
+
+perform assert(
+  (select seq from change_orders where id = '00000000-0000-0000-0000-00000000ca01') = 1,
+  'change orders are numbered per job, assigned server side');
+
+-- An unpriced change order cannot be put in front of the customer.
+perform assert_raises($q$
+  select present_change_order('00000000-0000-0000-0000-00000000ca01')
+$q$, 'presenting a change order without a price is rejected');
+
+perform present_change_order('00000000-0000-0000-0000-00000000ca01', 1250.00);
+
+perform assert(
+  (select status from change_orders where id = '00000000-0000-0000-0000-00000000ca01')
+    = 'presented',
+  'a priced change order can be presented');
+
+-- Money still awaiting an answer blocks completion: once the crew drives away
+-- it will never be collected.
+perform assert(
+  exists (
+    select 1 from unnest(job_completion_blockers(v_job)) b
+    where b like '%change order%'
+  ),
+  'an undecided change order blocks job completion');
+
+-- Approval has to record who agreed and how.
+perform assert_raises($q$
+  select decide_change_order('00000000-0000-0000-0000-00000000ca01', true, 'verbal')
+$q$, 'a verbal approval without a named person is rejected');
+
+perform assert_raises($q$
+  select decide_change_order('00000000-0000-0000-0000-00000000ca01', true, 'signature')
+$q$, 'a signature approval without the signature is rejected');
+
+perform assert_raises($q$
+  select decide_change_order('00000000-0000-0000-0000-00000000ca01', false, 'verbal')
+$q$, 'declining without a reason is rejected');
+
+perform decide_change_order('00000000-0000-0000-0000-00000000ca01', true, 'verbal',
+                            'Helen Brooks');
+
+perform assert(
+  (select approval_method from change_orders where id = '00000000-0000-0000-0000-00000000ca01')
+    = 'verbal',
+  'how the customer agreed is recorded, not just that they did');
+
+perform assert(
+  not exists (
+    select 1 from unnest(job_completion_blockers(v_job)) b
+    where b like '%change order%'
+  ),
+  'a decided change order no longer blocks completion');
+
+-- 18. Contract price ---------------------------------------------------------
+perform assert(
+  job_contract_price(v_job) = 8600.00 + 1250.00,
+  'the contract price is the base quote plus approved change orders');
+
+perform assert(
+  (select base_price from job_costs where job_id = v_job) = 8600.00,
+  'the original quote stays visible alongside the contract price');
+
+perform assert(
+  (select contract_price from job_costs where job_id = v_job) = 9850.00,
+  'job costing measures margin against the contract price');
+
+-- A rejected change order changes nothing.
+insert into change_orders (id, org_id, job_id, title, description, amount, created_by)
+values ('00000000-0000-0000-0000-00000000ca02', v_org, v_job, 'Repaint affected rooms',
+        'Customer asked about repainting.', 900.00,
+        '00000000-0000-0000-0000-00000000a002');
+perform present_change_order('00000000-0000-0000-0000-00000000ca02');
+perform decide_change_order('00000000-0000-0000-0000-00000000ca02', false, 'verbal',
+                            null, null, 'Customer will handle painting themselves');
+
+perform assert(
+  job_contract_price(v_job) = 9850.00,
+  'a declined change order does not move the contract price');
+
+-- A descope credit is a change order too.
+insert into change_orders (id, org_id, job_id, title, description, amount, created_by)
+values ('00000000-0000-0000-0000-00000000ca03', v_org, v_job, 'Crawlspace removed from scope',
+        'Customer had the crawlspace handled separately.', -400.00,
+        '00000000-0000-0000-0000-00000000a002');
+perform present_change_order('00000000-0000-0000-0000-00000000ca03');
+perform decide_change_order('00000000-0000-0000-0000-00000000ca03', true, 'verbal', 'Helen Brooks');
+
+perform assert(
+  job_contract_price(v_job) = 9450.00,
+  'a negative change order credits the contract price');
+
+-- 19. Who may do what with change orders -------------------------------------
+perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000a003', true);
+perform assert(has_permission('changeorder.draft'),
+  'a crew lead can draft a change order from site');
+perform assert(not has_permission('changeorder.manage'),
+  'a crew lead cannot price or present one');
+
+perform assert_raises($q$
+  select present_change_order('00000000-0000-0000-0000-00000000ca01', 100)
+$q$, 'a crew lead cannot present a change order');
 
 perform set_config('request.jwt.claim.sub', '', true);
 

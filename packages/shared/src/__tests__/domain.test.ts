@@ -21,6 +21,13 @@ import {
   mileageLogSchema,
   purchaseRequestSchema,
   rescheduleRequestSchema,
+  contractPrice,
+  unsettled,
+  canPresent,
+  canDecide,
+  canEdit,
+  approvalGap,
+  type ChangeOrder,
 } from '../index.js';
 
 const day = 86_400_000;
@@ -145,6 +152,7 @@ describe('completion gates', () => {
     openTimeEntryCount: 0,
     equipmentStagedWithoutPickup: 0,
     rentalsOutstandingWithoutReturnDate: 0,
+    unsettledChangeOrders: 0,
   };
 
   it('passes when everything is in place', () => {
@@ -178,6 +186,12 @@ describe('completion gates', () => {
   it('blocks while anyone is still clocked in', () => {
     const blockers = completionBlockers(requirements, { ...clean, openTimeEntryCount: 1 });
     expect(blockers[0]!.action).toBe('clock_out');
+  });
+
+  it('blocks while a change order is still unagreed', () => {
+    const blockers = completionBlockers(requirements, { ...clean, unsettledChangeOrders: 1 });
+    expect(blockers).toHaveLength(1);
+    expect(blockers[0]!.action).toBe('settle_change_order');
   });
 
   it('skips requirements the template does not ask for', () => {
@@ -312,6 +326,73 @@ describe('purchase requests', () => {
   it('routes above-threshold spend to the owner', () => {
     expect(needsOwnerApproval(750, 500)).toBe(true);
     expect(needsOwnerApproval(500, 500)).toBe(false);
+  });
+});
+
+describe('change orders', () => {
+  const co = (over: Partial<ChangeOrder> = {}): ChangeOrder => ({
+    id: 'co1',
+    seq: 1,
+    title: 'Rot behind north wall',
+    amount: 1250,
+    status: 'draft',
+    ...over,
+  });
+
+  it('adds approved change orders to the base quote', () => {
+    const p = contractPrice(8600, [co({ status: 'approved' })]);
+    expect(p.contractPrice).toBe(9850);
+    expect(p.basePrice).toBe(8600);
+  });
+
+  it('ignores a declined change order', () => {
+    const p = contractPrice(8600, [co({ status: 'rejected' })]);
+    expect(p.contractPrice).toBe(8600);
+  });
+
+  it('treats a descope as a credit', () => {
+    const p = contractPrice(8600, [co({ status: 'approved', amount: -400 })]);
+    expect(p.contractPrice).toBe(8200);
+  });
+
+  it('reports presented work separately as money not yet won', () => {
+    const p = contractPrice(8600, [co({ status: 'presented' })]);
+    expect(p.contractPrice).toBe(8600);
+    expect(p.pendingTotal).toBe(1250);
+  });
+
+  it('counts drafts and presented as unsettled', () => {
+    const list = [co({ status: 'draft' }), co({ status: 'presented' }), co({ status: 'approved' })];
+    expect(unsettled(list)).toHaveLength(2);
+  });
+
+  it('refuses to present an unpriced change order', () => {
+    expect(canPresent(co({ amount: null }), true)).toBe(false);
+    expect(canPresent(co(), true)).toBe(true);
+  });
+
+  it('keeps pricing and presenting away from the crew', () => {
+    expect(canPresent(co(), false)).toBe(false);
+    expect(canDecide(co({ status: 'presented' }), false)).toBe(false);
+  });
+
+  it('lets the author edit their own draft', () => {
+    expect(canEdit(co(), true, false)).toBe(true);
+    expect(canEdit(co({ status: 'presented' }), true, false)).toBe(false);
+  });
+
+  it('locks an approved change order for everyone', () => {
+    expect(canEdit(co({ status: 'approved' }), true, true)).toBe(false);
+  });
+
+  it('requires a signature for a signed approval', () => {
+    expect(approvalGap('signature', {})).toMatch(/signature/i);
+    expect(approvalGap('signature', { signatureId: 's1' })).toBeNull();
+  });
+
+  it('requires a named person for a verbal approval', () => {
+    expect(approvalGap('verbal', {})).toMatch(/who agreed/i);
+    expect(approvalGap('verbal', { customerName: 'Helen Brooks' })).toBeNull();
   });
 });
 
