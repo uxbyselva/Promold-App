@@ -10,8 +10,14 @@ starting `eyJ...`. They are not remotely equivalent.
 
 | Key | What it can do | Where it may go |
 |---|---|---|
-| **anon public** | Only what the signed-in user may do. Row-level security applies. | Browser bundle, `.env.local`, fine to share with your developer |
-| **service_role** | **Bypasses row-level security completely.** Every table, every row, no permission checks. Reads cost rates and prices regardless of role. | A server-side secret store. Nothing else. |
+| **publishable** (`sb_publishable_…`) or legacy **anon public** (`eyJ…`) | Only what the signed-in user may do. Row-level security applies. | Browser bundle, `.env.local`, fine to share with your developer |
+| **secret** (`sb_secret_…`) or legacy **service_role** (`eyJ…`) | **Bypasses row-level security completely.** Every table, every row, no permission checks. Reads cost rates and prices regardless of role. | A server-side secret store. Nothing else. |
+
+Supabase is moving from the legacy JWT pair to publishable/secret keys. A
+project that has disabled the legacy pair answers every request signed with an
+old key with **"Legacy API keys are disabled"** — switch the browser key to
+the publishable one and redeploy. Disabling the legacy pair also revokes the
+old service_role key, which is the cleanest way to deal with one that leaked.
 
 They are told apart by decoding the middle section, which carries
 `"role":"anon"` or `"role":"service_role"`. If you are about to send a key to

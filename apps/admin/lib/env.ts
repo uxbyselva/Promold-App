@@ -8,23 +8,53 @@
  * computed key cannot be substituted, the values never reached the browser —
  * the app reported missing configuration on a deployment whose variables were
  * set correctly all along.
- *
- * Only the anon key is ever read here. It is safe in a browser bundle because
- * row-level security is what protects the data — it grants no more than the
- * signed-in user already has. The service_role key bypasses RLS entirely and
- * has no place in this app; if you find yourself reaching for it, the answer
- * is a policy or a security-definer function, not a bigger key.
  */
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-function missing(name: string): never {
+// Supabase issues publishable keys (sb_publishable_…) to new projects and has
+// begun disabling the legacy JWT anon keys (eyJ…). Both go in the same place
+// and mean the same thing to the client, so accept either name.
+const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+const legacyAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const browserKey = publishableKey ?? legacyAnonKey;
+
+function missing(what: string): never {
   throw new Error(
-    `${name} is not set. In Vercel: Settings → Environment Variables, then ` +
-      `redeploy — these are read at build time. Locally: copy ` +
-      `apps/admin/.env.example to .env.local.`,
+    `${what} In Vercel: Settings → Environment Variables, then redeploy — ` +
+      `these are read at build time. Locally: copy apps/admin/.env.example ` +
+      `to .env.local.`,
   );
 }
 
-export const SUPABASE_URL = () => url ?? missing('NEXT_PUBLIC_SUPABASE_URL');
-export const SUPABASE_ANON_KEY = () => anonKey ?? missing('NEXT_PUBLIC_SUPABASE_ANON_KEY');
+/**
+ * Refuses a key that bypasses row-level security.
+ *
+ * Anything reaching this file is compiled into a public JavaScript bundle, so
+ * a secret or service_role key here would hand every visitor unrestricted
+ * read and write on every table. The base64 fragment is what
+ * `"role":"service_role"` encodes to inside a JWT payload, which avoids
+ * decoding the token just to check it.
+ */
+function rejectIfPrivileged(key: string): string {
+  const looksPrivileged =
+    key.startsWith('sb_secret_') || key.includes('InJvbGUiOiJzZXJ2aWNlX3JvbGUi');
+
+  if (looksPrivileged) {
+    throw new Error(
+      'That is a secret / service_role key, and it is about to be published in ' +
+        'a browser bundle where it would bypass every row-level security ' +
+        'policy. Use the publishable key (sb_publishable_…) instead.',
+    );
+  }
+  return key;
+}
+
+export const SUPABASE_URL = () => url ?? missing('NEXT_PUBLIC_SUPABASE_URL is not set.');
+
+export const SUPABASE_ANON_KEY = () =>
+  browserKey
+    ? rejectIfPrivileged(browserKey)
+    : missing(
+        'No Supabase browser key. Set NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ' +
+          '(sb_publishable_…) or NEXT_PUBLIC_SUPABASE_ANON_KEY.',
+      );
