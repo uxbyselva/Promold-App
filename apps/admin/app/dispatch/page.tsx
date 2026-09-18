@@ -63,10 +63,13 @@ export default async function Dispatch({
       .gte('ends_at', `${day}T00:00:00`),
   ]);
 
-  const { data: assignments } = await supabase
-    .from('job_assignments')
-    .select('job_id, user_id, acceptance_status')
-    .in('job_id', (jobs ?? []).map((j) => j.id));
+  const jobIds = (jobs ?? []).map((j) => j.id);
+  const { data: assignments } = jobIds.length
+    ? await supabase
+        .from('job_assignments')
+        .select('job_id, user_id, acceptance_status')
+        .in('job_id', jobIds)
+    : { data: [] };
 
   return (
     <Board

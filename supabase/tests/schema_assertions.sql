@@ -526,6 +526,38 @@ perform assert(
   exists (select 1 from unnest(job_completion_blockers(v_job)) b where b like '%sign-off%'),
   'the customer signature still blocks');
 
+-- 25. JWT claims, both shapes -----------------------------------------------
+-- Supabase sets request.jwt.claims (the whole payload as JSON). PostgREST
+-- deprecated the per-claim request.jwt.claim.sub that this once relied on.
+-- Reading only the old one returned null, which made every policy deny
+-- silently — a signed-in user saw an empty app and no error anywhere.
+perform set_config('request.jwt.claim.sub', '', true);
+perform set_config('request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-00000000a002","role":"authenticated"}', true);
+
+perform assert(
+  auth_user_id() = '00000000-0000-0000-0000-00000000a002',
+  'the user is read from the JSON claims payload Supabase provides');
+
+perform assert(
+  auth_org_id() = v_org,
+  'and the organisation resolves from it, so policies can match');
+
+perform assert(has_permission('price.view'),
+  'permission flags work when identity comes from the JSON payload');
+
+-- The legacy form still works, so the local harness keeps passing.
+perform set_config('request.jwt.claims', '', true);
+perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000a003', true);
+perform assert(
+  auth_user_id() = '00000000-0000-0000-0000-00000000a003',
+  'the legacy per-claim setting is still honoured');
+
+-- No request context at all must deny rather than leak.
+perform set_config('request.jwt.claim.sub', '', true);
+perform assert(auth_user_id() is null, 'no request context means no identity');
+perform assert(not has_permission('price.view'), 'and no permissions — fail closed');
+
 raise notice 'ALL ASSERTIONS PASSED';
 end $$;
 

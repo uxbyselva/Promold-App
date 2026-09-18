@@ -16,14 +16,31 @@ export default function Login() {
     setBusy(true);
     setError(null);
 
-    const { error } = await supabaseBrowser().auth.signInWithPassword({ email, password });
+    // Anything thrown here used to leave the button saying "Signing in…"
+    // forever: a missing environment variable, a network failure, a bad URL.
+    // A spinner that never resolves tells the user nothing and looks like
+    // their own mistake.
+    try {
+      const { error } = await supabaseBrowser().auth.signInWithPassword({ email, password });
 
-    if (error) {
-      // Say what to do about it, not just what went wrong.
+      if (error) {
+        // Say what to do about it, not just what went wrong.
+        setError(
+          error.message === 'Invalid login credentials'
+            ? 'That email and password did not match. Check both, or reset the password in Supabase.'
+            : error.message,
+        );
+        setBusy(false);
+        return;
+      }
+    } catch (thrown) {
+      const message = thrown instanceof Error ? thrown.message : String(thrown);
       setError(
-        error.message === 'Invalid login credentials'
-          ? 'That email and password did not match. Check both, or ask Dana to reset it.'
-          : error.message,
+        message.includes('NEXT_PUBLIC_SUPABASE')
+          ? 'This deployment has no Supabase settings. Add NEXT_PUBLIC_SUPABASE_URL and ' +
+            'NEXT_PUBLIC_SUPABASE_ANON_KEY in Vercel → Settings → Environment Variables, ' +
+            'then redeploy — they are only read at build time.'
+          : `Could not reach Supabase: ${message}`,
       );
       setBusy(false);
       return;
