@@ -128,3 +128,25 @@ the date, or load the demo data and go to 18 September 2026.
 **"NEXT_PUBLIC_SUPABASE_URL is not set"** — the environment variables did not
 reach the build. On Vercel, check Project Settings → Environment Variables and
 redeploy; they are only read at build time.
+
+---
+
+# A note for whoever maintains this
+
+`NEXT_PUBLIC_*` variables are inlined into the browser bundle by **text
+substitution at build time**. That only works on a literal reference:
+
+```ts
+process.env.NEXT_PUBLIC_SUPABASE_URL   // substituted — works
+process.env[name]                      // not substituted — always undefined
+```
+
+The second form cost hours once. The app reported missing configuration on a
+deployment whose variables were set correctly, which sent everyone looking at
+the dashboard instead of the code. If you add a variable, reference it
+literally, and check it survives the build:
+
+```bash
+pnpm --filter @promold/admin build
+grep -rl "your-project-ref" apps/admin/.next/static   # should find it
+```
