@@ -110,7 +110,10 @@ quoted price and may span multiple days. The amount actually owed is the
   Work complete*. Clock-in is geofenced to the site address (soft warning
   when outside the radius, not a hard block — addresses are imprecise).
 - **Photo documentation** with before / during / after tagging, room tagging
-  and timestamps.
+  and timestamps. **Unlimited photos in every phase** — each is its own row,
+  and the completion gate asks only for at least one in each required phase,
+  never a maximum. A big remediation runs to dozens of before shots across
+  several rooms, and that is the normal case, not an edge one.
 - **Checklists and forms** per job template: moisture meter readings by room,
   temperature and relative humidity, containment verification, air scrubber
   runtime, PPE and job hazard checks, sample chain of custody. Rendered to a

@@ -80,7 +80,8 @@ pass. Equipment staged at the site legitimately stays put between visits.
 `in_progress → work_complete` is rejected unless, per the job template's
 `completion_requirements`:
 
-1. Required photo phases exist (typically before **and** after).
+1. At least one photo exists in each required phase (typically before **and**
+   after). No phase has an upper bound — a job carries as many as it needs.
 2. All required form submissions are complete.
 3. The customer completion signature is captured, where required.
 4. Material usage has been logged or explicitly marked "none used".

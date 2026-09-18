@@ -15,8 +15,12 @@ export interface CompletionRequirements {
 }
 
 export interface CompletionState {
-  hasBeforePhotos: boolean;
-  hasAfterPhotos: boolean;
+  /**
+   * Photo counts by phase. Each photo is its own `job_photos` row, so a phase
+   * holds as many as the job needs — the gate only asks for at least one.
+   */
+  beforePhotoCount: number;
+  afterPhotoCount: number;
   hasCompletionSignature: boolean;
   materialsLoggedOrNoneUsed: boolean;
   completedFormKeys: string[];
@@ -46,11 +50,11 @@ export function completionBlockers(
 ): Blocker[] {
   const blockers: Blocker[] = [];
 
-  if (requirements.photos_before && !state.hasBeforePhotos) {
+  if (requirements.photos_before && state.beforePhotoCount === 0) {
     blockers.push({ key: 'photos_before', message: 'Before photos required', action: 'add_photos' });
   }
 
-  if (requirements.photos_after && !state.hasAfterPhotos) {
+  if (requirements.photos_after && state.afterPhotoCount === 0) {
     blockers.push({ key: 'photos_after', message: 'After photos required', action: 'add_photos' });
   }
 

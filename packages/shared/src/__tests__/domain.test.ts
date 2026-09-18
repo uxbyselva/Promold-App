@@ -178,8 +178,8 @@ describe('completion gates', () => {
   };
 
   const clean = {
-    hasBeforePhotos: true,
-    hasAfterPhotos: true,
+    beforePhotoCount: 6,
+    afterPhotoCount: 4,
     hasCompletionSignature: true,
     materialsLoggedOrNoneUsed: true,
     completedFormKeys: ['ppe_safety'],
@@ -193,10 +193,15 @@ describe('completion gates', () => {
     expect(canComplete(requirements, clean)).toBe(true);
   });
 
+  it('asks only for at least one photo per required phase, never a cap', () => {
+    expect(canComplete(requirements, { ...clean, beforePhotoCount: 1, afterPhotoCount: 1 })).toBe(true);
+    expect(canComplete(requirements, { ...clean, beforePhotoCount: 240, afterPhotoCount: 180 })).toBe(true);
+  });
+
   it('names each missing item rather than failing opaquely', () => {
     const blockers = completionBlockers(requirements, {
       ...clean,
-      hasAfterPhotos: false,
+      afterPhotoCount: 0,
       completedFormKeys: [],
     });
     expect(blockers.map((b) => b.key)).toEqual(['photos_after', 'form:ppe_safety']);
@@ -229,7 +234,7 @@ describe('completion gates', () => {
   });
 
   it('skips requirements the template does not ask for', () => {
-    expect(canComplete({ photos_before: true }, { ...clean, hasAfterPhotos: false })).toBe(true);
+    expect(canComplete({ photos_before: true }, { ...clean, afterPhotoCount: 0 })).toBe(true);
   });
 });
 

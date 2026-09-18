@@ -216,11 +216,23 @@ dl.kv-list{margin:0;display:flex;flex-direction:column;gap:6px}
 .blockers .fix{margin-left:auto;font-size:12.5px;font-weight:600;color:var(--warn);
   text-decoration:underline;text-underline-offset:2px;white-space:nowrap}
 
+.phase{display:flex;flex-direction:column;gap:6px}
+.phase-head{display:flex;align-items:baseline;gap:8px}
+.phase-name{font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:13px;
+  text-transform:uppercase;letter-spacing:.06em}
+.phase-n{font-size:12px;font-weight:600;color:var(--faint);background:var(--surface-2);
+  border-radius:999px;padding:1px 8px;font-variant-numeric:tabular-nums}
+.phase-n[data-empty="1"]{background:var(--warn-soft);color:var(--warn)}
 .photos{display:flex;gap:7px;overflow-x:auto;padding-bottom:2px}
 .ph{flex:0 0 74px;height:74px;border-radius:9px;border:1px solid var(--line);display:grid;
   place-items:center;text-align:center;line-height:1.15;background:var(--surface-2);
   color:var(--faint);font-size:11px}
-.ph.add{border-style:dashed;color:var(--accent);border-color:var(--accent)}
+.ph.add{border-style:dashed;color:var(--accent);border-color:var(--accent);font-size:12px}
+.ph-img{background:linear-gradient(135deg,var(--surface-2) 0%,var(--accent-soft) 100%);
+  position:relative;align-items:flex-end;justify-items:stretch;padding:0;overflow:hidden}
+.ph-room{position:absolute;left:0;right:0;bottom:0;background:rgba(10,18,17,.62);color:#fff;
+  font-size:9.5px;line-height:1.25;padding:3px 4px;text-align:left;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 .money{display:flex;flex-direction:column;gap:5px}
 .money .row{display:flex;justify-content:space-between;font-size:14px}
@@ -299,6 +311,11 @@ const STEP_LABEL = {accepted:'Accepted',en_route:'En route',on_site:'On site',
 const NEXT_LABEL = {accepted:'On my way',en_route:'I have arrived',on_site:'Start work',
   in_progress:'Mark complete'};
 
+/* One row per photo, exactly as job_photos stores them: a phase, a room and a
+   timestamp. There is no cap on any phase — take as many as the job needs. */
+const shots = (phase, room, n) =>
+  Array.from({length:n}, () => ({phase, room}));
+
 let jobs = [
   {no:'J00102', title:'Basement remediation — day 3 of 3', customer:'Helen Brooks',
    site:'42 Oak St — basement', city:'Springfield MA',
@@ -307,7 +324,10 @@ let jobs = [
    status:'in_progress', acceptance:'accepted', template:'Remediation Day',
    crew:['Marcus Bell','Tomas Reyes','Priya Nair'], base:8600,
    changeOrders:[{title:'Rot behind north wall', amount:1250, status:'approved'}],
-   photos:{before:6,during:11,after:0}, signed:false, materialsLogged:true,
+   photos:[...shots('before','North wall',4), ...shots('before','Under stairs',3),
+           ...shots('before','Utility room',2), ...shots('during','North wall',7),
+           ...shots('during','Containment',5), ...shots('during','Utility room',3)],
+   signed:false, materialsLogged:true,
    formsDone:['PPE and job hazard check'], formsNeeded:['PPE and job hazard check'],
    openClocks:1, equipment:['AS-001','AS-002','DH-001','MM-001'], rentalOpen:true},
 
@@ -317,7 +337,7 @@ let jobs = [
    days:['2026-09-19'], start:'09:00', end:'15:00',
    status:'assigned', acceptance:'pending', template:'Containment Setup',
    crew:['Marcus Bell','Priya Nair'], base:2200, changeOrders:[],
-   photos:{before:0,during:0,after:0}, signed:false, materialsLogged:false,
+   photos:[], signed:false, materialsLogged:false,
    formsDone:[], formsNeeded:['Containment verification','PPE and job hazard check'],
    openClocks:0, equipment:[], rentalOpen:false},
 
@@ -326,7 +346,7 @@ let jobs = [
    days:['2026-09-22'], start:'10:00', end:'12:00',
    status:'accepted', acceptance:'accepted', template:'Mold Inspection',
    crew:['Marcus Bell'], base:450, changeOrders:[],
-   photos:{before:0,during:0,after:0}, signed:false, materialsLogged:false,
+   photos:[], signed:false, materialsLogged:false,
    formsDone:[], formsNeeded:['Moisture readings'], openClocks:0,
    equipment:[], rentalOpen:false},
 
@@ -336,7 +356,7 @@ let jobs = [
    days:['2026-09-24'], start:'11:00', end:'14:00',
    status:'accepted', acceptance:'accepted', template:'Post-Remediation Verification',
    crew:['Marcus Bell'], base:600, changeOrders:[],
-   photos:{before:0,during:0,after:0}, signed:false, materialsLogged:false,
+   photos:[], signed:false, materialsLogged:false,
    formsDone:[], formsNeeded:['Moisture readings','Sample chain of custody'],
    openClocks:0, equipment:[], rentalOpen:false},
 
@@ -345,7 +365,8 @@ let jobs = [
    days:['2026-09-11'], start:'13:00', end:'15:00',
    status:'work_complete', acceptance:'accepted', template:'Mold Inspection',
    crew:['Marcus Bell'], base:450, changeOrders:[],
-   photos:{before:5,during:0,after:3}, signed:true, materialsLogged:true,
+   photos:[...shots('before','Attic',5), ...shots('after','Attic',3)],
+   signed:true, materialsLogged:true,
    formsDone:['Moisture readings'], formsNeeded:['Moisture readings'],
    openClocks:0, equipment:[], rentalOpen:false},
 
@@ -354,7 +375,8 @@ let jobs = [
    days:['2026-08-27'], start:'10:00', end:'12:00',
    status:'work_complete', acceptance:'accepted', template:'Mold Inspection',
    crew:['Marcus Bell'], base:450, changeOrders:[],
-   photos:{before:8,during:0,after:4}, signed:true, materialsLogged:true,
+   photos:[...shots('before','Basement',8), ...shots('after','Basement',4)],
+   signed:true, materialsLogged:true,
    formsDone:['Moisture readings'], formsNeeded:['Moisture readings'],
    openClocks:0, equipment:[], rentalOpen:false}
 ];
@@ -446,10 +468,13 @@ function statusPill(j){
 
 /* Mirrors job_completion_blockers() in SQL — the gate that keeps the record
    honest and stops scrubbers being left behind at a finished job. */
+const phaseCount = (j, phase) => j.photos.filter(p => p.phase === phase).length;
+
 function blockers(j){
   const out=[];
-  if(j.photos.before===0) out.push(['Before photos required','Add photos']);
-  if(j.photos.after===0) out.push(['After photos required','Add photos']);
+  // At least one in each required phase. There is no upper bound.
+  if(phaseCount(j,'before')===0) out.push(['Before photos required','Add photos']);
+  if(phaseCount(j,'after')===0) out.push(['After photos required','Add photos']);
   if(!j.signed) out.push(['Customer sign-off required','Get signature']);
   if(!j.materialsLogged) out.push(['Log materials used','Log now']);
   j.formsNeeded.forEach(f=>{if(!j.formsDone.includes(f)) out.push([`Not complete: ${f}`,'Fill in']);});
@@ -675,10 +700,20 @@ function jobSheet(j){
         border-radius:8px;font-size:13.5px"><b>Getting in:</b> ${esc(j.access)}</p>`:''}
     </div>
 
-    <div class="panel"><p class="lbl">Photos</p><div class="photos">
-      <div class="ph add" data-act="photo">+<br>Add</div>
-      ${['before','during','after'].map(p=>`<div class="ph">${j.photos[p]}<br>${p}</div>`).join('')}
-    </div></div>
+    <div class="panel"><p class="lbl">Photos · ${j.photos.length} on this job</p>
+      ${[['before','Before'],['during','During'],['after','After']].map(([k,label])=>{
+        const ps = j.photos.filter(p=>p.phase===k);
+        const required = k!=='during';
+        return `<div class="phase">
+          <div class="phase-head"><span class="phase-name">${label}</span>
+            <span class="phase-n num"${required&&ps.length===0?' data-empty="1"':''}>${ps.length}</span></div>
+          <div class="photos">
+            <button class="ph add" data-add="${k}">+<br>Add</button>
+            ${ps.map(p=>`<div class="ph ph-img"><span class="ph-room">${esc(p.room)}</span></div>`).join('')}
+          </div></div>`;
+      }).join('')}
+      <p class="hint">As many as the job needs in each stage — there is no cap.</p>
+    </div>
 
     ${j.equipment.length?`<div class="panel"><p class="lbl">Equipment on this job</p>
       ${j.equipment.map(t=>{const u=units.find(x=>x.tag===t);return `<div class="kv">
@@ -823,7 +858,7 @@ function render(){
 
 document.addEventListener('click', e => {
   if (e.target.id==='scrim') return closeSheet();
-  const t = e.target.closest('[data-tab],[data-view],[data-job],[data-unit],[data-pack],[data-act],[data-date],[data-mon],[data-take],[data-load],[data-kind]');
+  const t = e.target.closest('[data-tab],[data-view],[data-job],[data-unit],[data-pack],[data-act],[data-date],[data-mon],[data-take],[data-load],[data-kind],[data-add]');
   if (!t) return;
 
   if (t.dataset.tab){
@@ -846,6 +881,14 @@ document.addEventListener('click', e => {
   if (t.dataset.unit){ openUnit=units.find(u=>u.tag===t.dataset.unit); return unitSheet(openUnit); }
   if (t.dataset.pack){ openPack=packs.find(p=>p.id===t.dataset.pack); return packSheet(openPack); }
   if (t.dataset.kind){ buyKind=t.dataset.kind; return buySheet(); }
+  if (t.dataset.add){
+    const rooms=['North wall','Under stairs','Utility room','Containment','Stairwell'];
+    const phase=t.dataset.add;
+    const room=rooms[openJob.photos.filter(p=>p.phase===phase).length % rooms.length];
+    openJob.photos.push(...shots(phase, room, 3));
+    toast(`3 ${phase} photos added · ${phaseCount(openJob,phase)} in this stage`);
+    jobSheet(openJob); render(); return;
+  }
 
   if (t.dataset.take){
     const u=units.find(x=>x.tag===t.dataset.take);
@@ -879,7 +922,6 @@ document.addEventListener('click', e => {
         :j.status==='work_complete'?'Job finished — sent for review':STEP_LABEL[j.status]);
       jobSheet(j); render(); break;
     }
-    case 'photo': j.photos.after+=2; toast('2 after photos added'); jobSheet(j); render(); break;
     case 'take-open': takeSheet(); break;
     case 'take-one': u.state='checkout'; u.where='With Marcus Bell';
       toast(`${u.tag} taken out`); closeSheet(); render(); break;
