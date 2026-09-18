@@ -1,7 +1,37 @@
-# Field prototype
+# Prototypes
 
-A clickable prototype of the field app, built to settle layout and flow
-before any of it is wired to the database.
+Two clickable prototypes, built to settle layout and flow before any of it is
+wired to the database.
+
+| File | Who it is for | Surface |
+|---|---|---|
+| `field-prototype.html` | Crew lead, technician | Phone |
+| `admin-prototype.html` | Manager, owner | Desktop |
+
+## Admin prototype — the manager's day
+
+Dispatch board with crew as columns and hours as rows. Unassigned jobs sit in
+a tray on the left and are dragged onto a person.
+
+The drop is where the scheduling rules show themselves. It mirrors
+`scheduling_conflicts()` in SQL and refuses a drop that clashes with approved
+time off or with a job the person is already on, naming which. Green means it
+will take; red means it will not.
+
+"Needs a decision" carries the three things that pile up on a manager:
+
+- **A reschedule request** with the crew member's proposed time, so it is one
+  tap rather than a phone call. Approving moves the job and resets everyone's
+  acceptance, because the others agreed to a different time.
+- **A change order to price.** The crew lead wrote up what he found and
+  attached photos; pricing and presenting are the manager's.
+- **A purchase request** with per-line ticks. Untick a line and the total
+  follows, along with whether it still sits under the manager's approval
+  limit — over it, the request routes to the owner.
+
+## Field prototype
+
+A clickable prototype of the field app.
 
 **It is not the real app.** It is one self-contained HTML file with sample
 data held in memory. Nothing persists, there is no auth, no Supabase, no
