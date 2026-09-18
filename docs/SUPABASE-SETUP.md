@@ -104,20 +104,22 @@ begin
 end $$;
 ```
 
-## 5. Optional — load the demo data
+## 5. Optional — put something on the board
 
-`supabase/seed.sql` fills the database with the sample company used
-throughout the prototype: Helen Brooks at 42 Oak St, the three air scrubbers,
-a job mid-remediation. Useful for seeing screens with something in them.
+A brand-new organisation has no jobs, so the dispatch board is correctly but
+unhelpfully empty. **`supabase/demo-data.sql`** adds a few customers, sites,
+jobs and equipment **to your organisation**, so the screens have something in
+them: one job assigned to you today, one unassigned in the dispatch tray, one
+tomorrow, and a dehumidifier overdue for collection.
 
-It creates its own users and its own organisation, separate from yours, so it
-will not collide with step 4. Delete that organisation later and everything
-it owns goes with it:
+Paste it into the SQL Editor and run it. Change the email on the first line of
+the block if you sign in as someone else. Running it twice is harmless — it
+clears its own rows first.
 
-```sql
-delete from organizations where name = 'Promold Restoration'
-  and id = '00000000-0000-0000-0000-0000000000a1';
-```
+> Do not use `supabase/seed.sql` for this. That one builds a whole separate
+> organisation with its own users, and row-level security scopes everything to
+> the organisation you belong to — so none of it would appear on your board.
+> It exists for the automated tests.
 
 ## 6. Give the app its keys
 
