@@ -6,6 +6,10 @@ equipment tracking and vehicle mileage.
 
 **Status: specification.** No application code yet.
 
+**To get it running:** [`docs/SUPABASE-SETUP.md`](docs/SUPABASE-SETUP.md) for
+the database, then [`docs/DEPLOY.md`](docs/DEPLOY.md) for the app — including a
+route with no terminal involved.
+
 See [`docs/`](docs/README.md) for the full planning set:
 
 - [Product specification](docs/01-product-spec.md)
