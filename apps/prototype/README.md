@@ -10,13 +10,38 @@ camera. The real field app will be Expo (React Native), per
 
 ## What it covers
 
-- **My Jobs** — list, kanban board and calendar views; accept or ask to move
-  a job; status progression from accepted through to complete.
+- **Jobs** — a monthly calendar (the default) and a list; tap a date to see
+  that day's work. Multi-day jobs mark every day they run.
+- **Board** — its own tab: to do, working, blocked, done.
 - **Job detail** — the completion gate listing exactly what is outstanding,
   site access notes, photos, equipment on the job, and the contract price
   with its approved change order.
-- **Equipment** — where every unit is right now, what is overdue for
-  collection, and the rental that is still out.
+- **Store** — serialised assets and where each one is, what is overdue for
+  collection, the rental still out, open bulk packs, counted stock, and a
+  purchase request form.
+
+## The consumables proposal
+
+The Store tab is also where a design question is being worked out: the
+schema today has counted stock and serialised assets, and a box of
+contractor bags is neither. It is counted like stock but travels and returns
+like equipment.
+
+The prototype proposes a `consumption_mode` on every stocked item:
+
+| Mode | Examples | Tracked as | Cost lands |
+|---|---|---|---|
+| `single_use` | Masks, gloves, coveralls | Count per location, logged against a job | That job |
+| `bulk` | Bags, poly sheeting, chemical drums | The container itself, until marked finished | Split across the jobs it served |
+| `returnable` | Cords, buckets | Counted out, counted back | Nowhere — it returns |
+
+The bulk pack is the interesting case. Nobody counts bags, so asking a tech
+for a quantity produces a number that is not true. Instead the pack is the
+record: it goes on a van, serves whatever job comes next, and someone marks
+it finished when it runs out. That disposal splits its cost across the jobs
+it served and puts a replacement on the reorder list.
+
+Not yet in the database — the migration waits on this model being confirmed.
 
 ## Why the data looks familiar
 
