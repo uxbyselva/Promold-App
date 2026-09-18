@@ -6,8 +6,8 @@ dist/
 *.tsbuildinfo
 
 .env
-.env.local
-.env*.local
+.env.*
+!.env.example
 
 supabase/.branches/
 supabase/.temp/

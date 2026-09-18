@@ -6,6 +6,14 @@ on:
   pull_request:
 
 jobs:
+  secrets:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # A leaked key cannot be un-leaked, so this runs before anything else.
+      - run: ./scripts/scan-secrets.sh
+
   shared:
     name: Shared package
     runs-on: ubuntu-latest

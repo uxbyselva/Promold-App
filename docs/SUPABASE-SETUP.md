@@ -3,12 +3,35 @@
 About 15 minutes. At the end you have a real database with the full schema,
 your own login, and demo data you can throw away.
 
-## Before you start
+## Before you start — which keys are which
 
-**Never paste your database password or `service_role` key into a chat, an
-issue, or a commit.** They grant full access to everything. The only value
-that is safe to share is the `anon` key, and even that belongs in an env file
-rather than in a message.
+Supabase gives you two API keys that look identical: both are long strings
+starting `eyJ...`. They are not remotely equivalent.
+
+| Key | What it can do | Where it may go |
+|---|---|---|
+| **anon public** | Only what the signed-in user may do. Row-level security applies. | Browser bundle, `.env.local`, fine to share with your developer |
+| **service_role** | **Bypasses row-level security completely.** Every table, every row, no permission checks. Reads cost rates and prices regardless of role. | A server-side secret store. Nothing else. |
+
+They are told apart by decoding the middle section, which carries
+`"role":"anon"` or `"role":"service_role"`. If you are about to send a key to
+anyone, check that first.
+
+**Never paste the `service_role` key or the database password into a chat, an
+issue, or a commit.** Nothing in this app needs the service_role key.
+
+### If one leaks
+
+Rotate immediately — a key that has been pasted anywhere is compromised, and
+deleting the message does not help.
+
+1. **Project Settings → API → JWT Settings → Generate a new JWT secret.**
+2. This invalidates **both** keys and issues new ones, so update
+   `.env.local` afterwards.
+
+`./scripts/scan-secrets.sh` checks tracked files for JWTs, service_role
+references, committed env files and database URLs carrying a password. CI
+runs it on every push.
 
 ## 1. Create the project
 
