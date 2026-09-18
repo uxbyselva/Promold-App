@@ -444,6 +444,51 @@ perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000a00
 perform assert(has_permission('price.view') and has_permission('costing.view'),
   'the two money flags are separate and the bookkeeper holds both');
 
+-- 22. The short job flow ----------------------------------------------------
+-- Three steps for the crew: accept, on site and working, done. The longer
+-- flow stays in the table, switched off, so it costs an UPDATE to restore.
+perform assert(
+  (select enabled from job_transitions
+   where from_status = 'accepted' and to_status = 'in_progress'),
+  'accepting a job leads straight into work');
+
+perform assert(
+  not (select enabled from job_transitions
+       where from_status = 'accepted' and to_status = 'en_route'),
+  'the en-route step is switched off rather than deleted');
+
+perform assert(
+  exists (select 1 from job_transitions where to_status = 'en_route'),
+  'the en-route transition is still on the table, ready to switch back on');
+
+perform assert(
+  exists (select 1 from pg_enum e join pg_type t on t.oid = e.enumtypid
+          where t.typname = 'job_status' and e.enumlabel = 'blocked'),
+  'every status stays in the enum, so history recorded against one still reads');
+
+perform assert(
+  (select count(*) from job_next_steps(v_job)) > 0,
+  'a running job offers at least one next step');
+
+perform assert(
+  not exists (select 1 from job_next_steps(v_job) where to_status = 'blocked'),
+  'a switched-off step is not offered to the client');
+
+perform assert(
+  (select settings -> 'job_steps' from organizations where id = v_org)
+    = '["accepted", "in_progress", "work_complete"]'::jsonb,
+  'the visible steps are org settings, not hardcoded');
+
+perform assert(
+  (select settings -> 'photo_phases' from organizations where id = v_org)
+    = '["before", "after"]'::jsonb,
+  'two photo galleries: before the work and after it');
+
+perform assert(
+  exists (select 1 from pg_enum e join pg_type t on t.oid = e.enumtypid
+          where t.typname = 'photo_phase' and e.enumlabel = 'during'),
+  'the during phase survives in the enum, so existing photos keep their label');
+
 raise notice 'ALL ASSERTIONS PASSED';
 end $$;
 
@@ -452,6 +497,17 @@ end $$;
 -- Every signed-in Supabase user is the same `authenticated` role, so these
 -- checks run as that role. A superuser bypasses column privileges entirely
 -- and would report a false pass.
+
+-- A switched-off step is refused by the server, not merely hidden by the UI.
+do $$
+declare v_job uuid := '00000000-0000-0000-0000-00000000bb02';
+begin
+  perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000a003', true);
+  perform assert_raises(
+    format('select transition_job(%L, ''blocked'', ''waiting on parts'')', v_job),
+    'a disabled transition is refused even when asked for directly');
+  perform set_config('request.jwt.claim.sub', '', true);
+end $$;
 
 set role authenticated;
 

@@ -109,8 +109,8 @@ quoted price and may span multiple days. The amount actually owed is the
 - Status progression with clock in/out: *En route → On site → In progress →
   Work complete*. Clock-in is geofenced to the site address (soft warning
   when outside the radius, not a hard block — addresses are imprecise).
-- **Photo documentation** with before / during / after tagging, room tagging
-  and timestamps. **Unlimited photos in every phase** — each is its own row,
+- **Photo documentation** in two galleries — before the work and after it —
+  with room tagging and timestamps. **Unlimited photos in every phase** — each is its own row,
   and the completion gate asks only for at least one in each required phase,
   never a maximum. A big remediation runs to dozens of before shots across
   several rooms, and that is the normal case, not an edge one.
@@ -120,9 +120,6 @@ quoted price and may span multiple days. The amount actually owed is the
   PDF job report.
 - **Customer signatures** — work authorisation on arrival, completion
   sign-off on departure.
-- **Job chat** — a comment thread per job with photo attachments. This
-  replaces the WhatsApp group and is the main reason crews open the app
-  daily.
 - **Completion gates.** A job cannot reach *Work complete* until the
   template's required evidence exists: required photos, signed checklists,
   customer signature, materials logged, and **all equipment staged at the
@@ -234,7 +231,12 @@ Build it in the same phase as the logging it depends on.
   sheets. Insurance claim and adjuster fields exist in the schema but are not
   surfaced while all work is billed direct.
 
-### 4.11 Cross-cutting
+### 4.11 Not surfaced
+
+- **Job chat.** `job_comments` is built and specified but no screen offers it.
+  Turning it on needs a screen, not a migration.
+
+### 4.12 Cross-cutting
 
 - **Notifications** — push for assignment, reschedule decisions, approvals,
   equipment pickup due, low stock. Plus a daily digest ("3 jobs tomorrow, 2

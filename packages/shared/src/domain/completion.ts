@@ -1,4 +1,14 @@
 /**
+ * Photo phases.
+ *
+ * The enum in the database is wider — `during`, `damage`, `equipment` all
+ * exist — but a shop offers only the phases in
+ * `organizations.settings.photo_phases`. Two galleries is the default: what it
+ * looked like before the work, and what it looked like after.
+ */
+export const DEFAULT_PHOTO_PHASES = ['before', 'after'] as const;
+
+/**
  * Job completion gates.
  *
  * Mirrors `job_completion_blockers()` so the mobile completion screen can list

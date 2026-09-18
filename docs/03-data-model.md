@@ -8,7 +8,8 @@ is possible, so replayed mutations upsert instead of duplicating.
 ## 1. Identity and organisation
 
 **`organizations`** — `id`, `name`, `settings` (jsonb: mileage rate,
-approval thresholds, geofence radius, timezone).
+approval thresholds, geofence radius, timezone, plus `job_steps` and
+`photo_phases` — which status steps and photo galleries this shop uses).
 
 **`profiles`** — one row per user, keyed to `auth.users.id`. `full_name`,
 `phone`, `role_id`, `cost_rate` (internal hourly cost for job costing),
@@ -80,8 +81,8 @@ Acceptance is per person, so a three-person crew produces three rows.
 The proposed time is what makes this useful. A reason alone still requires a
 phone call; a proposed alternative can be approved with one tap.
 
-**`job_comments`** — `job_id`, `author_id`, `body`, `attachments[]`. The job
-chat thread.
+**`job_comments`** — `job_id`, `author_id`, `body`, `attachments[]`. Built and
+specified, not surfaced in any screen today.
 
 **`job_documents`** — `job_id` or `site_id`, `kind` (scope of work, lab
 result, SDS, insurance), `storage_path`.

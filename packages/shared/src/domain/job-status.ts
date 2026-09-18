@@ -40,6 +40,15 @@ export interface JobTransition {
   guard?: TransitionGuard;
   /** Button label in the UI. */
   label: string;
+  /**
+   * Whether this org offers the move. Mirrors `job_transitions.enabled`, and
+   * like the rest of this file it is only a mirror — the server refuses a
+   * disabled move whether or not the client offered it.
+   *
+   * The longer flow is switched off rather than deleted, so restoring it is
+   * an UPDATE rather than a migration and an app release.
+   */
+  enabled?: boolean;
 }
 
 export const JOB_TRANSITIONS: readonly JobTransition[] = [
@@ -49,29 +58,56 @@ export const JOB_TRANSITIONS: readonly JobTransition[] = [
   { from: 'assigned', to: 'accepted', permission: 'job.accept', guard: 'all_accepted', label: 'Accept' },
   { from: 'assigned', to: 'scheduled', permission: 'job.assign', label: 'Unassign' },
   { from: 'assigned', to: 'cancelled', permission: 'job.edit', guard: 'reason', label: 'Cancel' },
-  { from: 'accepted', to: 'en_route', permission: 'job.accept', label: 'On my way' },
+  { from: 'accepted', to: 'in_progress', permission: 'job.accept', label: 'Start work' },
+  { from: 'accepted', to: 'en_route', permission: 'job.accept', label: 'On my way', enabled: false },
   { from: 'accepted', to: 'cancelled', permission: 'job.edit', guard: 'reason', label: 'Cancel' },
-  { from: 'en_route', to: 'on_site', permission: 'job.accept', label: 'Arrived' },
-  { from: 'en_route', to: 'cancelled', permission: 'job.edit', guard: 'reason', label: 'Cancel' },
-  { from: 'on_site', to: 'in_progress', permission: 'job.accept', label: 'Start work' },
-  { from: 'on_site', to: 'blocked', permission: 'job.accept', guard: 'reason', label: 'Blocked' },
-  { from: 'in_progress', to: 'blocked', permission: 'job.accept', guard: 'reason', label: 'Blocked' },
+  { from: 'en_route', to: 'on_site', permission: 'job.accept', label: 'Arrived', enabled: false },
+  { from: 'en_route', to: 'cancelled', permission: 'job.edit', guard: 'reason', label: 'Cancel', enabled: false },
+  { from: 'on_site', to: 'in_progress', permission: 'job.accept', label: 'Start work', enabled: false },
+  { from: 'on_site', to: 'blocked', permission: 'job.accept', guard: 'reason', label: 'Blocked', enabled: false },
+  { from: 'in_progress', to: 'blocked', permission: 'job.accept', guard: 'reason', label: 'Blocked', enabled: false },
   { from: 'in_progress', to: 'work_complete', permission: 'job.complete', guard: 'completion', label: 'Mark complete' },
   { from: 'in_progress', to: 'cancelled', permission: 'job.edit', guard: 'reason', label: 'Cancel' },
-  { from: 'blocked', to: 'in_progress', permission: 'job.accept', label: 'Resume' },
-  { from: 'blocked', to: 'cancelled', permission: 'job.edit', guard: 'reason', label: 'Cancel' },
+  { from: 'blocked', to: 'in_progress', permission: 'job.accept', label: 'Resume', enabled: false },
+  { from: 'blocked', to: 'cancelled', permission: 'job.edit', guard: 'reason', label: 'Cancel', enabled: false },
   { from: 'work_complete', to: 'in_progress', permission: 'job.review', guard: 'reason', label: 'Send back' },
   { from: 'work_complete', to: 'approved', permission: 'job.review', label: 'Approve' },
   { from: 'approved', to: 'closed', permission: 'job.close', label: 'Close' },
 ];
 
+/** Every move defined from this status, switched on or not. */
 export function transitionsFrom(status: JobStatus): JobTransition[] {
   return JOB_TRANSITIONS.filter((t) => t.from === status);
 }
 
-export function isLegalTransition(from: JobStatus, to: JobStatus): boolean {
-  return JOB_TRANSITIONS.some((t) => t.from === from && t.to === to);
+/** The moves to actually offer. This is what a screen should render. */
+export function enabledTransitionsFrom(status: JobStatus): JobTransition[] {
+  return transitionsFrom(status).filter((t) => t.enabled !== false);
 }
+
+export function isLegalTransition(from: JobStatus, to: JobStatus): boolean {
+  return JOB_TRANSITIONS.some((t) => t.from === from && t.to === to && t.enabled !== false);
+}
+
+/**
+ * The steps a crew sees on the progress track.
+ *
+ * The authoritative list is `organizations.settings.job_steps`, so a shop can
+ * run the longer flow without a code change. This is the fallback.
+ */
+export const DEFAULT_JOB_STEPS: readonly JobStatus[] = [
+  'accepted',
+  'in_progress',
+  'work_complete',
+];
+
+export const STEP_LABELS: Record<string, string> = {
+  accepted: 'Accepted',
+  en_route: 'En route',
+  on_site: 'On site',
+  in_progress: 'On site / working',
+  work_complete: 'Done',
+};
 
 /** Statuses a field user sees as "on my plate today". */
 export const ACTIVE_FIELD_STATUSES: readonly JobStatus[] = [

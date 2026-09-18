@@ -3,6 +3,8 @@ import {
   can,
   isLegalTransition,
   transitionsFrom,
+  enabledTransitionsFrom,
+  DEFAULT_JOB_STEPS,
   placementDays,
   placementCost,
   isAvailableForWindow,
@@ -109,6 +111,27 @@ describe('job transitions', () => {
 
   it('offers no moves out of a closed job', () => {
     expect(transitionsFrom('closed')).toHaveLength(0);
+  });
+
+  it('runs accept straight into work, with no separate arrival step', () => {
+    expect(isLegalTransition('accepted', 'in_progress')).toBe(true);
+  });
+
+  it('treats a switched-off step as not legal, though it still exists', () => {
+    // Disabled rather than deleted: restoring the longer flow is an UPDATE,
+    // not a migration and an app release.
+    expect(isLegalTransition('accepted', 'en_route')).toBe(false);
+    expect(transitionsFrom('accepted').some((t) => t.to === 'en_route')).toBe(true);
+  });
+
+  it('offers only enabled moves to a screen', () => {
+    const offered = enabledTransitionsFrom('accepted').map((t) => t.to);
+    expect(offered).toContain('in_progress');
+    expect(offered).not.toContain('en_route');
+  });
+
+  it('shows the crew three steps', () => {
+    expect(DEFAULT_JOB_STEPS).toEqual(['accepted', 'in_progress', 'work_complete']);
   });
 
   it('requires a reason to cancel', () => {

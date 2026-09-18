@@ -7,6 +7,27 @@ history row. No client writes a status column directly.
 
 ## 1. Job
 
+**What the crew actually runs today.** Three steps:
+
+```
+accepted ──start work──► in_progress ──complete (GATED)──► work_complete
+```
+
+The full machine below stays in `job_transitions` with `enabled = false` on
+the steps this shop skips, and every status stays in the enum so history
+recorded against one still reads. `organizations.settings.job_steps` lists the
+steps a client shows. Restoring the longer flow:
+
+```sql
+update job_transitions set enabled = true
+where (from_status, to_status) in (('accepted','en_route'), ('en_route','on_site'));
+update organizations set settings = jsonb_set(settings, '{job_steps}',
+  '["accepted","en_route","on_site","in_progress","work_complete"]');
+```
+
+One UPDATE. The rest of this section documents the full machine.
+
+
 ```
                 ┌──────────┐
                 │  draft   │
@@ -59,7 +80,8 @@ history row. No client writes a status column directly.
 | scheduled | assigned | Manager, Owner | ≥1 assignee; no conflicts |
 | assigned | accepted | System | All assignees accepted |
 | assigned | scheduled | Manager, Owner | Reschedule approved → re-assign |
-| accepted | en_route | Assignee | — |
+| accepted | in_progress | Assignee | Clock-in recorded (the short flow) |
+| accepted | en_route | Assignee | *disabled* |
 | en_route | on_site | Assignee | Clock-in recorded |
 | on_site | in_progress | Assignee | — |
 | in_progress | blocked | Assignee | Reason required |

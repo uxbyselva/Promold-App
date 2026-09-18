@@ -305,11 +305,17 @@ dl.kv-list{margin:0;display:flex;flex-direction:column;gap:6px}
 /* Sample data mirrors supabase/seed.sql so the screens carry the real
    vernacular: real asset tags, real crew, the 42 Oak St job mid-remediation. */
 const TODAY = '2026-09-18';
-const STEPS = ['accepted','en_route','on_site','in_progress','work_complete'];
-const STEP_LABEL = {accepted:'Accepted',en_route:'En route',on_site:'On site',
-  in_progress:'Working',work_complete:'Complete'};
-const NEXT_LABEL = {accepted:'On my way',en_route:'I have arrived',on_site:'Start work',
-  in_progress:'Mark complete'};
+/* Three steps, from organizations.settings.job_steps. The longer flow still
+   exists in the database, switched off, so adding En route back later is an
+   UPDATE rather than a release. */
+const STEPS = ['accepted','in_progress','work_complete'];
+const STEP_LABEL = {accepted:'Accepted', in_progress:'On site / working',
+  work_complete:'Done'};
+const NEXT_LABEL = {accepted:'Start work', in_progress:'Mark complete'};
+
+/* Two galleries, from organizations.settings.photo_phases. 'during' is still
+   a valid photo_phase; it is simply not offered. */
+const PHASES = [['before','Before work'],['after','After work']];
 
 /* One row per photo, exactly as job_photos stores them: a phase, a room and a
    timestamp. There is no cap on any phase — take as many as the job needs. */
@@ -325,8 +331,7 @@ let jobs = [
    crew:['Marcus Bell','Tomas Reyes','Priya Nair'], base:8600,
    changeOrders:[{title:'Rot behind north wall', amount:1250, status:'approved'}],
    photos:[...shots('before','North wall',4), ...shots('before','Under stairs',3),
-           ...shots('before','Utility room',2), ...shots('during','North wall',7),
-           ...shots('during','Containment',5), ...shots('during','Utility room',3)],
+           ...shots('before','Utility room',2), ...shots('before','Containment',5)],
    signed:false, materialsLogged:true,
    formsDone:['PPE and job hazard check'], formsNeeded:['PPE and job hazard check'],
    openClocks:1, equipment:['AS-001','AS-002','DH-001','MM-001'], rentalOpen:true},
@@ -701,9 +706,9 @@ function jobSheet(j){
     </div>
 
     <div class="panel"><p class="lbl">Photos · ${j.photos.length} on this job</p>
-      ${[['before','Before'],['during','During'],['after','After']].map(([k,label])=>{
+      ${PHASES.map(([k,label])=>{
         const ps = j.photos.filter(p=>p.phase===k);
-        const required = k!=='during';
+        const required = true;
         return `<div class="phase">
           <div class="phase-head"><span class="phase-name">${label}</span>
             <span class="phase-n num"${required&&ps.length===0?' data-empty="1"':''}>${ps.length}</span></div>
@@ -736,8 +741,7 @@ function jobSheet(j){
         Ray will price it.</p>
       <button class="btn ghost" data-act="co">Found more work — write it up</button>
     </div>`}
-
-    <button class="btn ghost" data-act="chat">Open job chat</button>`;
+`;
   openSheet();
 }
 
@@ -882,7 +886,7 @@ document.addEventListener('click', e => {
   if (t.dataset.pack){ openPack=packs.find(p=>p.id===t.dataset.pack); return packSheet(openPack); }
   if (t.dataset.kind){ buyKind=t.dataset.kind; return buySheet(); }
   if (t.dataset.add){
-    const rooms=['North wall','Under stairs','Utility room','Containment','Stairwell'];
+    const rooms=['North wall','Under stairs','Utility room','Stairwell','Crawlspace'];
     const phase=t.dataset.add;
     const room=rooms[openJob.photos.filter(p=>p.phase===phase).length % rooms.length];
     openJob.photos.push(...shots(phase, room, 3));
@@ -918,7 +922,7 @@ document.addEventListener('click', e => {
         if (bl.length){ toast(`Not yet — ${bl.length} thing${bl.length>1?'s':''} outstanding`); break; }
       }
       j.status=STEPS[i+1];
-      toast(j.status==='on_site'?'Clocked in at 42 Oak St'
+      toast(j.status==='in_progress'?'Clocked in at 42 Oak St'
         :j.status==='work_complete'?'Job finished — sent for review':STEP_LABEL[j.status]);
       jobSheet(j); render(); break;
     }
@@ -940,7 +944,6 @@ document.addEventListener('click', e => {
       toast('Rental return recorded'); render(); break;
     case 'move-pack': toast('Pick a van — not in this prototype'); break;
     case 'co': toast('Change order — not in this prototype'); break;
-    case 'chat': toast('Job chat — not in this prototype'); break;
     case 'move': toast('Scan or pick the new site'); break;
     case 'scan': toast('Camera — not in this prototype'); break;
   }
