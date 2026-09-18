@@ -120,6 +120,7 @@ cost.
 |---|:--:|:--:|:--:|:--:|:--:|
 | Manage users and roles | ● | ◐⁸ | ○ | ○ | ○ |
 | View / edit cost rates | ● | ○ | ○ | ○ | ○ |
+| **View job price** (quote, contract price, change order amounts) | ● | ● | ○ | ○ | ● |
 | View job costing and margin | ● | ● | ○ | ○ | ● |
 | Org settings and thresholds | ● | ○ | ○ | ○ | ○ |
 | Manage customers and sites | ● | ● | ○ | ○ | ◐³ |
@@ -128,6 +129,31 @@ cost.
 | View audit log | ● | ● | ○ | ○ | ● |
 
 ⁸ Can invite and deactivate field users; cannot change roles or cost rates.
+
+### Money is two separate grants
+
+`price.view` and `costing.view` are deliberately distinct. What the customer
+pays and what the job cost us are different questions, and a role can hold
+one without the other — whoever keeps the books needs the price, the crew
+needs neither.
+
+Withholding a *column* needs more than RLS, which is row level. Under
+Supabase every signed-in user is the same `authenticated` database role, so a
+column grant cannot tell a manager from a technician. Two things together
+make it hold:
+
+1. The money columns — `jobs.quoted_price`, `change_orders.amount`,
+   `profiles.cost_rate` — are revoked from `authenticated` on the base
+   tables. A column revoke cannot override a table-level `SELECT` grant, so
+   `grant_columns_except()` drops the table grant and re-grants every other
+   column.
+2. Clients read through `jobs_safe`, `change_orders_safe` and
+   `profiles_safe`, which run with definer rights and null the money unless
+   the caller holds the flag. Because definer-rights views bypass RLS, each
+   one repeats the row filter its base table's policy would have applied.
+
+Consequence worth knowing: `select *` on those three tables now fails for app
+users. That is the point — read the view.
 
 ## 4. Enforcement
 

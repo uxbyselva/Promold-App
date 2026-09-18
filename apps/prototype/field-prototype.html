@@ -63,7 +63,8 @@ button{font:inherit;color:inherit;cursor:pointer;border:none;background:none}
   background:var(--surface);border-bottom:1px solid var(--line);padding:12px 16px}
 .topbar-row{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
 .topbar h1{margin:0;font-size:21px;font-weight:600;letter-spacing:-.01em}
-.whoami{font-size:12.5px;color:var(--muted)}
+.whoami{font-size:12.5px;color:var(--muted);border:1px dashed var(--line-strong);
+  border-radius:999px;padding:3px 9px}
 .whoami b{color:var(--ink);font-weight:600}
 
 .seg{display:flex;gap:2px;margin:12px -4px -2px;padding:0 4px}
@@ -265,7 +266,7 @@ dl.kv-list{margin:0;display:flex;flex-direction:column;gap:6px}
   <header class="topbar">
     <div class="topbar-row">
       <h1 id="screenTitle">Jobs</h1>
-      <p class="whoami"><b>Marcus Bell</b> · Crew Lead</p>
+      <button class="whoami" id="who" data-act="swap-role"></button>
     </div>
     <div class="seg" id="viewSeg" role="tablist" aria-label="Job view">
       <button role="tab" data-view="cal" aria-selected="true">Calendar</button>
@@ -405,6 +406,21 @@ let packs = [
 ];
 
 let reorder = [];
+/* Personas carry the same flags has_permission() checks in the database. The
+   UI only hides what a user cannot see; jobs_safe is what actually withholds
+   it, and the price column is revoked on the base table. */
+const PEOPLE = [
+  {name:'Marcus Bell', role:'Crew Lead',
+   perms:{'job.accept':true,'job.complete':true,'changeorder.draft':true,
+          'equipment.place':true,'inventory.log_usage':true}},
+  {name:'Ray Alvarez', role:'Manager',
+   perms:{'job.accept':true,'job.complete':true,'job.edit':true,'job.assign':true,
+          'changeorder.draft':true,'changeorder.manage':true,'equipment.place':true,
+          'inventory.log_usage':true,'price.view':true,'costing.view':true}}
+];
+let me = 0;
+const can = f => PEOPLE[me].perms[f] === true;
+
 let tab='jobs', view='cal', openJob=null, openUnit=null, openPack=null;
 let calY=2026, calM=8, selected=TODAY;
 let buyKind='asset';
@@ -670,13 +686,21 @@ function jobSheet(j){
         <dd>${u.state==='staged'?(u.overdue?'<span style="color:var(--warn)">pickup overdue</span>':'at site'):'with you'}</dd>
       </div>`;}).join('')}</div>`:''}
 
-    <div class="panel"><p class="lbl">Price agreed</p><div class="money">
+    ${can('price.view')?`<div class="panel"><p class="lbl">Price agreed</p><div class="money">
       <div class="row"><span>Quoted</span><span class="num">${money(j.base)}</span></div>
       ${j.changeOrders.map(c=>`<div class="row"><span>${esc(c.title)}</span>
         <span class="num">+${money(c.amount)}</span></div>`).join('')}
       <div class="row total"><span>Contract price</span><span class="num">${money(j.base+co)}</span></div>
     </div>
-    <button class="btn ghost" data-act="co">Found more work — raise a change order</button></div>
+    <button class="btn ghost" data-act="co">Found more work — raise a change order</button></div>`
+    :`<div class="panel">
+      <p class="lbl">Extra work</p>
+      ${j.changeOrders.length?`<p style="font-size:13.5px">${j.changeOrders.length} change order
+        agreed with the customer${j.changeOrders.length===1?'':'s'}.</p>`:''}
+      <p class="hint">Found something not in the scope? Write it up with photos and
+        Ray will price it.</p>
+      <button class="btn ghost" data-act="co">Found more work — write it up</button>
+    </div>`}
 
     <button class="btn ghost" data-act="chat">Open job chat</button>`;
   openSheet();
@@ -786,6 +810,7 @@ function buySheet(){
 
 /* ---------- plumbing ---------- */
 function render(){
+  $('#who').innerHTML = `<b>${PEOPLE[me].name}</b> · ${PEOPLE[me].role}`;
   $('#viewSeg').hidden = tab!=='jobs';
   $('#screenTitle').textContent = tab==='jobs'?'Jobs':tab==='board'?'Board':'Store';
   $('#main').innerHTML = tab==='board' ? renderBoard()
@@ -834,6 +859,11 @@ document.addEventListener('click', e => {
 
   const j=openJob, u=openUnit, p=openPack;
   switch(t.dataset.act){
+    case 'swap-role':
+      me = (me+1) % PEOPLE.length;
+      toast(`Now viewing as ${PEOPLE[me].name}, ${PEOPLE[me].role}`);
+      if (openJob) jobSheet(openJob);
+      render(); break;
     case 'accept': j.acceptance='accepted'; j.status='accepted';
       toast(`${j.no} accepted`); jobSheet(j); render(); break;
     case 'reschedule': j.acceptance='reschedule_requested';

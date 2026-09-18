@@ -22,6 +22,12 @@ export const PERMISSIONS = {
   'job.manage_templates': 'Manage job templates and form templates',
   'reschedule.decide': 'Approve or decline reschedule requests',
 
+  // Change orders
+  // Split deliberately: the crew lead who opens a wall and finds rot is the
+  // person who knows, but pricing it is the manager's.
+  'changeorder.draft': 'Raise a change order describing extra work found',
+  'changeorder.manage': 'Price, present and record the decision on a change order',
+
   // Customers
   'customer.manage': 'Manage customers and sites',
 
@@ -53,13 +59,19 @@ export const PERMISSIONS = {
   'time.edit_all': 'Edit a submitted time entry',
   'timeoff.manage': 'Approve or decline time off',
 
+  // Money
+  // Two separate questions: what the customer pays, and what the job cost us.
+  // A role can reasonably hold one without the other — a bookkeeper needs the
+  // price, a crew lead needs neither.
+  'price.view': 'See the quoted and contract price of a job',
+  'costing.view': 'See job cost and margin',
+
   // Administration
   'user.manage': 'Invite, edit and deactivate users',
   'user.view_cost_rates': 'See internal cost rates',
   'role.manage': 'Change roles and permission flags',
   'org.manage_settings': 'Change org settings and thresholds',
   'audit.view': 'Read the audit log',
-  'costing.view': 'See job cost and margin',
   'export.run': 'Run exports',
 } as const;
 
@@ -97,4 +109,21 @@ export function canAny(holder: PermissionHolder | null | undefined, flags: Permi
 
 export function canAll(holder: PermissionHolder | null | undefined, flags: Permission[]): boolean {
   return flags.every((f) => can(holder, f));
+}
+
+/**
+ * Whether this user may see what a job is worth.
+ *
+ * The database is the enforcement point: `jobs_safe` and `change_orders_safe`
+ * null the money columns for anyone without the flag, and the columns are
+ * revoked outright on the base tables. This is only so the UI does not render
+ * an empty price panel.
+ */
+export function canSeePrice(holder: PermissionHolder | null | undefined): boolean {
+  return can(holder, 'price.view');
+}
+
+/** Whether this user may see what a job cost and what it earned. */
+export function canSeeMargin(holder: PermissionHolder | null | undefined): boolean {
+  return can(holder, 'costing.view');
 }

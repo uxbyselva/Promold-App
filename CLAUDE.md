@@ -36,6 +36,12 @@ Business rules are enforced in **Postgres**, not in the clients:
   is no writable quantity anywhere.
 - **Equipment custody** is enforced by a gist exclusion constraint: one unit
   cannot be in two places at once, whatever the client sends.
+- **Price is manager and owner information.** `jobs.quoted_price`,
+  `change_orders.amount` and `profiles.cost_rate` are revoked from the
+  `authenticated` role. Read jobs through `jobs_safe`, change orders through
+  `change_orders_safe`, people through `profiles_safe` — never the base
+  table, where `select *` now fails by design. Adding a column to one of
+  those three tables means re-running `grant_columns_except()` for it.
 
 Add a rule to the database first, mirror it in `packages/shared` second.
 

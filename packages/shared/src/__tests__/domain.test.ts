@@ -28,6 +28,8 @@ import {
   canEdit,
   approvalGap,
   type ChangeOrder,
+  canSeePrice,
+  canSeeMargin,
 } from '../index.js';
 
 const day = 86_400_000;
@@ -56,6 +58,38 @@ describe('permissions', () => {
 
   it('denies everything when there is no user', () => {
     expect(can(null, 'equipment.place')).toBe(false);
+  });
+});
+
+describe('money visibility', () => {
+  const crew = { permissions: { 'job.accept': true, 'changeorder.draft': true } as const };
+  const manager = { permissions: { 'price.view': true, 'costing.view': true } as const };
+  const bookkeeper = { permissions: { 'price.view': true, 'costing.view': true } as const };
+
+  it('keeps the price away from the crew', () => {
+    expect(canSeePrice(crew)).toBe(false);
+    expect(canSeeMargin(crew)).toBe(false);
+  });
+
+  it('shows the price to a manager', () => {
+    expect(canSeePrice(manager)).toBe(true);
+  });
+
+  it('shows the price to whoever keeps the books', () => {
+    expect(canSeePrice(bookkeeper)).toBe(true);
+  });
+
+  it('treats price and margin as separate grants', () => {
+    // Seeing what the customer pays and seeing what the job cost us are
+    // different questions; a role can hold one without the other.
+    const priceOnly = { permissions: { 'price.view': true } as const };
+    expect(canSeePrice(priceOnly)).toBe(true);
+    expect(canSeeMargin(priceOnly)).toBe(false);
+  });
+
+  it('still lets the crew raise a change order without seeing its value', () => {
+    expect(can(crew, 'changeorder.draft')).toBe(true);
+    expect(canSeePrice(crew)).toBe(false);
   });
 });
 

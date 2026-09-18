@@ -419,5 +419,92 @@ $q$, 'a crew lead cannot present a change order');
 
 perform set_config('request.jwt.claim.sub', '', true);
 
+-- 20. Price visibility ------------------------------------------------------
+-- What a job is worth is manager and owner information. The crew gets the
+-- address, the scope and the evidence; not the number the customer pays.
+perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000a002', true);
+perform assert(has_permission('price.view'), 'a manager can see the price');
+
+perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000a001', true);
+perform assert(has_permission('price.view'), 'the owner can see the price');
+
+perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000a006', true);
+perform assert(has_permission('price.view'),
+  'the bookkeeper can see the price, since they keep the books');
+
+perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000a003', true);
+perform assert(not has_permission('price.view'), 'a crew lead cannot see the price');
+
+perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000a004', true);
+perform assert(not has_permission('price.view'), 'a technician cannot see the price');
+
+-- Price visibility is its own flag: seeing what the customer pays and seeing
+-- what the job cost us are different questions.
+perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000a006', true);
+perform assert(has_permission('price.view') and has_permission('costing.view'),
+  'the two money flags are separate and the bookkeeper holds both');
+
 raise notice 'ALL ASSERTIONS PASSED';
 end $$;
+
+
+-- 21. The revoke actually holds ---------------------------------------------
+-- Every signed-in Supabase user is the same `authenticated` role, so these
+-- checks run as that role. A superuser bypasses column privileges entirely
+-- and would report a false pass.
+
+set role authenticated;
+
+-- Crew lead: the masked view gives them the job without the money.
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000a003', false);
+
+do $$
+declare v_price numeric; v_n int;
+begin
+  select quoted_price into v_price from jobs_safe
+  where job_number = 'J00102';
+  perform assert(v_price is null, 'jobs_safe masks the price from a crew lead');
+
+  select count(*) into v_n from jobs_safe where job_number = 'J00102';
+  perform assert(v_n = 1, 'a crew lead still sees the job itself, just not its price');
+
+  select amount into v_price from change_orders_safe where seq = 1
+    and job_id = (select id from jobs where job_number = 'J00102');
+  perform assert(v_price is null, 'change order amounts are masked too');
+
+  select count(*) into v_n from job_costs;
+  perform assert(v_n = 0, 'a crew lead sees no costing rows at all');
+end $$;
+
+-- And the direct path is closed, or the view would be decoration.
+do $$
+begin
+  perform assert_raises('select quoted_price from jobs',
+    'reading the price straight off the jobs table is refused');
+  perform assert_raises('select amount from change_orders',
+    'reading a change order amount straight off the table is refused');
+  perform assert_raises('select cost_rate from profiles',
+    'reading a cost rate straight off the profiles table is refused');
+end $$;
+
+-- Manager: same views, money present.
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000a002', false);
+
+do $$
+declare v_price numeric;
+begin
+  select quoted_price into v_price from jobs_safe where job_number = 'J00102';
+  perform assert(v_price = 8600.00, 'jobs_safe shows the price to a manager');
+
+  select contract_price into v_price from jobs_safe where job_number = 'J00102';
+  perform assert(v_price = 9450.00,
+    'the contract price reaches a manager through the safe view');
+
+  select amount into v_price from change_orders_safe where seq = 1
+    and job_id = (select id from jobs where job_number = 'J00102');
+  perform assert(v_price = 1250.00, 'a manager sees change order amounts');
+end $$;
+
+reset role;
+select set_config('request.jwt.claim.sub', '', false);
+\echo 'PRICE VISIBILITY ASSERTIONS PASSED'

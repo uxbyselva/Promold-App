@@ -54,7 +54,7 @@ required, signature required, forms required).
 | `priority` | |
 | `scheduled_start`, `scheduled_end` | May span multiple days |
 | `actual_start`, `actual_end` | |
-| `quoted_price` | The BASE flat price. Amount owed is `job_contract_price()` |
+| `quoted_price` | The BASE flat price. Amount owed is `job_contract_price()`. Revoked from `authenticated`; read via `jobs_safe` |
 | `insurance_claim_no`, `adjuster_contact` | Nullable |
 | `recurrence_rule` | RRULE, nullable |
 | `parent_job_id` | For recurrence instances |
@@ -242,6 +242,24 @@ margin     = job_contract_price(job) − total
 Deriving rather than storing means the costing model can be reshaped later
 without migrating historical rows.
 
+## 9a. Safe read views
+
+Price is manager and owner information. Because RLS is row level and every
+Supabase user shares the `authenticated` role, the money columns are revoked
+on the base tables and exposed through definer-rights views that check the
+flag and repeat the row filter:
+
+| View | Masks | Unless |
+|---|---|---|
+| `jobs_safe` | `quoted_price`, `contract_price`, `change_order_total` | `price.view` |
+| `change_orders_safe` | `amount` | `price.view` |
+| `profiles_safe` | `cost_rate` | `user.view_cost_rates` |
+| `job_costs` | every row | `costing.view` |
+
+Clients read jobs through `jobs_safe`, never the table. Adding a column to
+`jobs`, `change_orders` or `profiles` means re-running
+`grant_columns_except()` for it, or the new column is unreadable.
+
 ## 10. Constraints worth stating explicitly
 
 1. `stock_levels` is derived from `stock_movements` — always.
@@ -254,3 +272,5 @@ without migrating historical rows.
 5. Scheduling a user with approved `time_off` overlapping the visit is
    rejected.
 6. `jobs.deleted_at` is set, never `DELETE`.
+7. The money columns are revoked from `authenticated`; price reaches a client
+   only through a safe view that checks `price.view`.
