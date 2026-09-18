@@ -36,8 +36,14 @@ Three settings on the import screen. The first one matters most.
 | Setting | Value |
 |---|---|
 | **Root Directory** | Click **Edit** and choose `apps/admin` |
-| **Framework Preset** | Next.js — it should detect this by itself |
+| **Framework Preset** | **Next.js** — check this, do not assume |
+| **Output Directory** | Leave empty. Next.js handles it. |
 | **Environment Variables** | The two below |
+
+> **"No Output Directory named 'public' found"** means the Framework Preset is
+> not Next.js, or the Root Directory is not `apps/admin`. Vercel has fallen
+> back to treating the repository as a plain static site and gone looking for
+> a folder of HTML files. Fix both settings and redeploy.
 
 Environment variables:
 
