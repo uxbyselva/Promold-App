@@ -1,6 +1,6 @@
 <title>Promold Field</title>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
 <style>
 :root{
   --ground:#EFF3F2; --surface:#FFFFFF; --surface-2:#F7FAF9;
@@ -13,6 +13,13 @@
   --idle:#5E6E6C; --idle-soft:#E6EBEA;
   --shadow:0 1px 2px rgba(22,33,31,.06), 0 4px 14px rgba(22,33,31,.05);
   --radius:12px;
+
+  /* One superfamily, three roles. Plex Mono carries anything that is read
+     back character by character — asset tags, meter readings, money — where
+     its slashed zero and fixed widths stop AS-001 being read as AS-OO1. */
+  --font-ui:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --font-cond:'IBM Plex Sans Condensed','IBM Plex Sans',system-ui,sans-serif;
+  --font-mono:'IBM Plex Mono',ui-monospace,'SFMono-Regular',Menlo,monospace;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
@@ -43,15 +50,16 @@
 html,body{height:100%}
 body{
   margin:0; background:var(--ground); color:var(--ink);
-  font-family:'Barlow',system-ui,-apple-system,'Segoe UI',sans-serif;
+  font-family:var(--font-ui);
   font-size:15px; line-height:1.45; -webkit-font-smoothing:antialiased;
 }
 p{margin:0}
 button{font:inherit;color:inherit;cursor:pointer;border:none;background:none}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
 
-.cond{font-family:'Barlow Condensed','Barlow',system-ui,sans-serif}
-.lbl{font-family:'Barlow Condensed','Barlow',sans-serif;font-weight:600;
+.cond{font-family:var(--font-cond)}
+.mono{font-family:var(--font-mono)}
+.lbl{font-family:var(--font-cond);font-weight:600;
   text-transform:uppercase;letter-spacing:.09em;font-size:12px;color:var(--faint)}
 .num{font-variant-numeric:tabular-nums}
 
@@ -85,12 +93,13 @@ main{flex:1;padding:14px 16px 20px;display:flex;flex-direction:column;gap:12px}
 .cal-nav button{width:32px;height:32px;border-radius:8px;background:var(--surface-2);
   border:1px solid var(--line);display:grid;place-items:center;font-size:15px;color:var(--muted)}
 .dow{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:4px}
-.dow span{text-align:center;font-family:'Barlow Condensed',sans-serif;font-size:11px;
+.dow span{text-align:center;font-family:var(--font-cond);font-size:11px;
   font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--faint)}
 .grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
 .cell{aspect-ratio:1/1;border-radius:9px;border:1px solid transparent;background:transparent;
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
-  font-variant-numeric:tabular-nums;font-size:14px;color:var(--ink);padding:0;min-width:0}
+  font-family:var(--font-mono);font-variant-numeric:tabular-nums;font-size:13.5px;
+  color:var(--ink);padding:0;min-width:0}
 .cell.out{color:var(--faint);opacity:.45}
 .cell.today{border-color:var(--accent);font-weight:700;color:var(--accent-ink)}
 .cell[aria-pressed="true"]{background:var(--accent);color:#fff;border-color:var(--accent)}
@@ -111,7 +120,7 @@ main{flex:1;padding:14px 16px 20px;display:flex;flex-direction:column;gap:12px}
 .stripe[data-s="assigned"]{background:var(--warn)}
 .job-body{padding:12px 13px 13px;display:flex;flex-direction:column;gap:7px;min-width:0}
 .job-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.job-no{font-size:12px;letter-spacing:.06em;font-weight:600;color:var(--faint)}
+.job-no{font-family:var(--font-mono);font-size:12px;letter-spacing:0;font-weight:500;color:var(--faint)}
 .job-title{font-size:16px;font-weight:600;margin:0;line-height:1.25;text-wrap:balance}
 .job-meta{display:flex;flex-direction:column;gap:3px;font-size:13.5px;color:var(--muted)}
 .job-meta .addr{color:var(--ink)}
@@ -122,7 +131,7 @@ main{flex:1;padding:14px 16px 20px;display:flex;flex-direction:column;gap:12px}
 .time{font-weight:600;font-size:14px}
 
 .pill{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;
-  font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:12.5px;
+  font-family:var(--font-cond);font-weight:600;font-size:12.5px;
   text-transform:uppercase;letter-spacing:.06em;white-space:nowrap;
   background:var(--idle-soft);color:var(--idle)}
 .pill[data-t="ok"]{background:var(--ok-soft);color:var(--ok)}
@@ -135,7 +144,7 @@ main{flex:1;padding:14px 16px 20px;display:flex;flex-direction:column;gap:12px}
 .board{display:flex;gap:10px;overflow-x:auto;padding-bottom:6px;margin:0 -16px;padding-inline:16px}
 .col{flex:0 0 250px;display:flex;flex-direction:column;gap:9px}
 .col-head{display:flex;align-items:center;justify-content:space-between;padding:0 2px}
-.count{font-size:12px;font-weight:600;color:var(--faint);background:var(--surface-2);
+.count{font-family:var(--font-mono);font-size:12px;font-weight:500;color:var(--faint);background:var(--surface-2);
   border-radius:999px;padding:1px 8px}
 .col .job{box-shadow:none}
 .col-empty{font-size:13px;color:var(--faint);padding:14px 10px;text-align:center;
@@ -144,20 +153,20 @@ main{flex:1;padding:14px 16px 20px;display:flex;flex-direction:column;gap:12px}
 /* ---------- rows ---------- */
 .unit{display:flex;align-items:center;gap:11px;width:100%;text-align:left;
   background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:11px 12px}
-.tag{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:15px;letter-spacing:.05em;
+.tag{font-family:var(--font-mono);font-weight:500;font-size:14px;letter-spacing:0;
   background:var(--surface-2);border:1px solid var(--line-strong);border-radius:6px;
   padding:4px 7px;flex:none;min-width:58px;text-align:center}
 .unit-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
 .unit-name{font-weight:600;font-size:14.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .unit-where{font-size:13px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .unit-right{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex:none}
-.days{font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:13px;
+.days{font-family:var(--font-cond);font-weight:600;font-size:13px;
   color:var(--muted);font-variant-numeric:tabular-nums}
 
 .stockrow{display:flex;align-items:center;gap:11px;width:100%;text-align:left;
   background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:11px 12px}
 .stockrow.low{border-color:var(--warn)}
-.qty{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:19px;
+.qty{font-family:var(--font-mono);font-weight:600;font-size:17px;
   font-variant-numeric:tabular-nums;min-width:44px;text-align:right}
 .qty small{font-size:11px;font-weight:600;color:var(--faint);display:block;line-height:1;
   text-transform:uppercase;letter-spacing:.05em}
@@ -194,7 +203,7 @@ dl.kv-list{margin:0;display:flex;flex-direction:column;gap:6px}
   border:2px solid var(--surface);position:relative;z-index:1}
 .track .step[data-on="1"] .bead{background:var(--accent)}
 .track .step[data-now="1"] .bead{box-shadow:0 0 0 4px var(--accent-soft)}
-.track .step span{font-family:'Barlow Condensed',sans-serif;font-size:10.5px;font-weight:600;
+.track .step span{font-family:var(--font-cond);font-size:10.5px;font-weight:600;
   text-transform:uppercase;letter-spacing:.02em;color:var(--faint);text-align:center;
   line-height:1.15;padding:0 4px}
 .track .step[data-on="1"] span{color:var(--ink)}
@@ -218,9 +227,9 @@ dl.kv-list{margin:0;display:flex;flex-direction:column;gap:6px}
 
 .phase{display:flex;flex-direction:column;gap:6px}
 .phase-head{display:flex;align-items:baseline;gap:8px}
-.phase-name{font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:13px;
+.phase-name{font-family:var(--font-cond);font-weight:600;font-size:13px;
   text-transform:uppercase;letter-spacing:.06em}
-.phase-n{font-size:12px;font-weight:600;color:var(--faint);background:var(--surface-2);
+.phase-n{font-family:var(--font-mono);font-size:12px;font-weight:500;color:var(--faint);background:var(--surface-2);
   border-radius:999px;padding:1px 8px;font-variant-numeric:tabular-nums}
 .phase-n[data-empty="1"]{background:var(--warn-soft);color:var(--warn)}
 .notes{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
@@ -240,11 +249,12 @@ dl.kv-list{margin:0;display:flex;flex-direction:column;gap:6px}
 
 .money{display:flex;flex-direction:column;gap:5px}
 .money .row{display:flex;justify-content:space-between;font-size:14px}
+.money .row .num{font-family:var(--font-mono);font-size:13.5px}
 .money .row.total{border-top:1px solid var(--line);padding-top:6px;font-weight:600}
 
 /* ---------- form ---------- */
 .field{display:flex;flex-direction:column;gap:5px}
-.field label{font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:12px;
+.field label{font-family:var(--font-cond);font-weight:600;font-size:12px;
   text-transform:uppercase;letter-spacing:.07em;color:var(--faint)}
 .field input,.field select,.field textarea{
   font:inherit;color:var(--ink);background:var(--surface-2);border:1px solid var(--line-strong);
@@ -595,7 +605,7 @@ function unitRow(u){
   const chip = u.state==='staged'
     ? `<span class="pill" data-t="${u.overdue?'crit':'ok'}"><span class="dot"></span>At site</span>`
     : u.state==='checkout' ? `<span class="pill" data-t="accent">With crew</span>`
-    : `<span class="pill">In warehouse</span>`;
+    : `<span class="pill">Available</span>`;
   return `<button class="unit" data-unit="${u.tag}">
     <span class="tag">${u.tag}</span>
     <span class="unit-main"><span class="unit-name">${esc(u.name)}</span>

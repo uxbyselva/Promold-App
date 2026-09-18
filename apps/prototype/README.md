@@ -56,6 +56,35 @@ SQL, but it is a reimplementation for the prototype, not the real rule. When
 the Expo app is built it calls the database function; the logic is not
 duplicated there.
 
+## Typography
+
+One superfamily, three roles:
+
+| Role | Face | Used for |
+|---|---|---|
+| UI and body | **IBM Plex Sans** | Titles, body, form fields |
+| Dense labels | **IBM Plex Sans Condensed** | Uppercase section labels, status pills |
+| Values read character by character | **IBM Plex Mono** | Asset tags, job numbers, quantities, money, calendar dates |
+
+Plex Mono is the reason for the choice. In Barlow, Inter, Roboto and Public
+Sans, a lowercase `l` and a capital `I` are the same bare stroke, and `0` and
+`O` are near-identical — so `AS-001` can be read as `AS-OO1`. Plex Mono has a
+slashed zero and fixed widths, which makes an asset tag unmistakable and lets
+tags stack in a column. Plex Sans also gives its `l` a tail, which the others
+do not.
+
+The cost is width: Plex runs about 5–8% wider than Barlow, so slightly less
+text fits per line. If space gets tight, Plex Sans Condensed can take over
+body text too.
+
+Mono is deliberately *not* applied to `.num`, which lands on mixed content
+like "3 days" — a monospace face there just looks loose. Tabular figures are
+what that class is for.
+
+Licence: SIL OFL 1.1, free commercially and bundleable in the Expo app. Five
+weights carry the whole system: Plex Sans 400/500/600, Plex Sans Condensed
+600, Plex Mono 500.
+
 ## Viewing it
 
 Open `field-prototype.html` in any browser, or use the published link shared
