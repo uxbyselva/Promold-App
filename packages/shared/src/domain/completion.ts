@@ -36,7 +36,7 @@ export interface CompletionState {
   completedFormKeys: string[];
   openTimeEntryCount: number;
   equipmentStagedWithoutPickup: number;
-  rentalsOutstandingWithoutReturnDate: number;
+  rentalsOutstanding: number;
   unsettledChangeOrders: number;
 }
 
@@ -49,9 +49,17 @@ export interface Blocker {
     | 'sign'
     | 'log_materials'
     | 'fill_form'
-    | 'clock_out'
     | 'schedule_pickup'
     | 'settle_change_order';
+}
+
+/**
+ * True, worth saying, and not the crew's to fix. Shown at completion as
+ * information; never refuses the transition.
+ */
+export interface Warning {
+  key: string;
+  message: string;
 }
 
 export function completionBlockers(
@@ -90,14 +98,6 @@ export function completionBlockers(
     }
   }
 
-  if (state.openTimeEntryCount > 0) {
-    blockers.push({
-      key: 'time',
-      message: `${state.openTimeEntryCount} person(s) still clocked in`,
-      action: 'clock_out',
-    });
-  }
-
   // The gate that stops air scrubbers being forgotten at finished jobs.
   // Equipment may stay on site — that is normal — but only if a collection is
   // actually scheduled.
@@ -105,14 +105,6 @@ export function completionBlockers(
     blockers.push({
       key: 'equipment',
       message: `${state.equipmentStagedWithoutPickup} item(s) still at site with no pickup scheduled`,
-      action: 'schedule_pickup',
-    });
-  }
-
-  if (state.rentalsOutstandingWithoutReturnDate > 0) {
-    blockers.push({
-      key: 'rentals',
-      message: `${state.rentalsOutstandingWithoutReturnDate} rental(s) outstanding with no return date`,
       action: 'schedule_pickup',
     });
   }
@@ -135,4 +127,34 @@ export function canComplete(
   state: CompletionState,
 ): boolean {
   return completionBlockers(requirements, state).length === 0;
+}
+
+/**
+ * What to tell the crew as they finish, without standing in their way.
+ *
+ * Clocking out was a blocker and should not have been: it is the last thing
+ * you do, and so is finishing the job, so demanding one before the other was
+ * a loop — and it made a crew lead wait on colleagues tapping buttons on
+ * their own phones. Completion is itself the clock-out. Vendor returns are
+ * arranged by the office, so that one is routed there rather than refused
+ * here.
+ */
+export function completionWarnings(state: CompletionState): Warning[] {
+  const warnings: Warning[] = [];
+
+  if (state.openTimeEntryCount > 0) {
+    warnings.push({
+      key: 'clock_out',
+      message: `${state.openTimeEntryCount} person(s) will be clocked out now`,
+    });
+  }
+
+  if (state.rentalsOutstanding > 0) {
+    warnings.push({
+      key: 'rentals',
+      message: `${state.rentalsOutstanding} rental(s) still out — the office will be told`,
+    });
+  }
+
+  return warnings;
 }

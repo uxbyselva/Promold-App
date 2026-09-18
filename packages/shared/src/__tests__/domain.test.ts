@@ -11,6 +11,7 @@ import {
   isPickupOverdue,
   daysOverdue,
   completionBlockers,
+  completionWarnings,
   canComplete,
   findConflicts,
   generateVisits,
@@ -208,7 +209,7 @@ describe('completion gates', () => {
     completedFormKeys: ['ppe_safety'],
     openTimeEntryCount: 0,
     equipmentStagedWithoutPickup: 0,
-    rentalsOutstandingWithoutReturnDate: 0,
+    rentalsOutstanding: 0,
     unsettledChangeOrders: 0,
   };
 
@@ -245,9 +246,26 @@ describe('completion gates', () => {
     expect(canComplete(requirements, { ...clean, equipmentStagedWithoutPickup: 0 })).toBe(true);
   });
 
-  it('blocks while anyone is still clocked in', () => {
-    const blockers = completionBlockers(requirements, { ...clean, openTimeEntryCount: 1 });
-    expect(blockers[0]!.action).toBe('clock_out');
+  it('does not block on open clocks — finishing the job is the clock-out', () => {
+    // Demanding a clock-out before allowing completion was a loop, and it made
+    // a crew lead wait on two colleagues tapping buttons on their own phones.
+    expect(canComplete(requirements, { ...clean, openTimeEntryCount: 2 })).toBe(true);
+  });
+
+  it('tells the crew their clocks are about to close', () => {
+    const w = completionWarnings({ ...clean, openTimeEntryCount: 2 });
+    expect(w).toHaveLength(1);
+    expect(w[0]!.message).toMatch(/clocked out/);
+  });
+
+  it('does not block on a rental the office has not chased', () => {
+    expect(canComplete(requirements, { ...clean, rentalsOutstanding: 1 })).toBe(true);
+    expect(completionWarnings({ ...clean, rentalsOutstanding: 1 })[0]!.message)
+      .toMatch(/office will be told/);
+  });
+
+  it('stays silent when there is nothing to say', () => {
+    expect(completionWarnings(clean)).toHaveLength(0);
   });
 
   it('blocks while a change order is still unagreed', () => {

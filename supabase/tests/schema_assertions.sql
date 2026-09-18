@@ -179,9 +179,14 @@ perform assert(array_length(v_txt, 1) > 0, 'a job missing its evidence cannot co
 perform assert(
   exists (select 1 from unnest(v_txt) b where b like '%After photos%'),
   'the completion gate names missing after photos');
+-- Open clocks used to block. They are now a warning: finishing the job is
+-- itself the clock-out, so demanding one before the other was a loop.
 perform assert(
-  exists (select 1 from unnest(v_txt) b where b like '%clocked out%'),
-  'the completion gate names open time entries');
+  not exists (select 1 from unnest(v_txt) b where b like '%clocked out%'),
+  'open time entries do not block completion');
+perform assert(
+  exists (select 1 from unnest(job_completion_warnings(v_job)) w where w like '%clocked out%'),
+  'open time entries are surfaced as a warning instead');
 
 -- Equipment staged with a scheduled pickup does not block; equipment staged
 -- with no pickup date does. This is the rule that stops scrubbers being
@@ -489,6 +494,38 @@ perform assert(
           where t.typname = 'photo_phase' and e.enumlabel = 'during'),
   'the during phase survives in the enum, so existing photos keep their label');
 
+-- 23. The completion gate directs rather than obstructs --------------------
+-- Two of the four old blockers were not the crew's to resolve. Clocking out
+-- is the last thing you do and so is finishing the job, and a crew lead could
+-- not finish until two colleagues tapped buttons on their own phones.
+perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000a003', true);
+
+perform assert(
+  not exists (select 1 from unnest(job_completion_blockers(v_job)) b where b like '%clocked in%'),
+  'being clocked in no longer blocks finishing the job');
+
+perform assert(
+  not exists (select 1 from unnest(job_completion_blockers(v_job)) b where b like '%Rental%'),
+  'a rental the office has not chased no longer blocks the crew');
+
+-- Still true, still said, just not in the way.
+perform assert(
+  exists (select 1 from unnest(job_completion_warnings(v_job)) w where w like '%clocked out%'),
+  'the crew is told their clocks are about to close');
+
+perform assert(
+  exists (select 1 from unnest(job_completion_warnings(v_job)) w where w like '%rental%'),
+  'the crew is told the rental is outstanding');
+
+-- What remains is what only the crew can supply and what cannot be
+-- reconstructed once they have driven away.
+perform assert(
+  exists (select 1 from unnest(job_completion_blockers(v_job)) b where b like '%After photos%'),
+  'after photos still block');
+perform assert(
+  exists (select 1 from unnest(job_completion_blockers(v_job)) b where b like '%sign-off%'),
+  'the customer signature still blocks');
+
 raise notice 'ALL ASSERTIONS PASSED';
 end $$;
 
@@ -497,6 +534,60 @@ end $$;
 -- Every signed-in Supabase user is the same `authenticated` role, so these
 -- checks run as that role. A superuser bypasses column privileges entirely
 -- and would report a false pass.
+
+-- 24. Finishing a job closes the clocks -------------------------------------
+do $$
+declare
+  v_job uuid := '00000000-0000-0000-0000-00000000bb02';
+  v_org uuid := '00000000-0000-0000-0000-0000000000a1';
+  v_open int;
+  v_auto int;
+begin
+  perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000a003', true);
+
+  -- Satisfy everything that genuinely blocks, and leave someone on the clock.
+  insert into job_photos (org_id, job_id, storage_path, phase, room_label, taken_by)
+  values (v_org, v_job, 'before/1.jpg', 'before', 'North wall', '00000000-0000-0000-0000-00000000a003'),
+         (v_org, v_job, 'after/1.jpg',  'after',  'North wall', '00000000-0000-0000-0000-00000000a003');
+
+  insert into signatures (org_id, job_id, kind, signer_name, storage_path)
+  values (v_org, v_job, 'completion', 'Helen Brooks', 'sig/1.png');
+
+  insert into form_submissions (org_id, job_id, template_id, answers, is_complete, submitted_by, submitted_at)
+  select v_org, v_job, ft.id, '{"respirator": true}'::jsonb, true,
+         '00000000-0000-0000-0000-00000000a003', now()
+  from form_templates ft where ft.org_id = v_org and ft.key = 'ppe_safety';
+
+  select count(*) into v_open
+  from time_entries where job_id = v_job and clock_out_at is null;
+  perform assert(v_open > 0, 'someone is still on the clock going in');
+
+  perform assert(array_length(job_completion_blockers(v_job), 1) is null,
+    'nothing blocks completion once the photos and signature are in');
+
+  perform transition_job(v_job, 'work_complete');
+
+  select count(*) into v_open
+  from time_entries where job_id = v_job and clock_out_at is null;
+  perform assert(v_open = 0, 'finishing the job clocked everyone out');
+
+  select count(*) into v_auto
+  from time_entries where job_id = v_job and auto_closed;
+  perform assert(v_auto > 0,
+    'the app-supplied stamps are marked, so a manager can correct them');
+
+  perform assert(
+    (select actual_end is not null from jobs where id = v_job),
+    'the job records when it actually finished');
+
+  -- And the office hears about the rental the crew could not deal with.
+  perform assert(
+    exists (select 1 from notifications
+            where kind = 'rental_outstanding' and payload ->> 'job_id' = v_job::text),
+    'the outstanding rental is pushed to whoever manages rentals');
+
+  perform set_config('request.jwt.claim.sub', '', true);
+end $$;
 
 -- A switched-off step is refused by the server, not merely hidden by the UI.
 do $$

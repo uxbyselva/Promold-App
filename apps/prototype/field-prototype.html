@@ -223,6 +223,10 @@ dl.kv-list{margin:0;display:flex;flex-direction:column;gap:6px}
 .phase-n{font-size:12px;font-weight:600;color:var(--faint);background:var(--surface-2);
   border-radius:999px;padding:1px 8px;font-variant-numeric:tabular-nums}
 .phase-n[data-empty="1"]{background:var(--warn-soft);color:var(--warn)}
+.notes{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.notes li{display:flex;align-items:center;gap:9px;font-size:13.5px;color:var(--muted)}
+.notes .tick{width:17px;height:17px;border-radius:50%;background:var(--accent-soft);
+  color:var(--accent-ink);display:grid;place-items:center;font-size:10px;font-weight:700;flex:none}
 .photos{display:flex;gap:7px;overflow-x:auto;padding-bottom:2px}
 .ph{flex:0 0 74px;height:74px;border-radius:9px;border:1px solid var(--line);display:grid;
   place-items:center;text-align:center;line-height:1.15;background:var(--surface-2);
@@ -475,6 +479,8 @@ function statusPill(j){
    honest and stops scrubbers being left behind at a finished job. */
 const phaseCount = (j, phase) => j.photos.filter(p => p.phase === phase).length;
 
+/* Blocking: only what the crew alone can supply, and only what cannot be
+   reconstructed once they have driven away. */
 function blockers(j){
   const out=[];
   // At least one in each required phase. There is no upper bound.
@@ -483,10 +489,16 @@ function blockers(j){
   if(!j.signed) out.push(['Customer sign-off required','Get signature']);
   if(!j.materialsLogged) out.push(['Log materials used','Log now']);
   j.formsNeeded.forEach(f=>{if(!j.formsDone.includes(f)) out.push([`Not complete: ${f}`,'Fill in']);});
-  if(j.openClocks>0) out.push([`${j.openClocks} person still clocked in`,'Clock out']);
   const stranded=j.equipment.filter(t=>{const u=units.find(x=>x.tag===t);return u&&u.state==='staged'&&!u.due;});
   if(stranded.length) out.push([`${stranded.length} item at site, no pickup set`,'Set pickup']);
-  if(j.rentalOpen) out.push(['Rental still out — set a return','Set return']);
+  return out;
+}
+
+/* True, worth saying, not theirs to fix. Never refuses the transition. */
+function warnings(j){
+  const out=[];
+  if(j.openClocks>0) out.push(`${j.openClocks} ${j.openClocks===1?'person':'people'} will be clocked out now`);
+  if(j.rentalOpen) out.push('Rental still out — the office will be told');
   return out;
 }
 
@@ -668,7 +680,8 @@ function closeSheet(){$('#sheet').classList.remove('open');$('#scrim').classList
   openJob=null;openUnit=null;openPack=null;}
 
 function jobSheet(j){
-  const bl=blockers(j), co=j.changeOrders.reduce((s,c)=>c.status==='approved'?s+c.amount:s,0);
+  const bl=blockers(j), wn=warnings(j),
+        co=j.changeOrders.reduce((s,c)=>c.status==='approved'?s+c.amount:s,0);
   const idx=STEPS.indexOf(j.status);
   const canAdvance = j.acceptance==='accepted' && idx>=0 && idx<STEPS.length-1;
   $('#sheetHead').innerHTML=`
@@ -692,6 +705,11 @@ function jobSheet(j){
       <p class="lbl" style="color:var(--warn)">${bl.length} thing${bl.length>1?'s':''} before you can finish</p>
       <ul class="blockers">${bl.map(([t,a])=>`<li><span class="x">!</span><span>${esc(t)}</span>
         <span class="fix">${esc(a)}</span></li>`).join('')}</ul></div>`:''}
+
+    ${j.status==='in_progress'&&wn.length?`<div class="panel">
+      <p class="lbl">When you finish</p>
+      <ul class="notes">${wn.map(w=>`<li><span class="tick">✓</span>${esc(w)}</li>`).join('')}</ul>
+    </div>`:''}
 
     <div class="panel"><p class="lbl">Site</p>
       <dl class="kv-list">
@@ -922,8 +940,13 @@ document.addEventListener('click', e => {
         if (bl.length){ toast(`Not yet — ${bl.length} thing${bl.length>1?'s':''} outstanding`); break; }
       }
       j.status=STEPS[i+1];
-      toast(j.status==='in_progress'?'Clocked in at 42 Oak St'
-        :j.status==='work_complete'?'Job finished — sent for review':STEP_LABEL[j.status]);
+      if (j.status==='work_complete'){
+        // Finishing the job is the truthful clock-out moment.
+        const n=j.openClocks; j.openClocks=0;
+        toast(n?`Finished · ${n} clocked out automatically`:'Job finished — sent for review');
+      } else {
+        toast(j.status==='in_progress'?'Clocked in at 42 Oak St':STEP_LABEL[j.status]);
+      }
       jobSheet(j); render(); break;
     }
     case 'take-open': takeSheet(); break;
