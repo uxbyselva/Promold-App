@@ -130,8 +130,26 @@ NEXT_PUBLIC_SUPABASE_URL=https://xxxxxxxx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
 ```
 
-`.env.local` is already gitignored. Check with `git status` before committing
-that it is not listed.
+`.env.local` is already gitignored. `./scripts/scan-secrets.sh` will catch it
+if that ever stops being true.
+
+## 7. Run it
+
+```bash
+pnpm install
+pnpm --filter @promold/admin dev
+```
+
+Open http://localhost:3000, sign in with the user from step 3, and you land on
+the dispatch board for today.
+
+**Empty board, no error** — most likely no jobs on today's date. Step through
+with the arrows, or load the demo data from step 5 and navigate to
+18 September 2026, which is the day its sample job runs.
+
+**"No profile for this login"** — you are authenticated but step 4 has not been
+run for this email, so `auth_org_id()` returns null and row-level security
+hides everything. That screen says so rather than showing you a blank page.
 
 ## What the free tier gives you
 
