@@ -687,3 +687,135 @@ end $$;
 reset role;
 select set_config('request.jwt.claim.sub', '', false);
 \echo 'PRICE VISIBILITY ASSERTIONS PASSED'
+
+-- ---------------------------------------------------------------------------
+-- Admin mode: deleting, restoring, and the trail both leave behind
+-- ---------------------------------------------------------------------------
+
+set role authenticated;
+
+-- Manager: may delete a customer, may not put one back.
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000a002', false);
+
+do $$
+declare
+  v_d1 uuid := '00000000-0000-0000-0000-0000000000d1';  -- Helen Brooks, has a site
+  v_d3 uuid := '00000000-0000-0000-0000-0000000000d3';  -- Statewide Mutual, has none
+  v_n int;
+begin
+  perform assert_raises(
+    format('select soft_delete_record(''customers'', %L, ''tidying up'')', v_d1),
+    'a customer with a live site cannot be deleted');
+
+  perform assert_raises(
+    format('select soft_delete_record(''customers'', %L, ''   '')', v_d3),
+    'a delete with no reason is refused');
+
+  perform assert_raises(
+    'select soft_delete_record(''organizations'', gen_random_uuid(), ''why not'')',
+    'a table that does not soft-delete cannot be deleted through this door');
+
+  perform soft_delete_record('customers', v_d3, 'duplicate of an older record');
+
+  select count(*) into v_n from deleted_records()
+   where table_name = 'customers' and record_id = v_d3;
+  perform assert(v_n = 1, 'a deleted customer shows up in the recycle bin');
+
+  select count(*) into v_n from deleted_records()
+   where record_id = v_d3 and blocked_by is null;
+  perform assert(v_n = 1, 'with no deleted parent, nothing blocks the restore');
+
+  perform assert_raises(
+    format('select restore_record(''customers'', %L)', v_d3),
+    'a manager cannot restore: that is data.restore, and they do not have it');
+end $$;
+
+-- Crew lead: the row is simply gone, not merely hidden by a client filter.
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000a003', false);
+
+do $$
+declare v_n int;
+begin
+  select count(*) into v_n from customers
+   where id = '00000000-0000-0000-0000-0000000000d3';
+  perform assert(v_n = 0, 'a deleted customer is invisible without audit.view');
+
+  perform assert_raises('select * from deleted_records()',
+    'the recycle bin is refused without audit.view');
+  perform assert_raises('select * from audit_feed()',
+    'the audit trail is refused without audit.view');
+end $$;
+
+-- Owner: restores, and the parent rule holds on the way back.
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000a001', false);
+
+do $$
+declare
+  v_org uuid := '00000000-0000-0000-0000-0000000000a1';
+  v_d3 uuid := '00000000-0000-0000-0000-0000000000d3';
+  v_cust uuid;
+  v_site uuid;
+  v_n int;
+begin
+  perform restore_record('customers', v_d3, 'not a duplicate after all');
+  select count(*) into v_n from customers where id = v_d3 and deleted_at is null;
+  perform assert(v_n = 1, 'the owner can put a deleted customer back');
+
+  -- A customer and site of its own, so the parent rule can be exercised
+  -- without disturbing the seeded job history.
+  insert into customers (org_id, name, kind)
+  values (v_org, 'Test Holdings', 'commercial') returning id into v_cust;
+  insert into sites (org_id, customer_id, label, address_line1)
+  values (v_org, v_cust, 'Test yard', '1 Test Row') returning id into v_site;
+
+  perform soft_delete_record('sites', v_site, 'never actually ours');
+  perform soft_delete_record('customers', v_cust, 'opened in error');
+
+  select count(*) into v_n from deleted_records()
+   where record_id = v_site and blocked_by is not null;
+  perform assert(v_n = 1, 'the bin says which deleted parent blocks a restore');
+
+  perform assert_raises(
+    format('select restore_record(''sites'', %L)', v_site),
+    'a site cannot be restored under a customer that is still deleted');
+
+  perform restore_record('customers', v_cust);
+  perform restore_record('sites', v_site);
+
+  select count(*) into v_n from sites where id = v_site and deleted_at is null;
+  perform assert(v_n = 1, 'parent first, then child: both come back');
+
+  -- The trail records both directions, not just the destructive one.
+  select count(*) into v_n from record_history('customers', v_cust)
+   where action = 'soft_delete';
+  perform assert(v_n = 1, 'the delete is on the record');
+
+  select count(*) into v_n from record_history('customers', v_cust)
+   where action = 'restore';
+  perform assert(v_n = 1, 'so is the restore');
+
+  select count(*) into v_n from audit_feed(p_table => 'customers')
+   where record_id = v_cust and action = 'insert';
+  perform assert(v_n = 1, 'customers are audited now, which they were not before');
+
+  -- Leave the seed as it was found.
+  perform soft_delete_record('sites', v_site, 'test fixture');
+  perform soft_delete_record('customers', v_cust, 'test fixture');
+end $$;
+
+reset role;
+select set_config('request.jwt.claim.sub', '', false);
+
+do $$
+declare v_n int;
+begin
+  select count(*) into v_n from roles
+   where key = 'owner' and (permissions ->> 'data.restore')::boolean = true;
+  perform assert(v_n > 0, 'every owner role carries data.restore');
+
+  select count(*) into v_n from roles
+   where key <> 'owner' and coalesce((permissions ->> 'data.restore')::boolean, false);
+  perform assert(v_n = 0, 'and nobody else does');
+end $$;
+
+\echo 'ADMIN MODE ASSERTIONS PASSED'

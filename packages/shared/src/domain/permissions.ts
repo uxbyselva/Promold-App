@@ -71,7 +71,10 @@ export const PERMISSIONS = {
   'user.view_cost_rates': 'See internal cost rates',
   'role.manage': 'Change roles and permission flags',
   'org.manage_settings': 'Change org settings and thresholds',
-  'audit.view': 'Read the audit log',
+  'audit.view': 'Read the audit log, the record history and the recycle bin',
+  // Deliberately not implied by any delete permission. Whoever can remove a
+  // customer is not automatically the person who decides it comes back.
+  'data.restore': 'Restore a soft-deleted record',
   'export.run': 'Run exports',
 } as const;
 
@@ -126,4 +129,13 @@ export function canSeePrice(holder: PermissionHolder | null | undefined): boolea
 /** Whether this user may see what a job cost and what it earned. */
 export function canSeeMargin(holder: PermissionHolder | null | undefined): boolean {
   return can(holder, 'costing.view');
+}
+
+/**
+ * Whether the admin area — history, the audit trail, the recycle bin — is open
+ * to this user at all. Reading it and acting on it are separate questions;
+ * `data.restore` answers the second.
+ */
+export function canSeeAdmin(holder: PermissionHolder | null | undefined): boolean {
+  return can(holder, 'audit.view');
 }

@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
   can,
+  canSeeAdmin,
+  auditActionLabel,
+  fieldLabel,
+  fieldChanges,
+  wholeRow,
+  describeAuditEntry,
+  canRestore,
+  recordTitle,
   isLegalTransition,
   transitionsFrom,
   enabledTransitionsFrom,
@@ -518,5 +526,78 @@ describe('validation', () => {
       proposedEnd: '2026-01-06T16:00:00Z',
     });
     expect(r.success).toBe(true);
+  });
+});
+
+describe('admin mode', () => {
+  const owner = { permissions: { 'audit.view': true, 'data.restore': true } };
+  const manager = { permissions: { 'audit.view': true } };
+  const lead = { permissions: { 'job.accept': true } };
+
+  it('opens the admin area to whoever reads the audit log', () => {
+    expect(canSeeAdmin(owner)).toBe(true);
+    expect(canSeeAdmin(manager)).toBe(true);
+    expect(canSeeAdmin(lead)).toBe(false);
+  });
+
+  it('names the actions in words', () => {
+    expect(auditActionLabel('soft_delete')).toBe('Deleted');
+    expect(auditActionLabel('restore')).toBe('Restored');
+    // Anything the database grows later still renders, just unprettified.
+    expect(auditActionLabel('merged')).toBe('merged');
+  });
+
+  it('labels columns without keeping a second copy of the schema', () => {
+    expect(fieldLabel('scheduled_start')).toBe('Start');
+    expect(fieldLabel('make_model')).toBe('Make model');
+    expect(fieldLabel('site_id')).toBe('Site');
+    expect(fieldLabel('supplier_id')).toBe('Supplier');
+  });
+
+  it('reads an edit diff as a list of changes', () => {
+    const changes = fieldChanges({
+      quoted_price: { old: 8600, new: 9200 },
+      scheduled_start: { old: '2026-01-05T08:00:00Z', new: '2026-01-06T08:00:00Z' },
+    });
+    expect(changes.map((c) => c.label)).toEqual(['Quoted price', 'Start']);
+    expect(changes[0]?.from).toBe(8600);
+    expect(changes[0]?.to).toBe(9200);
+  });
+
+  it('does not force an insert into a change list', () => {
+    const diff = { new: { id: 'x', title: 'Basement remediation' } };
+    expect(fieldChanges(diff)).toEqual([]);
+    expect(wholeRow(diff)).toEqual({ id: 'x', title: 'Basement remediation' });
+    expect(wholeRow({ quoted_price: { old: 1, new: 2 } })).toBeNull();
+  });
+
+  it('says what changed, not merely that something did', () => {
+    expect(describeAuditEntry({ action: 'update', fields: ['scheduled_start', 'quoted_price'] }))
+      .toBe('Edited — Start, Quoted price');
+    expect(describeAuditEntry({ action: 'insert', fields: [] })).toBe('Created');
+    expect(
+      describeAuditEntry({
+        action: 'update',
+        fields: ['title', 'quoted_price', 'scheduled_start', 'scheduled_end', 'priority'],
+      }),
+    ).toBe('Edited — Title, Quoted price, Start and 2 more');
+  });
+
+  it('withholds restore from someone who can only look', () => {
+    const free = { blockedBy: null };
+    expect(canRestore(free, owner)).toBe(true);
+    expect(canRestore(free, manager)).toBe(false);
+    expect(canRestore(free, null)).toBe(false);
+  });
+
+  it('withholds restore while the parent is still deleted', () => {
+    expect(canRestore({ blockedBy: 'Customer - Helen Brooks' }, owner)).toBe(false);
+  });
+
+  it('falls back through ref to the id for a row with no name', () => {
+    expect(recordTitle({ title: 'Basement', ref: 'J00102', recordId: 'abcdef12-0000' }))
+      .toBe('Basement');
+    expect(recordTitle({ title: null, ref: 'J00102', recordId: 'abcdef12-0000' })).toBe('J00102');
+    expect(recordTitle({ title: null, ref: null, recordId: 'abcdef12-0000' })).toBe('abcdef12');
   });
 });
