@@ -162,6 +162,40 @@ only work once it is on the home screen. Do step 2 with them.
 
 ---
 
+# First: which of these do you need?
+
+Run **`supabase/health-check.sql`** in the SQL editor before anything else. It
+changes nothing, works on an empty project, and tells you exactly which file
+to run next and whether your organisation and login are set up.
+
+| What it says | What to run |
+|---|---|
+| Empty | `supabase/bootstrap.sql`, then steps 3–4 of [SUPABASE-SETUP.md](SUPABASE-SETUP.md) |
+| At 0021 | `supabase/update.sql` |
+| Up to date | Nothing — check rows 8–10 for the org, profile and photo bucket |
+| Partly updated | Stop and get help; something failed halfway |
+
+Running the wrong one is not dangerous — `update.sql` on an empty project
+fails on its first statement and, being one transaction, applies nothing. But
+it wastes a round trip and reads like a disaster when it is not.
+
+# If you need to start over
+
+**`supabase/reset.sql`** drops the schema and leaves it ready for
+`bootstrap.sql` again. It refuses if there are jobs, customers or photos in
+the database, so it cannot destroy real work by accident.
+
+That is the rollback for a project not yet in real use: if the schema was
+empty before you loaded it, dropping it costs nothing and puts you exactly
+back. Once there is real work in it, the answer is a backup instead —
+Supabase → Database → Backups. Worth knowing which plan you are on before you
+need one.
+
+**A staging project is the better habit.** A second free Supabase project,
+loaded from the same `bootstrap.sql`, gives somewhere to run a schema change
+before it touches the real one. Point a preview deployment at it and nothing
+reaches production untested.
+
 # Bringing an existing database up to date
 
 If the app is already running and the schema has moved on, `supabase/update.sql`
