@@ -53,6 +53,16 @@ Business rules are enforced in **Postgres**, not in the clients:
   `set_job_crew()`. A job is three writes that have to agree — the row, its
   work days, its crew — so they happen in one transaction. Approved time off
   is refused outright; a double booking is refused unless forced.
+- **Consumables** carry a `consumption_mode`. A bulk item is opened as a
+  pack: opening takes one container off the shelf and parks its cost on the
+  pack, and finishing splits that cost evenly across the jobs it served. A
+  pack is open or finished — there is no part-used state, because asking a
+  crew how full a box is produces a guess. An open pack costs nothing yet.
+- **Buying** goes through `create_purchase_request()` and
+  `decide_purchase_request()`. The spend threshold is read server-side and
+  measured against the lines actually being approved, not against everything
+  asked for. Once submitted, what was asked for is frozen; the decision and
+  the receipt are not.
 - **Deleting and restoring** go through `soft_delete_record()` and
   `restore_record()`, driven by the `deletable_tables` registry. A delete is
   refused while live children point at the row; a restore is refused while the

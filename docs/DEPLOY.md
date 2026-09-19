@@ -174,7 +174,20 @@ Some things are not migrations and have to be run once by hand, in Supabase →
 
 If a migration has been added since you last ran `bootstrap.sql`, run the new
 numbered file from `supabase/migrations/` on its own rather than re-running
-the whole bootstrap.
+the whole bootstrap. They are numbered, and they go in order.
+
+One setting worth checking once you are in: **the purchase approval
+threshold**, which decides what a manager can approve without the owner. It
+lives on the organisation record and ships at $500:
+
+```sql
+update organizations
+   set settings = settings || jsonb_build_object('approval_threshold', 500)
+ where id = (select org_id from profiles where email = 'you@example.com');
+```
+
+The same `settings` column holds `mileage_rate` (currently $0.67/mile), which
+is what the mileage screens reimburse at.
 
 Until `storage.sql` has been run, the photo galleries in the field app say so
 plainly rather than failing in a way nobody can diagnose.
