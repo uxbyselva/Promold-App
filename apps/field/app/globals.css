@@ -1,0 +1,100 @@
+@import '@promold/app-kit/styles.css';
+
+/* The field app is a phone app that happens to run in a browser. It stays at
+   phone width on a desktop too rather than stretching a one-column layout
+   across 1400 pixels. */
+.shell{max-width:520px;margin:0 auto;min-height:100dvh;display:flex;flex-direction:column;
+  padding-bottom:calc(70px + env(safe-area-inset-bottom,0px))}
+.topbar{position:sticky;top:0;z-index:20;background:var(--surface);
+  border-bottom:1px solid var(--line);padding:12px 16px}
+.topbar-row{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.topbar h1{font-size:20px}
+.whoami{font-size:12.5px;color:var(--muted)}
+main{flex:1;padding:14px 16px 20px;display:flex;flex-direction:column;gap:12px}
+
+.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:30;display:flex;background:var(--surface);
+  border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px);
+  max-width:520px;margin:0 auto}
+.tabbar a{flex:1;padding:9px 4px 11px;display:flex;flex-direction:column;align-items:center;
+  gap:3px;color:var(--faint);font-size:11.5px;font-weight:600;text-decoration:none}
+.tabbar a[aria-current="page"]{color:var(--accent)}
+.tabbar .ic{font-size:18px;line-height:1}
+.tabbar .badge{position:absolute;transform:translate(15px,-4px);background:var(--crit);color:#fff;
+  font-size:10px;font-weight:700;border-radius:999px;padding:0 5px;line-height:15px}
+
+.seg{display:flex;gap:2px;margin-top:11px}
+.seg button{flex:1;padding:7px 4px;border-radius:8px;font-size:13.5px;font-weight:500;
+  color:var(--muted);background:var(--surface-2);border:1px solid transparent}
+.seg button[aria-selected="true"]{background:var(--accent-soft);color:var(--accent-ink);
+  border-color:var(--accent);font-weight:600}
+
+/* month grid */
+.cal{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+  padding:11px 10px 12px;box-shadow:var(--shadow)}
+.cal-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:9px}
+.cal-nav{display:flex;gap:4px}
+.cal-nav button{width:32px;height:32px;border-radius:8px;background:var(--surface-2);
+  border:1px solid var(--line);display:grid;place-items:center;font-size:15px;color:var(--muted)}
+.dow{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:4px}
+.dow span{text-align:center;font-family:var(--font-cond);font-size:10.5px;font-weight:600;
+  text-transform:uppercase;letter-spacing:.05em;color:var(--faint)}
+.grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.cell{aspect-ratio:1/1;border-radius:9px;border:1px solid transparent;background:transparent;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  font-family:var(--font-mono);font-variant-numeric:tabular-nums;font-size:13.5px;
+  color:var(--ink);padding:0;min-width:0}
+.cell.out{color:var(--faint);opacity:.45}
+.cell.today{border-color:var(--accent);font-weight:700;color:var(--accent-ink)}
+.cell[aria-pressed="true"]{background:var(--accent);color:#fff;border-color:var(--accent)}
+.cell[aria-pressed="true"] .d i{background:#fff!important}
+.cell .d{display:flex;gap:2.5px;height:5px;align-items:center}
+.cell .d i{width:5px;height:5px;border-radius:50%;display:block;background:var(--accent)}
+.cell .d i.done{background:var(--ok)}
+.cell .d i.ask{background:var(--warn)}
+
+/* job card */
+.job{display:grid;grid-template-columns:4px 1fr;background:var(--surface);
+  border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;
+  box-shadow:var(--shadow);width:100%;text-align:left;text-decoration:none;color:inherit}
+.stripe{background:var(--idle)}
+.stripe[data-s="in_progress"]{background:var(--ok)}
+.stripe[data-s="assigned"]{background:var(--warn)}
+.stripe[data-s="work_complete"]{background:var(--idle)}
+.job-body{padding:12px 13px 13px;display:flex;flex-direction:column;gap:7px;min-width:0}
+
+/* three steps */
+.track{display:flex;align-items:center;margin:2px 0 4px}
+.track .step{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;position:relative}
+.track .step::before{content:"";position:absolute;top:6px;left:-50%;width:100%;height:2px;
+  background:var(--line-strong)}
+.track .step:first-child::before{display:none}
+.track .step[data-on="1"]::before{background:var(--accent)}
+.track .bead{width:13px;height:13px;border-radius:50%;background:var(--line-strong);
+  border:2px solid var(--surface);position:relative;z-index:1}
+.track .step[data-on="1"] .bead{background:var(--accent)}
+.track .step[data-now="1"] .bead{box-shadow:0 0 0 4px var(--accent-soft)}
+.track .step span{font-family:var(--font-cond);font-size:10.5px;font-weight:600;
+  text-transform:uppercase;letter-spacing:.02em;color:var(--faint);text-align:center;
+  line-height:1.15;padding:0 4px}
+.track .step[data-on="1"] span{color:var(--ink)}
+
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+  padding:12px 13px;display:flex;flex-direction:column;gap:9px;box-shadow:var(--shadow)}
+.panel.flag{border-color:var(--warn)}
+.kv{margin:0;display:flex;flex-direction:column;gap:6px}
+.kv > div{display:flex;justify-content:space-between;gap:12px;font-size:13.5px}
+.kv dt{color:var(--muted)}
+.kv dd{margin:0;font-weight:500;text-align:right}
+
+.blockers{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:7px}
+.blockers li{display:flex;align-items:flex-start;gap:9px;font-size:13.5px}
+.blockers .x{width:17px;height:17px;border-radius:50%;background:var(--warn);
+  color:var(--warn-soft);display:grid;place-items:center;font-size:12px;font-weight:700;flex:none}
+.blockers .tick{width:17px;height:17px;border-radius:50%;background:var(--ok-soft);
+  color:var(--ok);display:grid;place-items:center;font-size:10px;font-weight:700;flex:none}
+
+.photos{display:flex;gap:7px;overflow-x:auto;padding-bottom:2px}
+.ph{flex:0 0 74px;height:74px;border-radius:9px;border:1px solid var(--line);
+  background:var(--surface-2);object-fit:cover;display:block}
+.ph.add{border-style:dashed;border-color:var(--accent);color:var(--accent);font-size:12px;
+  display:grid;place-items:center;text-align:center;line-height:1.2;padding:4px;cursor:pointer}
