@@ -162,6 +162,31 @@ only work once it is on the home screen. Do step 2 with them.
 
 ---
 
+# Bringing an existing database up to date
+
+If the app is already running and the schema has moved on, `supabase/update.sql`
+is every migration since **0021** in one file, ready to paste.
+
+1. Supabase → **SQL Editor** → **New query**.
+2. Open `supabase/update.sql` from the repository, copy all of it, paste it in.
+3. **Run**.
+
+It is wrapped in a transaction, so it either all applies or none of it does —
+there is no half-updated state to unpick. **Run it once.** It creates tables
+and types; a second run stops on the first thing that already exists, which is
+the right behaviour but looks alarming.
+
+Then, separately, `supabase/storage.sql` — the bucket job photos go in. Same
+steps, new query. Running that one twice is safe.
+
+Regenerate `update.sql` after adding a migration:
+
+```bash
+./scripts/build-update.sh 0021     # everything after 0021
+```
+
+---
+
 # One-time database setup
 
 Some things are not migrations and have to be run once by hand, in Supabase →
