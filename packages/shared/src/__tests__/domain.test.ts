@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   can,
+  modeLabel,
+  isPack,
+  packShare,
+  describePackShare,
+  isLow,
   canSeeAdmin,
   auditActionLabel,
   fieldLabel,
@@ -599,5 +604,36 @@ describe('admin mode', () => {
       .toBe('Basement');
     expect(recordTitle({ title: null, ref: 'J00102', recordId: 'abcdef12-0000' })).toBe('J00102');
     expect(recordTitle({ title: null, ref: null, recordId: 'abcdef12-0000' })).toBe('abcdef12');
+  });
+});
+
+describe('consumables', () => {
+  it('names the three modes', () => {
+    expect(modeLabel('bulk')).toBe('Opened as a pack');
+    expect(modeLabel('single_use')).toBe('Counted out');
+    expect(isPack('bulk')).toBe(true);
+    expect(isPack('single_use')).toBe(false);
+  });
+
+  it('splits a pack evenly across what it served', () => {
+    expect(packShare(62, 2)).toEqual({ total: 62, jobs: 2, each: 31 });
+    expect(packShare(38.5, 3).each).toBe(12.83);
+  });
+
+  it('puts a pack nobody logged on the business, not on a job', () => {
+    expect(packShare(62, 0)).toEqual({ total: 62, jobs: 0, each: null });
+    expect(describePackShare(62, 0)).toMatch(/lands on the business/);
+  });
+
+  it('says what finishing it will cost each job, before the button', () => {
+    expect(describePackShare(62, 2)).toBe('Splits $62.00 across 2 jobs — $31.00 each.');
+    expect(describePackShare(62, 1)).toBe('Splits $62.00 across 1 job — $62.00 each.');
+  });
+
+  it('flags stock at or below its reorder level', () => {
+    expect(isLow(4, 4)).toBe(true);
+    expect(isLow(5, 4)).toBe(false);
+    // No reorder level set means nothing to be below.
+    expect(isLow(0, 0)).toBe(false);
   });
 });

@@ -67,6 +67,16 @@ export async function OfficeShell({
       badge: waiting,
     },
     { href: '/customers', label: 'Customers', when: session.can('customer.manage') },
+    {
+      href: '/equipment',
+      label: 'Equipment',
+      when: session.can('equipment.manage') || session.can('equipment.place'),
+    },
+    {
+      href: '/stock',
+      label: 'Stock',
+      when: session.can('inventory.manage') || session.can('inventory.log_usage'),
+    },
   ];
   const admin: Tab[] = [
     { href: '/admin', label: 'Overview', when: true },

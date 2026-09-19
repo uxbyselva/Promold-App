@@ -7,4 +7,5 @@ export * from './domain/scheduling.js';
 export * from './domain/completion.js';
 export * from './domain/change-orders.js';
 export * from './domain/admin.js';
+export * from './domain/consumables.js';
 export * from './schemas/index.js';

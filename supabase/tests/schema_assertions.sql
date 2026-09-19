@@ -1077,3 +1077,113 @@ reset role;
 select set_config('request.jwt.claim.sub', '', false);
 
 \echo 'DECISION ASSERTIONS PASSED'
+
+-- ---------------------------------------------------------------------------
+-- Packs: the box of bags problem
+-- ---------------------------------------------------------------------------
+
+set role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000a003', false);
+
+do $$
+declare
+  v_poly uuid := '00000000-0000-0000-0000-000000000102';  -- 6 mil sheeting
+  v_suit uuid := '00000000-0000-0000-0000-000000000104';  -- coveralls, counted
+  v_wh uuid := '00000000-0000-0000-0000-000000000c01';
+  v_van2 uuid := '00000000-0000-0000-0000-000000000c03';  -- nothing on it
+  v_j1 uuid := '00000000-0000-0000-0000-00000000bb02';
+  v_j2 uuid := '00000000-0000-0000-0000-00000000bb03';
+  v_pack stock_packs;
+  v_before numeric;
+  v_after numeric;
+  v_cost1 numeric;
+  v_cost2 numeric;
+  v_result jsonb;
+  v_n int;
+begin
+  -- Only a bulk item is a pack. A coverall is counted out, one per person.
+  perform assert_raises(
+    format('select open_pack(%L, %L)', v_suit, v_wh),
+    'something counted out cannot be opened as a pack');
+
+  perform assert_raises(
+    format('select open_pack(%L, %L)', v_poly, v_van2),
+    'a pack cannot be opened where there is none');
+
+  select quantity into v_before from stock_levels
+   where item_id = v_poly and location_id = v_wh;
+
+  v_pack := open_pack(v_poly, v_wh);
+
+  select quantity into v_after from stock_levels
+   where item_id = v_poly and location_id = v_wh;
+  perform assert(v_after = v_before - 1,
+    'opening a pack takes exactly one container off the shelf');
+
+  select count(*) into v_n from stock_movements
+   where reference_table = 'stock_packs' and reference_id = v_pack.id;
+  perform assert(v_n = 1, 'and it goes through the ledger like everything else');
+
+  -- An open pack costs nothing yet: how many jobs it will serve is unknown,
+  -- and a number that changes weekly is not a cost.
+  perform use_pack_on_job(v_pack.id, v_j1);
+  perform assert(job_pack_cost(v_j1) = 0,
+    'an open pack has not landed on any job yet');
+
+  -- Saying it twice is not using it twice.
+  perform use_pack_on_job(v_pack.id, v_j1);
+  select count(*) into v_n from stock_pack_jobs where pack_id = v_pack.id;
+  perform assert(v_n = 1, 'logging the same job twice does not double it');
+
+  perform use_pack_on_job(v_pack.id, v_j2);
+
+  v_result := finish_pack(v_pack.id);
+  perform assert((v_result ->> 'jobs')::int = 2, 'it served two jobs');
+
+  v_cost1 := job_pack_cost(v_j1);
+  v_cost2 := job_pack_cost(v_j2);
+  perform assert(v_cost1 = v_cost2, 'the split is even');
+  perform assert(round(v_cost1 + v_cost2, 2) = round(v_pack.unit_cost, 2),
+    'and the two halves are the whole pack, not more and not less');
+
+  -- It reaches the costing the same way counted materials do.
+  perform assert(job_material_cost(v_j1) >= v_cost1,
+    'the share lands on the job''s materials line');
+
+  perform assert_raises(
+    format('select finish_pack(%L)', v_pack.id),
+    'a pack cannot be finished twice');
+
+  perform assert((select count(*) from open_packs where pack_id = v_pack.id) = 0,
+    'and it leaves the open list');
+
+  -- A pack nobody logged against a job costs the business, not a job — worth
+  -- seeing rather than quietly absorbing.
+  declare v_orphan stock_packs; v_orphan_result jsonb;
+  begin
+    v_orphan := open_pack(v_poly, v_wh);
+    v_orphan_result := finish_pack(v_orphan.id);
+    perform assert((v_orphan_result ->> 'jobs')::int = 0, 'it served no job');
+    perform assert(v_orphan_result ->> 'each' is null,
+      'so there is nothing to split it across, and it says so');
+  end;
+end $$;
+
+-- Moving one needs the transfer flag, which a technician does not have.
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000a005', false);
+
+do $$
+declare v_pack uuid;
+begin
+  select pack_id into v_pack from open_packs limit 1;
+  if v_pack is not null then
+    perform assert_raises(
+      format('select move_pack(%L, %L)', v_pack, '00000000-0000-0000-0000-000000000c03'),
+      'a technician cannot move stock between vans');
+  end if;
+end $$;
+
+reset role;
+select set_config('request.jwt.claim.sub', '', false);
+
+\echo 'PACK ASSERTIONS PASSED'

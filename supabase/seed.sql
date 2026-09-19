@@ -92,23 +92,27 @@ insert into stock_locations (id, org_id, name, kind) values
   ('00000000-0000-0000-0000-000000000c02', '00000000-0000-0000-0000-0000000000a1', 'Van 1', 'van'),
   ('00000000-0000-0000-0000-000000000c03', '00000000-0000-0000-0000-0000000000a1', 'Van 2', 'van');
 
+-- consumption_mode: the drum and the roll are opened once and shared across
+-- whatever jobs they serve; the rest are counted out per job. Nothing here is
+-- 'returnable' yet — that is for cords and buckets, which are not stocked.
 insert into inventory_items (id, org_id, sku, name, category, unit_of_measure, average_cost,
-                             preferred_supplier_id, min_level, reorder_quantity, barcode) values
+                             preferred_supplier_id, min_level, reorder_quantity, barcode,
+                             consumption_mode) values
   ('00000000-0000-0000-0000-000000000101', '00000000-0000-0000-0000-0000000000a1', 'CHEM-001',
    'Antimicrobial concentrate', 'Chemicals', 'gal', 38.5000,
-   '00000000-0000-0000-0000-000000000b01', 6, 12, '0810000000011'),
+   '00000000-0000-0000-0000-000000000b01', 6, 12, '0810000000011', 'bulk'),
   ('00000000-0000-0000-0000-000000000102', '00000000-0000-0000-0000-0000000000a1', 'CONT-006',
    '6 mil poly sheeting 10x100', 'Containment', 'roll', 62.0000,
-   '00000000-0000-0000-0000-000000000b01', 4, 10, '0810000000028'),
+   '00000000-0000-0000-0000-000000000b01', 4, 10, '0810000000028', 'bulk'),
   ('00000000-0000-0000-0000-000000000103', '00000000-0000-0000-0000-0000000000a1', 'FLT-H14',
    'HEPA filter H14', 'Filters', 'each', 88.0000,
-   '00000000-0000-0000-0000-000000000b01', 4, 8, '0810000000035'),
+   '00000000-0000-0000-0000-000000000b01', 4, 8, '0810000000035', 'single_use'),
   ('00000000-0000-0000-0000-000000000104', '00000000-0000-0000-0000-0000000000a1', 'PPE-SUIT',
    'Disposable coverall XL', 'PPE', 'each', 9.7500,
-   '00000000-0000-0000-0000-000000000b01', 20, 50, '0810000000042'),
+   '00000000-0000-0000-0000-000000000b01', 20, 50, '0810000000042', 'single_use'),
   ('00000000-0000-0000-0000-000000000105', '00000000-0000-0000-0000-0000000000a1', 'TAPE-DUC',
    'Contractor tape', 'Containment', 'roll', 7.2000,
-   '00000000-0000-0000-0000-000000000b01', 12, 24, '0810000000059');
+   '00000000-0000-0000-0000-000000000b01', 12, 24, '0810000000059', 'single_use');
 
 -- Opening stock, as receipts so the ledger is the only source of truth.
 insert into stock_movements (org_id, item_id, kind, to_location_id, quantity, unit_cost, reason)
