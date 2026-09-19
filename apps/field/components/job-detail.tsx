@@ -62,6 +62,7 @@ export function JobDetail({
   myAssignment,
   photos,
   equipment,
+  decision,
   blockers,
   warnings,
   canComplete,
@@ -75,6 +76,13 @@ export function JobDetail({
   myAssignment: { id: string; acceptance: string } | null;
   photos: Photo[];
   equipment: { id: string; asset_tag: string; name: string; expectedEnd: string | null }[];
+  decision: {
+    status: string;
+    reason: string;
+    decisionReason: string | null;
+    decidedAt: string | null;
+    decidedBy: string;
+  } | null;
   blockers: string[];
   warnings: string[];
   canComplete: boolean;
@@ -223,6 +231,34 @@ export function JobDetail({
         >
           Directions · {address}
         </a>
+      ) : null}
+
+      {/* What came of asking to move it. A declined request that just puts the
+          job back in front of them, with no word about why, is how people
+          decide the app does not work. */}
+      {decision ? (
+        <div className={`panel${decision.status === 'declined' ? ' flag' : ''}`}>
+          <div className="row between">
+            <h3>You asked to move this</h3>
+            <span className="pill" data-t={decision.status === 'approved' ? 'ok' : 'crit'}>
+              {decision.status === 'approved' ? 'Moved' : 'Declined'}
+            </span>
+          </div>
+          <p className="sub">&ldquo;{decision.reason}&rdquo;</p>
+          {decision.decisionReason ? (
+            <p className="hint">
+              <b>{decision.decidedBy}:</b> {decision.decisionReason}
+            </p>
+          ) : null}
+          {decision.status === 'approved' ? (
+            <p className="hint">
+              It is on {job.scheduled_start ? longDate(dayOf(job.scheduled_start)) : 'a new day'}{' '}
+              now. Everyone on the job has to accept the new time, including you.
+            </p>
+          ) : (
+            <p className="hint">The job stays where it is. It still needs your answer.</p>
+          )}
+        </div>
       ) : null}
 
       {pending && myAssignment ? (

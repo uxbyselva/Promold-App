@@ -2,7 +2,38 @@ import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { SignOut } from './sign-out';
 import { NavLink, ModeLink } from './nav-link';
+import { supabaseServer } from '@/lib/supabase-server';
 import type { Session } from '@/lib/session';
+
+/**
+ * How many requests are sitting unanswered.
+ *
+ * Counted on every page rather than only on the approvals page: the point of
+ * the badge is that somebody notices without going to look.
+ */
+async function waitingCount(session: Session): Promise<number> {
+  if (!session.can('reschedule.decide') && !session.can('timeoff.manage')) return 0;
+  const supabase = await supabaseServer();
+  const [moves, off] = await Promise.all([
+    session.can('reschedule.decide')
+      ? supabase
+          .from('reschedule_requests')
+          .select('id', { count: 'exact', head: true })
+          .eq('status', 'pending')
+      : Promise.resolve({ count: 0 }),
+    session.can('timeoff.manage')
+      ? supabase.from('time_off').select('id', { count: 'exact', head: true }).eq('status', 'requested')
+      : Promise.resolve({ count: 0 }),
+  ]);
+  return (moves.count ?? 0) + (off.count ?? 0);
+}
+
+interface Tab {
+  href: string;
+  label: string;
+  when: boolean;
+  badge?: number;
+}
 
 /**
  * Two modes, one login.
@@ -13,7 +44,7 @@ import type { Session } from '@/lib/session';
  * the everyday screens are not cluttered with forensics, and the forensics are
  * somewhere deliberate rather than hidden behind a long-press.
  */
-export function OfficeShell({
+export async function OfficeShell({
   session,
   mode,
   children,
@@ -23,13 +54,21 @@ export function OfficeShell({
   children: ReactNode;
 }) {
   const canAdmin = session.can('audit.view');
-  const office = [
+  const waiting = await waitingCount(session);
+
+  const office: Tab[] = [
     { href: '/calendar', label: 'Calendar', when: session.can('job.assign') },
     { href: '/dispatch', label: 'Board', when: session.can('job.assign') },
     { href: '/jobs', label: 'Jobs', when: true },
+    {
+      href: '/approvals',
+      label: 'Waiting on you',
+      when: session.can('reschedule.decide') || session.can('timeoff.manage'),
+      badge: waiting,
+    },
     { href: '/customers', label: 'Customers', when: session.can('customer.manage') },
   ];
-  const admin = [
+  const admin: Tab[] = [
     { href: '/admin', label: 'Overview', when: true },
     { href: '/admin/activity', label: 'Activity', when: true },
     { href: '/admin/deleted', label: 'Deleted', when: true },
@@ -66,7 +105,7 @@ export function OfficeShell({
 
         <nav className="nav" aria-label={mode === 'admin' ? 'Admin' : 'Office'}>
           {tabs.map((t) => (
-            <NavLink key={t.href} href={t.href}>
+            <NavLink key={t.href} href={t.href} badge={t.badge}>
               {t.label}
             </NavLink>
           ))}

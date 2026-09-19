@@ -103,3 +103,8 @@
 
 .danger-zone{border-color:var(--crit)}
 .danger-zone > header{background:var(--crit-soft);color:var(--crit)}
+
+.nav-badge{display:inline-block;margin-left:7px;background:var(--crit);color:#fff;
+  font-size:11px;font-weight:700;border-radius:999px;padding:1px 6px;line-height:1.4;
+  font-variant-numeric:tabular-nums}
+.nav a[aria-current="page"] .nav-badge{background:var(--crit)}

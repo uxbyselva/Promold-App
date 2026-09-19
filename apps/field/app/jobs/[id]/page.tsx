@@ -48,10 +48,29 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
 
   // The gate, and the things worth saying that are not the crew's to fix.
   // Both come from the database so the button and the server agree.
-  const [{ data: blockers }, { data: warnings }] = await Promise.all([
+  const [{ data: blockers }, { data: warnings }, { data: decided }] = await Promise.all([
     supabase.rpc('job_completion_blockers', { p_job_id: id }),
     supabase.rpc('job_completion_warnings', { p_job_id: id }),
+    // What came back from asking to move it. Row-level security limits this
+    // to their own requests, so it is safe to ask for the latest one.
+    supabase
+      .from('reschedule_requests')
+      .select('id, status, reason, decision_reason, decided_at, decided_by')
+      .eq('job_id', id)
+      .eq('requested_by', session.userId)
+      .neq('status', 'pending')
+      .order('decided_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ]);
+
+  const { data: decider } = decided?.decided_by
+    ? await supabase
+        .from('profiles_safe')
+        .select('full_name')
+        .eq('id', decided.decided_by)
+        .maybeSingle()
+    : { data: null };
 
   // The bucket is private, so display needs short-lived signed links. If it
   // has not been created yet the gallery degrades to counts rather than
@@ -89,6 +108,17 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
           expectedEnd: k.expected_end_at,
           ...(k.equipment as unknown as { asset_tag: string; name: string; category: string }),
         }))}
+        decision={
+          decided
+            ? {
+                status: decided.status,
+                reason: decided.reason,
+                decisionReason: decided.decision_reason,
+                decidedAt: decided.decided_at,
+                decidedBy: decider?.full_name ?? 'The office',
+              }
+            : null
+        }
         blockers={(blockers as string[] | null) ?? []}
         warnings={(warnings as string[] | null) ?? []}
         canComplete={session.can('job.complete')}

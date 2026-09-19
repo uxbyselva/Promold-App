@@ -931,3 +931,149 @@ reset role;
 select set_config('request.jwt.claim.sub', '', false);
 
 \echo 'JOB AUTHORING ASSERTIONS PASSED'
+
+-- ---------------------------------------------------------------------------
+-- Answering the crew
+-- ---------------------------------------------------------------------------
+
+set role authenticated;
+
+-- A crew lead asks to move a job he is on.
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000a003', false);
+
+do $$
+declare
+  v_job uuid := '00000000-0000-0000-0000-00000000bb03';
+  v_assignment uuid;
+  v_req reschedule_requests;
+  v_n int;
+begin
+  select id into v_assignment from job_assignments
+   where job_id = v_job and user_id = '00000000-0000-0000-0000-00000000a003';
+
+  perform assert_raises(
+    format('select request_reschedule(%L, '''')', v_assignment),
+    'asking to move a job without saying why is refused');
+
+  v_req := request_reschedule(v_assignment, 'Van is in the shop that morning');
+
+  select count(*) into v_n from job_assignments
+   where id = v_assignment and acceptance_status = 'reschedule_requested';
+  perform assert(v_n = 1, 'asking to move it shows on the assignment');
+
+  -- Deciding is not his to do.
+  perform assert_raises(
+    format('select decide_reschedule(%L, true, null, ''2026-10-05T08:00:00Z'')', v_req.id),
+    'a crew lead cannot decide his own reschedule request');
+end $$;
+
+-- The office decides it.
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000a002', false);
+
+do $$
+declare
+  v_job uuid := '00000000-0000-0000-0000-00000000bb03';
+  v_req uuid;
+  v_n int;
+  v_start timestamptz;
+begin
+  select id into v_req from reschedule_requests
+   where job_id = v_job and status = 'pending'
+   order by created_at desc limit 1;
+
+  perform assert_raises(
+    format('select decide_reschedule(%L, false)', v_req),
+    'declining without a reason is refused');
+  perform assert_raises(
+    format('select decide_reschedule(%L, true)', v_req),
+    'approving with no new time is refused — they asked to move it, not drop it');
+
+  perform decide_reschedule(v_req, true, 'Moved to the Monday',
+                            '2026-10-05T08:00:00Z', '2026-10-06T16:00:00Z');
+
+  select scheduled_start into v_start from jobs where id = v_job;
+  perform assert(v_start = '2026-10-05T08:00:00Z'::timestamptz,
+    'approving moves the job to the time the office picked');
+
+  -- The bug this migration exists for: the work days have to follow.
+  select count(*) into v_n from job_visits where job_id = v_job;
+  perform assert(v_n = 2, 'the work days are re-cut to the new dates');
+
+  select count(*) into v_n from job_assignments
+   where job_id = v_job and acceptance_status <> 'pending';
+  perform assert(v_n = 0,
+    'everyone re-accepts, not only the person who asked');
+
+  perform assert_raises(
+    format('select decide_reschedule(%L, true, null, ''2026-10-07T08:00:00Z'')', v_req),
+    'a request cannot be decided twice');
+end $$;
+
+-- Time off.
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000a003', false);
+
+do $$
+declare v_id uuid;
+begin
+  insert into time_off (org_id, user_id, kind, starts_at, ends_at, reason)
+  values ('00000000-0000-0000-0000-0000000000a1',
+          '00000000-0000-0000-0000-00000000a003',
+          'vacation', '2026-10-05T00:00:00Z', '2026-10-06T23:59:59Z', 'Long weekend')
+  returning id into v_id;
+
+  -- He can see his own clash before he sends it — the job just moved onto
+  -- exactly these days.
+  perform assert((select count(*) from time_off_clashes(v_id)) = 1,
+    'the person asking sees the job they are already booked on');
+
+  perform assert_raises(
+    format('select decide_time_off(%L, true)', v_id),
+    'deciding time off is refused without timeoff.manage');
+end $$;
+
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000a002', false);
+
+do $$
+declare
+  v_id uuid;
+  v_job uuid := '00000000-0000-0000-0000-00000000bb03';
+  v_before timestamptz;
+  v_after timestamptz;
+  v_row time_off;
+begin
+  select id into v_id from time_off
+   where user_id = '00000000-0000-0000-0000-00000000a003' and status = 'requested'
+   order by created_at desc limit 1;
+
+  perform assert((select count(*) from time_off_clashes(v_id)) = 1,
+    'and the office sees the same clash');
+
+  perform assert_raises(
+    format('select decide_time_off(%L, false)', v_id),
+    'declining time off without a reason is refused');
+
+  select scheduled_start into v_before from jobs where id = v_job;
+  v_row := decide_time_off(v_id, true);
+  select scheduled_start into v_after from jobs where id = v_job;
+
+  perform assert(v_row.status = 'approved', 'approved');
+  perform assert(v_row.decided_by = '00000000-0000-0000-0000-00000000a002',
+    'and it records who decided it');
+  perform assert(v_before = v_after,
+    'approving does not move work already booked — that is a separate decision');
+
+  perform assert_raises(
+    format('select decide_time_off(%L, false, ''changed my mind'')', v_id),
+    'time off cannot be decided twice');
+
+  -- And from now on the scheduling check refuses new bookings for those days.
+  perform assert(
+    (select scheduling_conflicts('00000000-0000-0000-0000-00000000a003',
+       '2026-10-05T09:00:00Z', '2026-10-05T12:00:00Z') is not null),
+    'approved time off starts blocking the calendar');
+end $$;
+
+reset role;
+select set_config('request.jwt.claim.sub', '', false);
+
+\echo 'DECISION ASSERTIONS PASSED'
