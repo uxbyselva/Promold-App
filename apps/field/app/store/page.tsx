@@ -47,6 +47,17 @@ export default async function StorePage() {
         .select('pack_id, item_id, sku, name, location_id, location_name, opened_at, unit_cost, jobs_served'),
     ]);
 
+  // What this person has asked the office to buy, and who can say yes.
+  const [{ data: requests }, { data: approvers }] = await Promise.all([
+    supabase
+      .from('purchase_requests')
+      .select('id, request_number, status, created_at, job_id, decision_reason')
+      .eq('requested_by', session.userId)
+      .order('created_at', { ascending: false })
+      .limit(20),
+    supabase.from('profiles_safe').select('id, full_name').eq('is_active', true).order('full_name'),
+  ]);
+
   const siteIds = [...new Set((jobs ?? []).map((j) => j.site_id).filter(Boolean))];
   const { data: sites } = siteIds.length
     ? await supabase.from('sites').select('id, label').in('id', siteIds)
@@ -62,6 +73,8 @@ export default async function StorePage() {
         items={items ?? []}
         levels={levels ?? []}
         packs={packs ?? []}
+        requests={requests ?? []}
+        approvers={approvers ?? []}
         userId={session.userId}
         orgId={session.orgId}
         canPlace={session.can('equipment.place')}

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { refusalMessage } from '@promold/app-kit';
 import { supabaseBrowser } from '@/lib/supabase-browser';
 import { clock, dayOf, initials, localInput, longDate, shortDate } from '@/lib/format';
+import { PurchaseApproval, type PurchaseLine, type PurchaseRequest } from './purchase-approval';
 
 type Reschedule = {
   id: string;
@@ -46,26 +47,36 @@ const KIND_LABEL: Record<string, string> = {
 export function Approvals({
   reschedules,
   timeOff,
+  purchases,
+  purchaseLines,
   clashes,
   jobs,
   sites,
   people,
+  threshold,
+  unlimited,
   canReschedule,
   canTimeOff,
+  canBuy,
 }: {
   reschedules: Reschedule[];
   timeOff: TimeOff[];
+  purchases: PurchaseRequest[];
+  purchaseLines: (PurchaseLine & { request_id: string })[];
   clashes: Record<string, Clash[]>;
   jobs: Job[];
   sites: { id: string; label: string }[];
   people: { id: string; full_name: string }[];
+  threshold: number;
+  unlimited: boolean;
   canReschedule: boolean;
   canTimeOff: boolean;
+  canBuy: boolean;
 }) {
   const [error, setError] = useState<string | null>(null);
   const nameOf = (id: string) => people.find((p) => p.id === id)?.full_name ?? 'Someone';
 
-  const nothing = reschedules.length === 0 && timeOff.length === 0;
+  const nothing = reschedules.length === 0 && timeOff.length === 0 && purchases.length === 0;
 
   return (
     <>
@@ -97,6 +108,26 @@ export function Approvals({
                   null
                 }
                 who={nameOf(r.requested_by)}
+                onError={setError}
+              />
+            ))}
+          </div>
+        </>
+      ) : null}
+
+      {canBuy && purchases.length ? (
+        <>
+          <h2>Asked to buy something · {purchases.length}</h2>
+          <div className="cols two">
+            {purchases.map((p) => (
+              <PurchaseApproval
+                key={p.id}
+                request={p}
+                lines={purchaseLines.filter((l) => l.request_id === p.id)}
+                who={nameOf(p.requested_by)}
+                jobNumber={jobs.find((j) => j.id === p.job_id)?.job_number ?? null}
+                threshold={threshold}
+                unlimited={unlimited}
                 onError={setError}
               />
             ))}

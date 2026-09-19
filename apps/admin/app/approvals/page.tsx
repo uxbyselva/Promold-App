@@ -10,7 +10,8 @@ export default async function ApprovalsPage() {
   const session = await requireSession();
   const canReschedule = session.can('reschedule.decide');
   const canTimeOff = session.can('timeoff.manage');
-  if (!canReschedule && !canTimeOff) redirect('/jobs');
+  const canBuy = session.can('purchase.approve');
+  if (!canReschedule && !canTimeOff && !canBuy) redirect('/jobs');
 
   const supabase = await supabaseServer();
 
@@ -32,7 +33,37 @@ export default async function ApprovalsPage() {
     supabase.from('profiles_safe').select('id, full_name'),
   ]);
 
-  const jobIds = [...new Set((reschedules ?? []).map((r) => r.job_id))];
+  // Purchase requests waiting on a decision, with their lines.
+  const [{ data: purchases }, { data: org }] = await Promise.all([
+    canBuy
+      ? supabase
+          .from('purchase_requests')
+          .select('id, request_number, requested_by, job_id, needed_by, notes, submitted_at')
+          .in('status', ['submitted', 'under_review'])
+          .order('submitted_at')
+      : Promise.resolve({ data: [] as never[] }),
+    supabase.from('organizations').select('settings').eq('id', session.orgId).maybeSingle(),
+  ]);
+
+  const purchaseIds = (purchases ?? []).map((p) => p.id);
+  const { data: purchaseLines } = purchaseIds.length
+    ? await supabase
+        .from('purchase_request_lines')
+        .select('id, request_id, description, quantity, unit, estimated_unit_cost')
+        .in('request_id', purchaseIds)
+        .order('created_at')
+    : { data: [] };
+
+  const threshold = Number(
+    ((org?.settings ?? {}) as Record<string, unknown>).approval_threshold ?? 0,
+  );
+
+  const jobIds = [
+    ...new Set([
+      ...(reschedules ?? []).map((r) => r.job_id),
+      ...(purchases ?? []).map((p) => p.job_id).filter(Boolean),
+    ]),
+  ];
   const { data: jobs } = jobIds.length
     ? await supabase
         .from('jobs_safe')
@@ -68,6 +99,11 @@ export default async function ApprovalsPage() {
       <Approvals
         reschedules={reschedules ?? []}
         timeOff={timeOff ?? []}
+        purchases={purchases ?? []}
+        purchaseLines={purchaseLines ?? []}
+        threshold={threshold}
+        unlimited={session.can('purchase.approve_unlimited')}
+        canBuy={canBuy}
         clashes={clashes}
         jobs={jobs ?? []}
         sites={sites ?? []}

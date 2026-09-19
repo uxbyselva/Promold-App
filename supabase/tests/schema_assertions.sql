@@ -1187,3 +1187,139 @@ reset role;
 select set_config('request.jwt.claim.sub', '', false);
 
 \echo 'PACK ASSERTIONS PASSED'
+
+-- ---------------------------------------------------------------------------
+-- Asking to buy something, and approving part of it
+-- ---------------------------------------------------------------------------
+
+set role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000a003', false);
+
+do $$
+declare
+  v_job uuid := '00000000-0000-0000-0000-00000000bb02';
+  v_req purchase_requests;
+  v_n int;
+begin
+  perform assert_raises(
+    'select create_purchase_request(''[]''::jsonb)',
+    'a request with nothing on it is refused');
+  perform assert_raises(
+    'select create_purchase_request(''[{"description":"","quantity":2}]''::jsonb)',
+    'a line that does not say what it is is refused');
+  perform assert_raises(
+    'select create_purchase_request(''[{"description":"Bags","quantity":0}]''::jsonb)',
+    'a line with no quantity is refused');
+
+  -- $600 of filters and $300 of bags: over a manager's $500 limit together,
+  -- under it separately. This is the case the threshold bug got wrong.
+  v_req := create_purchase_request(
+    jsonb_build_array(
+      jsonb_build_object('description', 'HEPA filters H14', 'quantity', 6,
+                         'unit', 'each', 'estimated_unit_cost', 100),
+      jsonb_build_object('description', 'Contractor bags', 'quantity', 10,
+                         'unit', 'box', 'estimated_unit_cost', 30)
+    ),
+    v_job);
+
+  perform assert(v_req.status = 'submitted',
+    'raising one submits it — a draft nobody sees helps nobody');
+
+  select count(*) into v_n from purchase_request_lines where request_id = v_req.id;
+  perform assert(v_n = 2, 'both lines went on');
+
+  perform assert(purchase_request_selected_total(v_req.id) = 900,
+    'the whole request is 900');
+
+  perform assert_raises(
+    format('select decide_purchase_request(%L, true)', v_req.id),
+    'a crew lead cannot approve his own request');
+
+  -- Two guards, one rule. Row-level security stops the requester touching
+  -- their own lines once it is out of draft, so the update simply finds
+  -- nothing rather than raising.
+  update purchase_request_lines set quantity = 99 where request_id = v_req.id;
+  get diagnostics v_n = row_count;
+  perform assert(v_n = 0,
+    'the person who asked cannot rewrite the ask after submitting it');
+end $$;
+
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000a002', false);
+
+do $$
+declare
+  v_req uuid;
+  v_bags uuid;
+  v_filters uuid;
+  v_row purchase_requests;
+  v_n int;
+begin
+  select id into v_req from purchase_requests where status = 'submitted'
+   order by created_at desc limit 1;
+  select id into v_bags from purchase_request_lines
+   where request_id = v_req and description = 'Contractor bags';
+  select id into v_filters from purchase_request_lines
+   where request_id = v_req and description = 'HEPA filters H14';
+
+  -- The manager can reach these rows, so the trigger is what stops the ask
+  -- being rewritten under them.
+  perform assert_raises(
+    format('update purchase_request_lines set quantity = 99 where request_id = %L', v_req),
+    'even an approver cannot change what was asked for');
+  perform assert_raises(
+    format('insert into purchase_request_lines (org_id, request_id, description, quantity) '
+           'values (%L, %L, ''One more thing'', 1)',
+           '00000000-0000-0000-0000-0000000000a1', v_req),
+    'and nothing can be slipped on after it was submitted');
+
+  -- The whole thing is over what a manager may approve.
+  perform assert_raises(
+    format('select decide_purchase_request(%L, true)', v_req),
+    'the full request is over the manager''s limit');
+
+  -- Unticking the expensive line brings it under. This is the fix: the limit
+  -- is about what is being spent, not what was asked for.
+  perform assert(purchase_request_selected_total(v_req, array[v_bags]) = 300,
+    'the ticked lines come to 300');
+
+  v_row := decide_purchase_request(v_req, true, 'Filters can wait', array[v_bags]);
+  perform assert(v_row.status = 'approved', 'so it goes through');
+
+  select count(*) into v_n from purchase_request_lines
+   where request_id = v_req and line_status = 'approved';
+  perform assert(v_n = 1, 'one line approved');
+
+  select count(*) into v_n from purchase_request_lines
+   where request_id = v_req and line_status = 'rejected'
+     and rejection_reason = 'Filters can wait';
+  perform assert(v_n = 1, 'and the other carries the reason it was not');
+
+  perform assert_raises(
+    format('select decide_purchase_request(%L, true, null, array[%L]::uuid[])', v_req, v_bags),
+    'a decided request cannot be decided again');
+end $$;
+
+-- The owner has no limit.
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000a001', false);
+
+do $$
+declare v_req purchase_requests; v_row purchase_requests;
+begin
+  v_req := create_purchase_request(
+    jsonb_build_array(
+      jsonb_build_object('description', 'Replacement dehumidifier', 'quantity', 1,
+                         'unit', 'each', 'estimated_unit_cost', 2400)
+    ));
+  v_row := decide_purchase_request(v_req.id, true);
+  perform assert(v_row.status = 'approved',
+    'the owner approves above the threshold, which is what unlimited means');
+
+  perform assert_raises(
+    format('select decide_purchase_request(%L, false)', v_req.id),
+    'and a rejection still needs a reason');
+end $$;
+
+reset role;
+select set_config('request.jwt.claim.sub', '', false);
+
+\echo 'PURCHASING ASSERTIONS PASSED'

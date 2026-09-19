@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import { refusalMessage } from '@promold/app-kit';
 import { describePackShare, isLow, isPack, modeLabel } from '@promold/shared';
 import { supabaseBrowser } from '@/lib/supabase-browser';
-import { dayOf, longDate } from '@/lib/format';
+import { dayOf, longDate, shortDate } from '@/lib/format';
+import { BuySheet } from './buy-sheet';
 
 type Job = { id: string; job_number: string; title: string; site_id: string | null };
 type Kit = {
@@ -42,7 +43,16 @@ type Pack = {
   jobs_served: number;
 };
 
-type Tab = 'kit' | 'stock' | 'packs';
+type Request = {
+  id: string;
+  request_number: string;
+  status: string;
+  created_at: string;
+  job_id: string | null;
+  decision_reason: string | null;
+};
+
+type Tab = 'kit' | 'stock' | 'packs' | 'buy';
 
 export function StoreView({
   jobs,
@@ -52,6 +62,8 @@ export function StoreView({
   items,
   levels,
   packs,
+  requests,
+  approvers,
   userId,
   orgId,
   canPlace,
@@ -65,6 +77,8 @@ export function StoreView({
   items: Item[];
   levels: Level[];
   packs: Pack[];
+  requests: Request[];
+  approvers: { id: string; full_name: string }[];
   userId: string;
   orgId: string;
   canPlace: boolean;
@@ -77,6 +91,7 @@ export function StoreView({
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
+  const [buying, setBuying] = useState(false);
 
   // Everything on this screen happens against a job. Defaulting to the one
   // they are most likely on beats an empty picker they have to notice.
@@ -134,7 +149,8 @@ export function StoreView({
           [
             ['kit', 'Equipment'],
             ['stock', 'Stock'],
-            ['packs', 'Open packs'],
+            ['packs', 'Packs'],
+            ['buy', 'Buy'],
           ] as [Tab, string][]
         ).map(([k, label]) => (
           <button key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)}>
@@ -479,6 +495,77 @@ export function StoreView({
             })
           )}
         </>
+      ) : null}
+
+      {tab === 'buy' ? (
+        <>
+          <div className="panel">
+            <h3>Need something the van does not have</h3>
+            <p className="sub">
+              Ask the office. They can approve some of it and not the rest, so put down
+              everything you need rather than guessing what will get through.
+            </p>
+            <button className="btn wide" onClick={() => setBuying(true)}>
+              Ask to buy something
+            </button>
+          </div>
+
+          <p className="lbl">What you have asked for</p>
+          {requests.length === 0 ? (
+            <p className="empty">Nothing yet.</p>
+          ) : (
+            requests.map((r) => (
+              <div
+                key={r.id}
+                className={`panel${r.status === 'submitted' ? ' flag' : ''}`}
+              >
+                <div className="row between">
+                  <span className="mono" style={{ fontSize: 13 }}>
+                    {r.request_number}
+                  </span>
+                  {r.status === 'approved' ? (
+                    <span className="pill" data-t="ok">
+                      Approved
+                    </span>
+                  ) : r.status === 'rejected' ? (
+                    <span className="pill" data-t="crit">
+                      Turned down
+                    </span>
+                  ) : r.status === 'received' || r.status === 'ordered' ? (
+                    <span className="pill" data-t="accent">
+                      {r.status === 'ordered' ? 'On order' : 'Arrived'}
+                    </span>
+                  ) : (
+                    <span className="pill" data-t="warn">
+                      <span className="dot" />
+                      Waiting
+                    </span>
+                  )}
+                </div>
+                <p className="sub">
+                  Asked {shortDate(dayOf(r.created_at))}
+                  {r.job_id
+                    ? ` · ${jobs.find((j) => j.id === r.job_id)?.job_number ?? 'a job'}`
+                    : ' · general stock'}
+                </p>
+                {r.decision_reason ? (
+                  <p className="hint">
+                    <b>The office:</b> {r.decision_reason}
+                  </p>
+                ) : null}
+              </div>
+            ))
+          )}
+        </>
+      ) : null}
+
+      {buying ? (
+        <BuySheet
+          jobs={jobs}
+          defaultJobId={jobId}
+          approvers={approvers}
+          onClose={() => setBuying(false)}
+        />
       ) : null}
     </>
   );

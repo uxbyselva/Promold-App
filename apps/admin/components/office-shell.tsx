@@ -12,9 +12,15 @@ import type { Session } from '@/lib/session';
  * the badge is that somebody notices without going to look.
  */
 async function waitingCount(session: Session): Promise<number> {
-  if (!session.can('reschedule.decide') && !session.can('timeoff.manage')) return 0;
+  if (
+    !session.can('reschedule.decide') &&
+    !session.can('timeoff.manage') &&
+    !session.can('purchase.approve')
+  ) {
+    return 0;
+  }
   const supabase = await supabaseServer();
-  const [moves, off] = await Promise.all([
+  const [moves, off, buys] = await Promise.all([
     session.can('reschedule.decide')
       ? supabase
           .from('reschedule_requests')
@@ -24,8 +30,14 @@ async function waitingCount(session: Session): Promise<number> {
     session.can('timeoff.manage')
       ? supabase.from('time_off').select('id', { count: 'exact', head: true }).eq('status', 'requested')
       : Promise.resolve({ count: 0 }),
+    session.can('purchase.approve')
+      ? supabase
+          .from('purchase_requests')
+          .select('id', { count: 'exact', head: true })
+          .in('status', ['submitted', 'under_review'])
+      : Promise.resolve({ count: 0 }),
   ]);
-  return (moves.count ?? 0) + (off.count ?? 0);
+  return (moves.count ?? 0) + (off.count ?? 0) + (buys.count ?? 0);
 }
 
 interface Tab {
@@ -63,7 +75,10 @@ export async function OfficeShell({
     {
       href: '/approvals',
       label: 'Waiting on you',
-      when: session.can('reschedule.decide') || session.can('timeoff.manage'),
+      when:
+        session.can('reschedule.decide') ||
+        session.can('timeoff.manage') ||
+        session.can('purchase.approve'),
       badge: waiting,
     },
     { href: '/customers', label: 'Customers', when: session.can('customer.manage') },
