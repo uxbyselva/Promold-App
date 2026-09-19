@@ -54,7 +54,9 @@ export function LoginForm({
       }
     } catch (thrown) {
       const message = thrown instanceof Error ? thrown.message : String(thrown);
-      setError(message.includes('NEXT_PUBLIC_SUPABASE') ? envHint : `Could not sign in: ${message}`);
+      setError(
+        message.includes('NEXT_PUBLIC_SUPABASE') ? envHint : `Could not sign in: ${message}`,
+      );
       setBusy(false);
       return;
     }
@@ -63,11 +65,19 @@ export function LoginForm({
   }
 
   return (
-    <main style={{ minHeight: '100dvh', display: 'grid', placeItems: 'center', padding: '24px 16px' }}>
+    <main
+      style={{ minHeight: '100dvh', display: 'grid', placeItems: 'center', padding: '24px 16px' }}
+    >
       <form
         onSubmit={onSubmit}
         className="card"
-        style={{ width: 'min(380px, 100%)', padding: 22, display: 'flex', flexDirection: 'column', gap: 14 }}
+        style={{
+          width: 'min(380px, 100%)',
+          padding: 22,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 14,
+        }}
       >
         <div>
           <h1>{title}</h1>

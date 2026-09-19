@@ -34,7 +34,8 @@ export default async function RecordPage({
         null)
       : null;
 
-  const backTo = table === 'jobs' ? `/jobs/${id}` : table === 'customers' ? `/customers/${id}` : null;
+  const backTo =
+    table === 'jobs' ? `/jobs/${id}` : table === 'customers' ? `/customers/${id}` : null;
 
   return (
     <OfficeShell session={session} mode="admin">

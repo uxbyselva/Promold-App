@@ -38,10 +38,7 @@ export function BuySheet({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const total = lines.reduce(
-    (a, l) => a + (Number(l.quantity) || 0) * (Number(l.cost) || 0),
-    0,
-  );
+  const total = lines.reduce((a, l) => a + (Number(l.quantity) || 0) * (Number(l.cost) || 0), 0);
   const ready = lines.some((l) => l.description.trim() && Number(l.quantity) > 0);
 
   const setLine = (i: number, patch: Partial<Line>) =>
@@ -150,8 +147,8 @@ export function BuySheet({
               </span>
             </div>
             <p className="hint">
-              An estimate is enough. The office can approve some lines and not others, and what
-              it actually cost is entered when it arrives.
+              An estimate is enough. The office can approve some lines and not others, and what it
+              actually cost is entered when it arrives.
             </p>
           </div>
 

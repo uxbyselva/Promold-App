@@ -66,14 +66,20 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
         </p>
       ) : null}
 
-      <div className="cols aside" style={{ gridTemplateColumns: 'minmax(0,1fr) minmax(280px,360px)' }}>
+      <div
+        className="cols aside"
+        style={{ gridTemplateColumns: 'minmax(0,1fr) minmax(280px,360px)' }}
+      >
         {canEdit ? (
           <JobForm
             mode="edit"
             canSeePrice={session.can('price.view')}
             canAssign={session.can('job.assign')}
             {...options}
-            initial={draftFromJob(job, (crew ?? []).map((c) => c.user_id))}
+            initial={draftFromJob(
+              job,
+              (crew ?? []).map((c) => c.user_id),
+            )}
           />
         ) : (
           <div className="box">

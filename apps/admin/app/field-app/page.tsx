@@ -22,8 +22,8 @@ export default async function FieldAppPage() {
           <h1>The crew&rsquo;s app</h1>
           <p>
             A separate app at its own address, built for a phone: their jobs, their mileage, their
-            time off. Same database, same rules — a crew lead simply cannot see a price, because
-            the column never reaches their phone.
+            time off. Same database, same rules — a crew lead simply cannot see a price, because the
+            column never reaches their phone.
           </p>
         </div>
       </div>

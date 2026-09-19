@@ -47,12 +47,7 @@ export const STAGED_CATEGORIES: readonly EquipmentCategory[] = [
 export type PlacementKind = 'checkout' | 'site_staging';
 
 export type LocationStatus =
-  | 'available'
-  | 'in_use'
-  | 'staged_at_site'
-  | 'in_maintenance'
-  | 'retired'
-  | 'lost';
+  'available' | 'in_use' | 'staged_at_site' | 'in_maintenance' | 'retired' | 'lost';
 
 export type EquipmentCondition = 'ok' | 'damaged' | 'needs_service';
 

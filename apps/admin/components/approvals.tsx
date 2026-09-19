@@ -236,8 +236,7 @@ function RescheduleCard({
                 onChange={(e) => setReason(e.target.value)}
               />
               <p className="hint">
-                They read this on their phone, and they still have to accept the job as it
-                stands.
+                They read this on their phone, and they still have to accept the job as it stands.
               </p>
             </div>
             <div className="btn-row">
@@ -352,8 +351,7 @@ function TimeOffCard({
         {clash.length ? (
           <div className="note">
             <b>
-              Already booked on {clash.length} {clash.length === 1 ? 'job' : 'jobs'} in that
-              window
+              Already booked on {clash.length} {clash.length === 1 ? 'job' : 'jobs'} in that window
             </b>
             <br />
             {clash.map((c) => (
@@ -362,8 +360,8 @@ function TimeOffCard({
                 <br />
               </span>
             ))}
-            Approving does not move that work. From then on the board refuses new bookings for
-            those dates, but what is already there is yours to reassign.
+            Approving does not move that work. From then on the board refuses new bookings for those
+            dates, but what is already there is yours to reassign.
           </div>
         ) : null}
 
@@ -377,8 +375,8 @@ function TimeOffCard({
                 onChange={(e) => setReason(e.target.value)}
               />
               <p className="hint">
-                A decline with no reason is how people stop asking — and then stop telling you
-                they will not be there.
+                A decline with no reason is how people stop asking — and then stop telling you they
+                will not be there.
               </p>
             </div>
             <div className="btn-row">

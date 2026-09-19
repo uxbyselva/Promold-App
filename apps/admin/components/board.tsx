@@ -72,10 +72,16 @@ export function Board({
         }}
       >
         <span style={{ fontWeight: 600, fontSize: 16 }}>Promold</span>
-        <button className="btn ghost" style={{ padding: '6px 11px' }} onClick={() => go(addDays(day, -1))}>
+        <button
+          className="btn ghost"
+          style={{ padding: '6px 11px' }}
+          onClick={() => go(addDays(day, -1))}
+        >
           ‹
         </button>
-        <h1 style={{ margin: 0, fontSize: 15, fontWeight: 600, minWidth: 190, textAlign: 'center' }}>
+        <h1
+          style={{ margin: 0, fontSize: 15, fontWeight: 600, minWidth: 190, textAlign: 'center' }}
+        >
           {new Date(`${day}T00:00`).toLocaleDateString('en-GB', {
             weekday: 'long',
             day: 'numeric',
@@ -83,7 +89,11 @@ export function Board({
             year: 'numeric',
           })}
         </h1>
-        <button className="btn ghost" style={{ padding: '6px 11px' }} onClick={() => go(addDays(day, 1))}>
+        <button
+          className="btn ghost"
+          style={{ padding: '6px 11px' }}
+          onClick={() => go(addDays(day, 1))}
+        >
           ›
         </button>
         <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -145,7 +155,12 @@ export function Board({
               minWidth: 'max-content',
             }}
           >
-            <div style={{ borderRight: '1px solid var(--line)', borderBottom: '1px solid var(--line-strong)' }} />
+            <div
+              style={{
+                borderRight: '1px solid var(--line)',
+                borderBottom: '1px solid var(--line-strong)',
+              }}
+            />
             {crew.map((c) => (
               <div
                 key={c.id}
@@ -185,7 +200,10 @@ export function Board({
               );
               const away = timeOff.find((t) => t.user_id === c.id);
               return (
-                <div key={c.id} style={{ position: 'relative', borderRight: '1px solid var(--line)' }}>
+                <div
+                  key={c.id}
+                  style={{ position: 'relative', borderRight: '1px solid var(--line)' }}
+                >
                   {Array.from({ length: rows }, (_, i) => (
                     <div key={i} style={{ height: ROW, borderBottom: '1px solid var(--line)' }} />
                   ))}
@@ -214,8 +232,7 @@ export function Board({
 
                   {mine.map((j) => {
                     const top = (hourOf(j.scheduled_start) - START_HOUR) * ROW;
-                    const height =
-                      (hourOf(j.scheduled_end) - hourOf(j.scheduled_start)) * ROW - 4;
+                    const height = (hourOf(j.scheduled_end) - hourOf(j.scheduled_start)) * ROW - 4;
                     const accepted =
                       assignments.find((a) => a.job_id === j.id && a.user_id === c.id)
                         ?.acceptance_status === 'accepted';
@@ -239,7 +256,9 @@ export function Board({
                         <span className="mono" style={{ fontSize: 10.5, opacity: 0.75 }}>
                           {j.job_number} · {hhmm(j.scheduled_start)}–{hhmm(j.scheduled_end)}
                         </span>
-                        <p style={{ fontWeight: 600, fontSize: 12.5, lineHeight: 1.2 }}>{j.title}</p>
+                        <p style={{ fontWeight: 600, fontSize: 12.5, lineHeight: 1.2 }}>
+                          {j.title}
+                        </p>
                         {!accepted ? (
                           <p style={{ fontSize: 11.5, fontWeight: 600 }}>Not accepted yet</p>
                         ) : null}

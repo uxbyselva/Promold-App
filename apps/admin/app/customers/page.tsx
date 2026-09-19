@@ -20,7 +20,11 @@ export default async function CustomersPage() {
 
   const supabase = await supabaseServer();
   const [{ data: customers }, { data: sites }] = await Promise.all([
-    supabase.from('customers').select('id, name, kind, phone, email').is('deleted_at', null).order('name'),
+    supabase
+      .from('customers')
+      .select('id, name, kind, phone, email')
+      .is('deleted_at', null)
+      .order('name'),
     supabase.from('sites').select('id, customer_id').is('deleted_at', null),
   ]);
 
@@ -55,7 +59,9 @@ export default async function CustomersPage() {
                 </span>
               </Link>
             ))}
-            {(customers ?? []).length === 0 ? <p className="empty">Nobody on the books yet.</p> : null}
+            {(customers ?? []).length === 0 ? (
+              <p className="empty">Nobody on the books yet.</p>
+            ) : null}
           </div>
         </div>
 

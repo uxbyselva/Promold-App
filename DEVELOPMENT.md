@@ -67,6 +67,18 @@ which only works on a static reference inside the app being built. Each app
 keeps its own `lib/env.ts`. An earlier version read them through a helper and
 the values silently never reached the browser.
 
+## Claude Code on the web
+
+Sessions there run `.claude/hooks/session-start.sh` at startup: it installs
+dependencies and initialises a Postgres on port 54322, so `pnpm db:verify`,
+`pnpm test`, `pnpm typecheck` and `pnpm lint` all work without any setup.
+
+What it cannot give you is the rest of Supabase. There is no Docker daemon in
+that container, so Auth, Storage and PostgREST are not there, and the two apps
+cannot be run end to end from a web session — they need a real Supabase
+project. Schema work, unit tests and builds are all fine; seeing the apps work
+means deploying, or running locally.
+
 ## Running both
 
 ```bash

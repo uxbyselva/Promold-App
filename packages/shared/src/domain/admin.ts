@@ -8,12 +8,7 @@
  * jsonb diff into something an owner can read at a glance.
  */
 
-export type AuditAction =
-  | 'insert'
-  | 'update'
-  | 'delete'
-  | 'soft_delete'
-  | 'restore';
+export type AuditAction = 'insert' | 'update' | 'delete' | 'soft_delete' | 'restore';
 
 export interface AuditEntry {
   id: number;
@@ -171,9 +166,7 @@ export function canRestore(
 }
 
 /** What a row is called in a list, falling back through ref to the id. */
-export function recordTitle(
-  record: Pick<DeletedRecord, 'title' | 'ref' | 'recordId'>,
-): string {
+export function recordTitle(record: Pick<DeletedRecord, 'title' | 'ref' | 'recordId'>): string {
   return record.title ?? record.ref ?? record.recordId.slice(0, 8);
 }
 

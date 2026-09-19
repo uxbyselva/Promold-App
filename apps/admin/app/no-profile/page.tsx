@@ -15,10 +15,10 @@ export default async function NoProfile() {
         </h1>
         <p className="note">
           You are signed in as <b>{data.user?.email}</b>, but there is no matching row in{' '}
-          <span className="mono">profiles</span>. Every screen will be empty until there is,
-          because row-level security scopes all data to your organisation and that link is
-          missing. Run the owner step in <span className="mono">docs/SUPABASE-SETUP.md</span>{' '}
-          with this email, or ask whoever set the system up to add you.
+          <span className="mono">profiles</span>. Every screen will be empty until there is, because
+          row-level security scopes all data to your organisation and that link is missing. Run the
+          owner step in <span className="mono">docs/SUPABASE-SETUP.md</span> with this email, or ask
+          whoever set the system up to add you.
         </p>
         <div style={{ marginTop: 14 }}>
           <SignOut />

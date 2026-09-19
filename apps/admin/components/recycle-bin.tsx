@@ -27,8 +27,7 @@ export function RecycleBin({
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
 
-  const go = (table: string) =>
-    router.push(`/admin/deleted${table ? `?table=${table}` : ''}`);
+  const go = (table: string) => router.push(`/admin/deleted${table ? `?table=${table}` : ''}`);
 
   async function restore(row: Row) {
     setBusy(row.record_id);
@@ -55,9 +54,9 @@ export function RecycleBin({
 
       {!canRestore ? (
         <p className="note">
-          You can see what was deleted but not put it back — restoring is{' '}
-          <code>data.restore</code>, which is the owner&rsquo;s. Deliberately separate: whoever
-          can remove a record is not automatically who decides it comes back.
+          You can see what was deleted but not put it back — restoring is <code>data.restore</code>,
+          which is the owner&rsquo;s. Deliberately separate: whoever can remove a record is not
+          automatically who decides it comes back.
         </p>
       ) : null}
 
@@ -91,8 +90,7 @@ export function RecycleBin({
               {rows.map((r) => (
                 <tr key={`${r.table_name}-${r.record_id}`}>
                   <td>
-                    <span className="pill">{r.label}</span>{' '}
-                    <b>{recordTitle(toDeletedRecord(r))}</b>
+                    <span className="pill">{r.label}</span> <b>{recordTitle(toDeletedRecord(r))}</b>
                     {r.ref && r.title ? (
                       <>
                         <br />

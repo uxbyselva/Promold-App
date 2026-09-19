@@ -195,7 +195,10 @@ export function StockBoard({
             </thead>
             <tbody>
               {items.map((i) => (
-                <tr key={i.id} className={isLow(total(i.id), Number(i.min_level)) ? 'flagrow' : undefined}>
+                <tr
+                  key={i.id}
+                  className={isLow(total(i.id), Number(i.min_level)) ? 'flagrow' : undefined}
+                >
                   <td>
                     <b>{i.name}</b>
                     <br />
@@ -229,7 +232,11 @@ export function StockBoard({
             <p className="empty">Nothing open.</p>
           ) : (
             packs.map((p) => (
-              <div key={p.pack_id} className="row between" style={{ padding: '8px 0', borderBottom: '1px solid var(--line)' }}>
+              <div
+                key={p.pack_id}
+                className="row between"
+                style={{ padding: '8px 0', borderBottom: '1px solid var(--line)' }}
+              >
                 <span className="grow">
                   <b>{p.name}</b>
                   <br />
@@ -273,7 +280,9 @@ export function StockBoard({
       <div className="box">
         <header>
           <h3>Lately</h3>
-          <span className="sub">The ledger — every change to stock lands here and nowhere else</span>
+          <span className="sub">
+            The ledger — every change to stock lands here and nowhere else
+          </span>
         </header>
         <div className="tablewrap">
           <table>

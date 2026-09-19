@@ -93,7 +93,16 @@ Add a rule to the database first, mirror it in `packages/shared` second.
 ## Before pushing
 
 ```bash
-pnpm db:verify                              # migrations + seed + assertions
-pnpm --filter @promold/shared test
-pnpm --filter @promold/shared typecheck
+pnpm db:verify     # every migration onto a clean database, then the assertions
+pnpm test          # unit tests
+pnpm typecheck     # both apps and both packages
+pnpm lint          # prettier --check; `pnpm format` writes
 ```
+
+On Claude Code on the web these run with no setup: `.claude/hooks/session-start.sh`
+installs dependencies and starts a Postgres on 54322, which is the port
+`scripts/verify-schema.sh` already looks for. Locally, `supabase start` gives
+you the same thing plus Auth, Storage and PostgREST — which the web container
+cannot run, since there is no Docker daemon there. That is also why the apps
+cannot be run end to end from a web session: they need a real Supabase
+project.

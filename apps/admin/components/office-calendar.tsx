@@ -147,10 +147,7 @@ export function OfficeCalendar({
         {trimmed.map((c) => {
           const list = byDay.get(c.iso) ?? [];
           return (
-            <div
-              key={c.iso}
-              className={`oday${c.out ? ' out' : ''}${c.iso === t ? ' today' : ''}`}
-            >
+            <div key={c.iso} className={`oday${c.out ? ' out' : ''}${c.iso === t ? ' today' : ''}`}>
               <span className="n">
                 {c.n}
                 {canEdit ? (
@@ -190,7 +187,10 @@ function Tile({ label, value, tone }: { label: string; value: number; tone?: 'wa
   return (
     <div className="tile">
       <span className="lbl">{label}</span>
-      <span className="fig" style={tone === 'warn' && value > 0 ? { color: 'var(--warn)' } : undefined}>
+      <span
+        className="fig"
+        style={tone === 'warn' && value > 0 ? { color: 'var(--warn)' } : undefined}
+      >
         {value}
       </span>
     </div>

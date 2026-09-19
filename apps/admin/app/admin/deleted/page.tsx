@@ -28,8 +28,8 @@ export default async function DeletedPage({
         <div>
           <h1>Deleted</h1>
           <p>
-            Everything taken off the books, newest first. Nothing was erased — a delete sets a
-            date and a reason, and this is where it comes back from.
+            Everything taken off the books, newest first. Nothing was erased — a delete sets a date
+            and a reason, and this is where it comes back from.
           </p>
         </div>
       </div>

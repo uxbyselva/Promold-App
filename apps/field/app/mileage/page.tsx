@@ -21,7 +21,9 @@ export default async function MileagePage() {
       // security enforces it whatever this query asks for.
       supabase
         .from('mileage_logs')
-        .select('id, vehicle_id, trip_date, odometer_start, odometer_end, distance, purpose, is_business, continuity_gap, job_id')
+        .select(
+          'id, vehicle_id, trip_date, odometer_start, odometer_end, distance, purpose, is_business, continuity_gap, job_id',
+        )
         .eq('user_id', session.userId)
         .order('trip_date', { ascending: false })
         .limit(60),

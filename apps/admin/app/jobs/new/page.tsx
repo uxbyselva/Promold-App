@@ -19,7 +19,8 @@ export default async function NewJob({
 
   // Clicking a day on the calendar should land on that day with a sensible
   // working window already filled in, not an empty date box.
-  const day = date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : new Date().toISOString().slice(0, 10);
+  const day =
+    date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : new Date().toISOString().slice(0, 10);
 
   return (
     <OfficeShell session={session} mode="office">
@@ -27,8 +28,8 @@ export default async function NewJob({
         <div>
           <h1>New job</h1>
           <p>
-            A job is the unit of billing and of costing: one price, however many days it runs.
-            The work days are made for you.
+            A job is the unit of billing and of costing: one price, however many days it runs. The
+            work days are made for you.
           </p>
         </div>
       </div>

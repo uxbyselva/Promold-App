@@ -17,7 +17,9 @@ export default async function JobsPage({
 
   let query = supabase
     .from('jobs_safe')
-    .select('id, job_number, title, status, priority, scheduled_start, scheduled_end, site_id, customer_id, quoted_price')
+    .select(
+      'id, job_number, title, status, priority, scheduled_start, scheduled_end, site_id, customer_id, quoted_price',
+    )
     .order('scheduled_start', { ascending: false })
     .limit(300);
 

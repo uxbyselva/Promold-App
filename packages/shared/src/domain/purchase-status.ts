@@ -31,15 +31,31 @@ export const PURCHASE_TRANSITIONS: readonly PurchaseTransition[] = [
   { from: 'submitted', to: 'draft', permission: 'requester', label: 'Recall to draft' },
   { from: 'submitted', to: 'under_review', permission: 'purchase.approve', label: 'Start review' },
   { from: 'submitted', to: 'approved', permission: 'purchase.approve', label: 'Approve' },
-  { from: 'submitted', to: 'rejected', permission: 'purchase.approve', label: 'Reject', reasonRequired: true },
+  {
+    from: 'submitted',
+    to: 'rejected',
+    permission: 'purchase.approve',
+    label: 'Reject',
+    reasonRequired: true,
+  },
   { from: 'under_review', to: 'approved', permission: 'purchase.approve', label: 'Approve' },
-  { from: 'under_review', to: 'rejected', permission: 'purchase.approve', label: 'Reject', reasonRequired: true },
+  {
+    from: 'under_review',
+    to: 'rejected',
+    permission: 'purchase.approve',
+    label: 'Reject',
+    reasonRequired: true,
+  },
   { from: 'approved', to: 'ordered', permission: 'purchase.approve', label: 'Mark ordered' },
   { from: 'received', to: 'closed', permission: 'purchase.approve', label: 'Close' },
 ];
 
 /** Editing is locked on submit, not on approval. */
-export function isEditable(status: PurchaseStatus, isRequester: boolean, canApprove: boolean): boolean {
+export function isEditable(
+  status: PurchaseStatus,
+  isRequester: boolean,
+  canApprove: boolean,
+): boolean {
   if (status === 'draft') return isRequester;
   if (status === 'under_review') return canApprove;
   return false;

@@ -26,12 +26,7 @@ export const JOB_STATUSES = [
 export type JobStatus = (typeof JOB_STATUSES)[number];
 
 /** Guards that cannot be evaluated on the client; the server always re-checks. */
-export type TransitionGuard =
-  | 'scheduled'
-  | 'assigned'
-  | 'all_accepted'
-  | 'completion'
-  | 'reason';
+export type TransitionGuard = 'scheduled' | 'assigned' | 'all_accepted' | 'completion' | 'reason';
 
 export interface JobTransition {
   from: JobStatus;
@@ -53,24 +48,94 @@ export interface JobTransition {
 
 export const JOB_TRANSITIONS: readonly JobTransition[] = [
   { from: 'draft', to: 'scheduled', permission: 'job.edit', guard: 'scheduled', label: 'Schedule' },
-  { from: 'scheduled', to: 'assigned', permission: 'job.assign', guard: 'assigned', label: 'Assign' },
+  {
+    from: 'scheduled',
+    to: 'assigned',
+    permission: 'job.assign',
+    guard: 'assigned',
+    label: 'Assign',
+  },
   { from: 'scheduled', to: 'cancelled', permission: 'job.edit', guard: 'reason', label: 'Cancel' },
-  { from: 'assigned', to: 'accepted', permission: 'job.accept', guard: 'all_accepted', label: 'Accept' },
+  {
+    from: 'assigned',
+    to: 'accepted',
+    permission: 'job.accept',
+    guard: 'all_accepted',
+    label: 'Accept',
+  },
   { from: 'assigned', to: 'scheduled', permission: 'job.assign', label: 'Unassign' },
   { from: 'assigned', to: 'cancelled', permission: 'job.edit', guard: 'reason', label: 'Cancel' },
   { from: 'accepted', to: 'in_progress', permission: 'job.accept', label: 'Start work' },
-  { from: 'accepted', to: 'en_route', permission: 'job.accept', label: 'On my way', enabled: false },
+  {
+    from: 'accepted',
+    to: 'en_route',
+    permission: 'job.accept',
+    label: 'On my way',
+    enabled: false,
+  },
   { from: 'accepted', to: 'cancelled', permission: 'job.edit', guard: 'reason', label: 'Cancel' },
   { from: 'en_route', to: 'on_site', permission: 'job.accept', label: 'Arrived', enabled: false },
-  { from: 'en_route', to: 'cancelled', permission: 'job.edit', guard: 'reason', label: 'Cancel', enabled: false },
-  { from: 'on_site', to: 'in_progress', permission: 'job.accept', label: 'Start work', enabled: false },
-  { from: 'on_site', to: 'blocked', permission: 'job.accept', guard: 'reason', label: 'Blocked', enabled: false },
-  { from: 'in_progress', to: 'blocked', permission: 'job.accept', guard: 'reason', label: 'Blocked', enabled: false },
-  { from: 'in_progress', to: 'work_complete', permission: 'job.complete', guard: 'completion', label: 'Mark complete' },
-  { from: 'in_progress', to: 'cancelled', permission: 'job.edit', guard: 'reason', label: 'Cancel' },
+  {
+    from: 'en_route',
+    to: 'cancelled',
+    permission: 'job.edit',
+    guard: 'reason',
+    label: 'Cancel',
+    enabled: false,
+  },
+  {
+    from: 'on_site',
+    to: 'in_progress',
+    permission: 'job.accept',
+    label: 'Start work',
+    enabled: false,
+  },
+  {
+    from: 'on_site',
+    to: 'blocked',
+    permission: 'job.accept',
+    guard: 'reason',
+    label: 'Blocked',
+    enabled: false,
+  },
+  {
+    from: 'in_progress',
+    to: 'blocked',
+    permission: 'job.accept',
+    guard: 'reason',
+    label: 'Blocked',
+    enabled: false,
+  },
+  {
+    from: 'in_progress',
+    to: 'work_complete',
+    permission: 'job.complete',
+    guard: 'completion',
+    label: 'Mark complete',
+  },
+  {
+    from: 'in_progress',
+    to: 'cancelled',
+    permission: 'job.edit',
+    guard: 'reason',
+    label: 'Cancel',
+  },
   { from: 'blocked', to: 'in_progress', permission: 'job.accept', label: 'Resume', enabled: false },
-  { from: 'blocked', to: 'cancelled', permission: 'job.edit', guard: 'reason', label: 'Cancel', enabled: false },
-  { from: 'work_complete', to: 'in_progress', permission: 'job.review', guard: 'reason', label: 'Send back' },
+  {
+    from: 'blocked',
+    to: 'cancelled',
+    permission: 'job.edit',
+    guard: 'reason',
+    label: 'Cancel',
+    enabled: false,
+  },
+  {
+    from: 'work_complete',
+    to: 'in_progress',
+    permission: 'job.review',
+    guard: 'reason',
+    label: 'Send back',
+  },
   { from: 'work_complete', to: 'approved', permission: 'job.review', label: 'Approve' },
   { from: 'approved', to: 'closed', permission: 'job.close', label: 'Close' },
 ];
@@ -95,11 +160,7 @@ export function isLegalTransition(from: JobStatus, to: JobStatus): boolean {
  * The authoritative list is `organizations.settings.job_steps`, so a shop can
  * run the longer flow without a code change. This is the fallback.
  */
-export const DEFAULT_JOB_STEPS: readonly JobStatus[] = [
-  'accepted',
-  'in_progress',
-  'work_complete',
-];
+export const DEFAULT_JOB_STEPS: readonly JobStatus[] = ['accepted', 'in_progress', 'work_complete'];
 
 export const STEP_LABELS: Record<string, string> = {
   accepted: 'Accepted',

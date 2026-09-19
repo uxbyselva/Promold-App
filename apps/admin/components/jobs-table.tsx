@@ -185,9 +185,7 @@ export function JobsTable({
                         {j.status.replace(/_/g, ' ')}
                       </span>
                     </td>
-                    {showPrice ? (
-                      <td className="r mono num">{money(j.quoted_price)}</td>
-                    ) : null}
+                    {showPrice ? <td className="r mono num">{money(j.quoted_price)}</td> : null}
                   </tr>
                 );
               })}

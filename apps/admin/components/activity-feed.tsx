@@ -196,7 +196,16 @@ function render(v: unknown): string {
   return String(v);
 }
 
-const IDENTIFYING = ['job_number', 'title', 'name', 'label', 'asset_tag', 'sku', 'plate', 'full_name'];
+const IDENTIFYING = [
+  'job_number',
+  'title',
+  'name',
+  'label',
+  'asset_tag',
+  'sku',
+  'plate',
+  'full_name',
+];
 
 function identify(row: Record<string, unknown>): string {
   const parts = IDENTIFYING.filter((k) => row[k]).map((k) => String(row[k]));

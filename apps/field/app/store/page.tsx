@@ -33,7 +33,9 @@ export default async function StorePage() {
       // driving to the warehouse.
       supabase
         .from('equipment_current')
-        .select('equipment_id, asset_tag, name, category, location_status, job_id, site_id, assigned_to_user_id, assignment_id, expected_end_at'),
+        .select(
+          'equipment_id, asset_tag, name, category, location_status, job_id, site_id, assigned_to_user_id, assignment_id, expected_end_at',
+        ),
       supabase.from('stock_locations').select('id, name, kind').eq('is_active', true).order('name'),
       supabase
         .from('inventory_items')
@@ -44,7 +46,9 @@ export default async function StorePage() {
       supabase.from('stock_levels').select('item_id, location_id, quantity'),
       supabase
         .from('open_packs')
-        .select('pack_id, item_id, sku, name, location_id, location_name, opened_at, unit_cost, jobs_served'),
+        .select(
+          'pack_id, item_id, sku, name, location_id, location_name, opened_at, unit_cost, jobs_served',
+        ),
     ]);
 
   // What this person has asked the office to buy, and who can say yes.

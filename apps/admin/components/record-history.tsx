@@ -18,8 +18,8 @@ export function RecordHistory({ rows }: { rows: Row[] }) {
   if (rows.length === 0) {
     return (
       <p className="empty">
-        Nothing recorded for this one. Either it predates the audit trail, or this kind of record
-        is not audited.
+        Nothing recorded for this one. Either it predates the audit trail, or this kind of record is
+        not audited.
       </p>
     );
   }
@@ -66,9 +66,7 @@ export function RecordHistory({ rows }: { rows: Row[] }) {
                     </dl>
                   ) : null}
 
-                  {r.diff?.reason ? (
-                    <p className="sub">Reason: {String(r.diff.reason)}</p>
-                  ) : null}
+                  {r.diff?.reason ? <p className="sub">Reason: {String(r.diff.reason)}</p> : null}
 
                   {row && r.action === 'insert' ? (
                     <details>

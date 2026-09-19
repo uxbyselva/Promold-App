@@ -265,7 +265,12 @@ export function CustomerEditor({
               />
             ) : null}
             {sites.map((s) => (
-              <SiteRow key={s.id} site={s} jobs={jobs.filter((j) => j.site_id === s.id)} readOnly={readOnly} />
+              <SiteRow
+                key={s.id}
+                site={s}
+                jobs={jobs.filter((j) => j.site_id === s.id)}
+                readOnly={readOnly}
+              />
             ))}
             {sites.length === 0 && !addingSite ? (
               <p className="empty">No sites yet. A job cannot be booked without one.</p>
@@ -295,7 +300,11 @@ export function CustomerEditor({
                   </p>
                 </div>
                 <div className="btn-row">
-                  <button className="btn ghost" onClick={() => setRemoving(false)} disabled={working}>
+                  <button
+                    className="btn ghost"
+                    onClick={() => setRemoving(false)}
+                    disabled={working}
+                  >
                     Keep them
                   </button>
                   <button
@@ -412,7 +421,11 @@ function SiteRow({ site, jobs, readOnly }: { site: Site; jobs: Job[]; readOnly: 
           ) : null}
 
           {!readOnly ? (
-            <Link className="btn ghost sm" href={`/jobs/new?customer=${''}`} style={{ display: 'none' }}>
+            <Link
+              className="btn ghost sm"
+              href={`/jobs/new?customer=${''}`}
+              style={{ display: 'none' }}
+            >
               Book
             </Link>
           ) : null}
@@ -474,14 +487,16 @@ function SiteForm({
         onClick={async () => {
           setBusy(true);
           setError(null);
-          const { error: err } = await supabaseBrowser().from('sites').insert({
-            org_id: orgId,
-            customer_id: customerId,
-            label: label.trim(),
-            address_line1: address.trim(),
-            city: city.trim() || null,
-            access_notes: access.trim() || null,
-          });
+          const { error: err } = await supabaseBrowser()
+            .from('sites')
+            .insert({
+              org_id: orgId,
+              customer_id: customerId,
+              label: label.trim(),
+              address_line1: address.trim(),
+              city: city.trim() || null,
+              access_notes: access.trim() || null,
+            });
           setBusy(false);
           if (err) {
             setError(refusalMessage(err));

@@ -101,14 +101,16 @@ export function TimeOffView({
     // Stored as a timestamp range covering whole days: start of the first,
     // end of the last. The scheduling conflict check overlaps ranges, so a
     // day that ends at midnight would leave that last day bookable.
-    const { error: err } = await supabaseBrowser().from('time_off').insert({
-      org_id: orgId,
-      user_id: userId,
-      kind,
-      starts_at: new Date(`${from}T00:00`).toISOString(),
-      ends_at: new Date(`${to}T23:59:59`).toISOString(),
-      reason: reason.trim() || null,
-    });
+    const { error: err } = await supabaseBrowser()
+      .from('time_off')
+      .insert({
+        org_id: orgId,
+        user_id: userId,
+        kind,
+        starts_at: new Date(`${from}T00:00`).toISOString(),
+        ends_at: new Date(`${to}T23:59:59`).toISOString(),
+        reason: reason.trim() || null,
+      });
 
     setBusy(false);
     if (err) {
@@ -136,8 +138,8 @@ export function TimeOffView({
           <span className="sub">days off</span>
         </div>
         <p className="hint">
-          Approved time off is what stops you being booked onto a job. A request on its own does
-          not block anything.
+          Approved time off is what stops you being booked onto a job. A request on its own does not
+          block anything.
         </p>
         <button className="btn wide" onClick={() => setOpen(true)}>
           Request time off

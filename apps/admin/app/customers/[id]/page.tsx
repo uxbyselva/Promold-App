@@ -15,7 +15,9 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
   const supabase = await supabaseServer();
   const { data: customer } = await supabase
     .from('customers')
-    .select('id, name, kind, primary_contact, phone, email, billing_address, notes, deleted_at, delete_reason')
+    .select(
+      'id, name, kind, primary_contact, phone, email, billing_address, notes, deleted_at, delete_reason',
+    )
     .eq('id', id)
     .maybeSingle();
 
@@ -23,7 +25,9 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
 
   const { data: sites } = await supabase
     .from('sites')
-    .select('id, label, address_line1, address_line2, city, state, postal_code, access_notes, deleted_at')
+    .select(
+      'id, label, address_line1, address_line2, city, state, postal_code, access_notes, deleted_at',
+    )
     .eq('customer_id', id)
     .is('deleted_at', null)
     .order('label');

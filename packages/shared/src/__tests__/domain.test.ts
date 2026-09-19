@@ -49,8 +49,7 @@ import {
 } from '../index.js';
 
 const day = 86_400_000;
-const at = (isoDay: number, hour = 0) =>
-  new Date(Date.UTC(2026, 0, isoDay, hour, 0, 0));
+const at = (isoDay: number, hour = 0) => new Date(Date.UTC(2026, 0, isoDay, hour, 0, 0));
 
 describe('permissions', () => {
   const tech = { permissions: { 'equipment.place': true } as const };
@@ -231,8 +230,12 @@ describe('completion gates', () => {
   });
 
   it('asks only for at least one photo per required phase, never a cap', () => {
-    expect(canComplete(requirements, { ...clean, beforePhotoCount: 1, afterPhotoCount: 1 })).toBe(true);
-    expect(canComplete(requirements, { ...clean, beforePhotoCount: 240, afterPhotoCount: 180 })).toBe(true);
+    expect(canComplete(requirements, { ...clean, beforePhotoCount: 1, afterPhotoCount: 1 })).toBe(
+      true,
+    );
+    expect(
+      canComplete(requirements, { ...clean, beforePhotoCount: 240, afterPhotoCount: 180 }),
+    ).toBe(true);
   });
 
   it('names each missing item rather than failing opaquely', () => {
@@ -273,8 +276,9 @@ describe('completion gates', () => {
 
   it('does not block on a rental the office has not chased', () => {
     expect(canComplete(requirements, { ...clean, rentalsOutstanding: 1 })).toBe(true);
-    expect(completionWarnings({ ...clean, rentalsOutstanding: 1 })[0]!.message)
-      .toMatch(/office will be told/);
+    expect(completionWarnings({ ...clean, rentalsOutstanding: 1 })[0]!.message).toMatch(
+      /office will be told/,
+    );
   });
 
   it('stays silent when there is nothing to say', () => {
@@ -348,12 +352,16 @@ describe('scheduling', () => {
 
   it('escalates an unaccepted assignment inside the window', () => {
     const start = at(5, 8);
-    expect(shouldEscalate(start, 'pending', 12, new Date(start.getTime() - 6 * 3_600_000))).toBe(true);
+    expect(shouldEscalate(start, 'pending', 12, new Date(start.getTime() - 6 * 3_600_000))).toBe(
+      true,
+    );
   });
 
   it('does not escalate once accepted', () => {
     const start = at(5, 8);
-    expect(shouldEscalate(start, 'accepted', 12, new Date(start.getTime() - 1 * 3_600_000))).toBe(false);
+    expect(shouldEscalate(start, 'accepted', 12, new Date(start.getTime() - 1 * 3_600_000))).toBe(
+      false,
+    );
   });
 
   it('does not escalate while there is still time', () => {
@@ -365,7 +373,15 @@ describe('scheduling', () => {
 describe('costing', () => {
   it('sums the components and derives margin', () => {
     const s = summarise(
-      { labour: 660, materials: 300, purchases: 100, mileage: 40, equipment: 192, rentals: 270, other: 0 },
+      {
+        labour: 660,
+        materials: 300,
+        purchases: 100,
+        mileage: 40,
+        equipment: 192,
+        rentals: 270,
+        other: 0,
+      },
       8600,
     );
     expect(s.totalCost).toBe(1562);
@@ -577,8 +593,9 @@ describe('admin mode', () => {
   });
 
   it('says what changed, not merely that something did', () => {
-    expect(describeAuditEntry({ action: 'update', fields: ['scheduled_start', 'quoted_price'] }))
-      .toBe('Edited — Start, Quoted price');
+    expect(
+      describeAuditEntry({ action: 'update', fields: ['scheduled_start', 'quoted_price'] }),
+    ).toBe('Edited — Start, Quoted price');
     expect(describeAuditEntry({ action: 'insert', fields: [] })).toBe('Created');
     expect(
       describeAuditEntry({
@@ -600,8 +617,9 @@ describe('admin mode', () => {
   });
 
   it('falls back through ref to the id for a row with no name', () => {
-    expect(recordTitle({ title: 'Basement', ref: 'J00102', recordId: 'abcdef12-0000' }))
-      .toBe('Basement');
+    expect(recordTitle({ title: 'Basement', ref: 'J00102', recordId: 'abcdef12-0000' })).toBe(
+      'Basement',
+    );
     expect(recordTitle({ title: null, ref: 'J00102', recordId: 'abcdef12-0000' })).toBe('J00102');
     expect(recordTitle({ title: null, ref: null, recordId: 'abcdef12-0000' })).toBe('abcdef12');
   });

@@ -13,7 +13,9 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
 
   const { data: job } = await supabase
     .from('jobs_safe')
-    .select('id, job_number, title, description, status, scheduled_start, scheduled_end, site_id, customer_id')
+    .select(
+      'id, job_number, title, description, status, scheduled_start, scheduled_end, site_id, customer_id',
+    )
     .eq('id', id)
     .maybeSingle();
 

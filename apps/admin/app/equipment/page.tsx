@@ -21,10 +21,14 @@ export default async function EquipmentPage() {
           'equipment_id, asset_tag, name, category, lifecycle_status, location_status, job_id, site_id, assigned_to_user_id, started_at, expected_end_at, days_deployed, pickup_overdue',
         )
         .order('asset_tag'),
-      supabase.from('equipment_overdue').select('source, reference, description, job_id, site_id, due_at, days_overdue'),
+      supabase
+        .from('equipment_overdue')
+        .select('source, reference, description, job_id, site_id, due_at, days_overdue'),
       supabase
         .from('equipment_rentals')
-        .select('id, description, category, quantity, rate, rate_unit, job_id, picked_up_at, return_due_at, returned_at, estimated_cost, actual_cost, status, supplier_id')
+        .select(
+          'id, description, category, quantity, rate, rate_unit, job_id, picked_up_at, return_due_at, returned_at, estimated_cost, actual_cost, status, supplier_id',
+        )
         .is('returned_at', null),
       supabase.from('profiles_safe').select('id, full_name'),
     ]);

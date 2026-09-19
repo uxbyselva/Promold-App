@@ -58,7 +58,10 @@ export default async function AdminHome() {
         </div>
         <div className="tile">
           <span className="lbl">Blocked from restoring</span>
-          <span className="fig" style={bin.some((b) => b.blocked_by) ? { color: 'var(--warn)' } : undefined}>
+          <span
+            className="fig"
+            style={bin.some((b) => b.blocked_by) ? { color: 'var(--warn)' } : undefined}
+          >
             {bin.filter((b) => b.blocked_by).length}
           </span>
           <span className="sub">Waiting on a deleted parent</span>

@@ -22,7 +22,9 @@ export default async function JobsPage() {
   const { data: jobs } = jobIds.length
     ? await supabase
         .from('jobs_safe')
-        .select('id, job_number, title, status, scheduled_start, scheduled_end, site_id, customer_id')
+        .select(
+          'id, job_number, title, status, scheduled_start, scheduled_end, site_id, customer_id',
+        )
         .in('id', jobIds)
         .order('scheduled_start')
     : { data: [] };

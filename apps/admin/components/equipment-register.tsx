@@ -117,8 +117,16 @@ export function EquipmentRegister({
       <div className="tiles">
         <Tile label="Units on the register" value={current.length} />
         <Tile label="Out right now" value={out.length} />
-        <Tile label="Overdue for pickup" value={overdue.length} tone={overdue.length ? 'warn' : undefined} />
-        <Tile label="Rented in, still out" value={rentals.length} tone={rentals.length ? 'warn' : undefined} />
+        <Tile
+          label="Overdue for pickup"
+          value={overdue.length}
+          tone={overdue.length ? 'warn' : undefined}
+        />
+        <Tile
+          label="Rented in, still out"
+          value={rentals.length}
+          tone={rentals.length ? 'warn' : undefined}
+        />
       </div>
 
       {overdue.length ? (
@@ -258,9 +266,7 @@ export function EquipmentRegister({
         <div className="box">
           <header>
             <h3>Rented in</h3>
-            <span className="sub">
-              Somebody else&rsquo;s meter is running on these
-            </span>
+            <span className="sub">Somebody else&rsquo;s meter is running on these</span>
           </header>
           <div className="tablewrap">
             <table>
@@ -358,7 +364,10 @@ function Tile({ label, value, tone }: { label: string; value: number; tone?: 'wa
   return (
     <div className="tile">
       <span className="lbl">{label}</span>
-      <span className="fig" style={tone === 'warn' && value > 0 ? { color: 'var(--warn)' } : undefined}>
+      <span
+        className="fig"
+        style={tone === 'warn' && value > 0 ? { color: 'var(--warn)' } : undefined}
+      >
         {value}
       </span>
     </div>

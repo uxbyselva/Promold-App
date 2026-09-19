@@ -47,10 +47,10 @@ export const jobSchema = z
     insuranceClaimNo: z.string().optional(),
     adjusterContact: z.string().optional(),
   })
-  .refine(
-    (v) => !v.scheduledStart || !v.scheduledEnd || v.scheduledEnd >= v.scheduledStart,
-    { message: 'End must be after start', path: ['scheduledEnd'] },
-  );
+  .refine((v) => !v.scheduledStart || !v.scheduledEnd || v.scheduledEnd >= v.scheduledStart, {
+    message: 'End must be after start',
+    path: ['scheduledEnd'],
+  });
 
 export const rescheduleRequestSchema = z
   .object({

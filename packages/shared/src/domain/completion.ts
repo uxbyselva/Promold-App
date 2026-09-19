@@ -69,7 +69,11 @@ export function completionBlockers(
   const blockers: Blocker[] = [];
 
   if (requirements.photos_before && state.beforePhotoCount === 0) {
-    blockers.push({ key: 'photos_before', message: 'Before photos required', action: 'add_photos' });
+    blockers.push({
+      key: 'photos_before',
+      message: 'Before photos required',
+      action: 'add_photos',
+    });
   }
 
   if (requirements.photos_after && state.afterPhotoCount === 0) {
@@ -94,7 +98,11 @@ export function completionBlockers(
 
   for (const key of requirements.forms ?? []) {
     if (!state.completedFormKeys.includes(key)) {
-      blockers.push({ key: `form:${key}`, message: `Form not complete: ${key}`, action: 'fill_form' });
+      blockers.push({
+        key: `form:${key}`,
+        message: `Form not complete: ${key}`,
+        action: 'fill_form',
+      });
     }
   }
 
@@ -122,10 +130,7 @@ export function completionBlockers(
   return blockers;
 }
 
-export function canComplete(
-  requirements: CompletionRequirements,
-  state: CompletionState,
-): boolean {
+export function canComplete(requirements: CompletionRequirements, state: CompletionState): boolean {
   return completionBlockers(requirements, state).length === 0;
 }
 

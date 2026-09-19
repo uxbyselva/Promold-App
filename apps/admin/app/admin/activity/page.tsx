@@ -36,8 +36,7 @@ export default async function ActivityPage({
           <h1>Activity</h1>
           <p>
             Every insert, edit and delete, with the fields that actually changed. Written by a
-            trigger in the database, so it records what happened rather than what a screen
-            intended.
+            trigger in the database, so it records what happened rather than what a screen intended.
           </p>
         </div>
       </div>

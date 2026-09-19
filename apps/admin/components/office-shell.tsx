@@ -28,7 +28,10 @@ async function waitingCount(session: Session): Promise<number> {
           .eq('status', 'pending')
       : Promise.resolve({ count: 0 }),
     session.can('timeoff.manage')
-      ? supabase.from('time_off').select('id', { count: 'exact', head: true }).eq('status', 'requested')
+      ? supabase
+          .from('time_off')
+          .select('id', { count: 'exact', head: true })
+          .eq('status', 'requested')
       : Promise.resolve({ count: 0 }),
     session.can('purchase.approve')
       ? supabase

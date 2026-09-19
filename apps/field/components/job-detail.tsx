@@ -180,7 +180,12 @@ export function JobDetail({
       <div className="panel">
         <div className="track">
           {STEPS.map((s, i) => (
-            <div key={s} className="step" data-on={i <= stepIndex ? 1 : 0} data-now={i === stepIndex ? 1 : 0}>
+            <div
+              key={s}
+              className="step"
+              data-on={i <= stepIndex ? 1 : 0}
+              data-now={i === stepIndex ? 1 : 0}
+            >
               <span className="bead" />
               <span>{STEP_LABEL[s]}</span>
             </div>
@@ -214,7 +219,10 @@ export function JobDetail({
       {/* Getting in comes before anything else: it is what they read in the
           driveway. */}
       {site?.access_notes ? (
-        <div className="panel" style={{ background: 'var(--accent-soft)', borderColor: 'var(--accent)' }}>
+        <div
+          className="panel"
+          style={{ background: 'var(--accent-soft)', borderColor: 'var(--accent)' }}
+        >
           <p className="lbl" style={{ color: 'var(--accent-ink)' }}>
             Getting in
           </p>
@@ -302,7 +310,9 @@ export function JobDetail({
               <button
                 className="btn"
                 disabled={working}
-                onClick={() => call('accept_assignment', { p_assignment_id: myAssignment.id }, 'accept')}
+                onClick={() =>
+                  call('accept_assignment', { p_assignment_id: myAssignment.id }, 'accept')
+                }
               >
                 {busy === 'accept' ? 'Accepting…' : 'Accept'}
               </button>
@@ -443,7 +453,9 @@ export function JobDetail({
         <button
           className="btn wide"
           disabled={working}
-          onClick={() => call('transition_job', { p_job_id: job.id, p_to_status: next.to }, 'advance')}
+          onClick={() =>
+            call('transition_job', { p_job_id: job.id, p_to_status: next.to }, 'advance')
+          }
         >
           {busy === 'advance' ? 'Working…' : next.label}
         </button>

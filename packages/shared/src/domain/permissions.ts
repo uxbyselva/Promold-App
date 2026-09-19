@@ -80,13 +80,7 @@ export const PERMISSIONS = {
 
 export type Permission = keyof typeof PERMISSIONS;
 
-export const ROLE_KEYS = [
-  'owner',
-  'manager',
-  'crew_lead',
-  'technician',
-  'bookkeeper',
-] as const;
+export const ROLE_KEYS = ['owner', 'manager', 'crew_lead', 'technician', 'bookkeeper'] as const;
 
 export type RoleKey = (typeof ROLE_KEYS)[number];
 

@@ -153,7 +153,8 @@ export function JobForm({
     }
 
     const movedStart = start !== new Date(initial.scheduled_start || 0).toISOString();
-    const movedEnd = (end ?? '') !== (initial.scheduled_end ? new Date(initial.scheduled_end).toISOString() : '');
+    const movedEnd =
+      (end ?? '') !== (initial.scheduled_end ? new Date(initial.scheduled_end).toISOString() : '');
     if (start && (movedStart || movedEnd)) {
       const { error: moveErr } = await supabase.rpc('reschedule_job', {
         p_job_id: draft.id,
@@ -185,8 +186,7 @@ export function JobForm({
     startTransition(() => router.refresh());
   }
 
-  const ready =
-    draft.customer_id && draft.site_id && draft.title.trim() && draft.scheduled_start;
+  const ready = draft.customer_id && draft.site_id && draft.title.trim() && draft.scheduled_start;
 
   return (
     <div className="box">
@@ -365,8 +365,8 @@ export function JobForm({
               ))}
             </div>
             <p className="hint">
-              Approved time off is always refused. A double booking is refused too, unless you
-              say it is deliberate.
+              Approved time off is always refused. A double booking is refused too, unless you say
+              it is deliberate.
             </p>
             <label className="row" style={{ gap: 7, fontSize: 13, color: 'var(--muted)' }}>
               <input

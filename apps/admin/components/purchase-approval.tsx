@@ -58,8 +58,7 @@ export function PurchaseApproval({
 
   const working = busy !== null || refreshing;
 
-  const lineTotal = (l: PurchaseLine) =>
-    Number(l.quantity) * Number(l.estimated_unit_cost ?? 0);
+  const lineTotal = (l: PurchaseLine) => Number(l.quantity) * Number(l.estimated_unit_cost ?? 0);
   const asked = useMemo(() => lines.reduce((a, l) => a + lineTotal(l), 0), [lines]);
   const selected = useMemo(
     () => lines.filter((l) => ticked.includes(l.id)).reduce((a, l) => a + lineTotal(l), 0),
@@ -157,7 +156,9 @@ export function PurchaseApproval({
           <tfoot>
             <tr>
               <td colSpan={4}>
-                {ticked.length === lines.length ? 'All of it' : `${ticked.length} of ${lines.length} lines`}
+                {ticked.length === lines.length
+                  ? 'All of it'
+                  : `${ticked.length} of ${lines.length} lines`}
               </td>
               <td className="r mono num">
                 <b>{money(selected)}</b>
@@ -174,10 +175,12 @@ export function PurchaseApproval({
 
         {overLimit ? (
           <p className="note">
-            <b>{money(selected)} is over the {money(threshold)} you can approve.</b>
+            <b>
+              {money(selected)} is over the {money(threshold)} you can approve.
+            </b>
             <br />
-            Take a line off to bring it under, or leave it for the owner — they have no limit.
-            The database checks this too, so it cannot be talked round.
+            Take a line off to bring it under, or leave it for the owner — they have no limit. The
+            database checks this too, so it cannot be talked round.
           </p>
         ) : null}
 

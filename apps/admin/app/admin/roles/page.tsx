@@ -84,9 +84,9 @@ export default async function RolesPage() {
       </div>
 
       <p className="hint">
-        Changing these is <code>role.manage</code> and is not wired up yet — it is a data change
-        in Supabase, not a release, and it is the kind of change worth making on purpose rather
-        than by clicking.
+        Changing these is <code>role.manage</code> and is not wired up yet — it is a data change in
+        Supabase, not a release, and it is the kind of change worth making on purpose rather than by
+        clicking.
       </p>
     </OfficeShell>
   );

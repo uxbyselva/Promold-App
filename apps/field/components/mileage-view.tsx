@@ -105,17 +105,19 @@ export function MileageView({
     // distance and continuity_gap are not sent: distance is a generated
     // column and the gap is set by a trigger against the vehicle's own
     // reading. Anything this screen calculated would only be a second opinion.
-    const { error: err } = await supabaseBrowser().from('mileage_logs').insert({
-      org_id: orgId,
-      user_id: userId,
-      vehicle_id: vehicleId,
-      trip_date: date,
-      odometer_start: startNum,
-      odometer_end: endNum,
-      job_id: jobId || null,
-      is_business: business,
-      purpose: purpose.trim() || null,
-    });
+    const { error: err } = await supabaseBrowser()
+      .from('mileage_logs')
+      .insert({
+        org_id: orgId,
+        user_id: userId,
+        vehicle_id: vehicleId,
+        trip_date: date,
+        odometer_start: startNum,
+        odometer_end: endNum,
+        job_id: jobId || null,
+        is_business: business,
+        purpose: purpose.trim() || null,
+      });
 
     setBusy(false);
     if (err) {
@@ -227,7 +229,12 @@ export function MileageView({
 
               <div className="field">
                 <label htmlFor="date">Date</label>
-                <input id="date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+                <input
+                  id="date"
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                />
               </div>
 
               <div className="field-row">
@@ -261,7 +268,11 @@ export function MileageView({
 
               <div className="field">
                 <label htmlFor="dist">Distance</label>
-                <input id="dist" readOnly value={distance === null ? '—' : `${miles(distance)} mi`} />
+                <input
+                  id="dist"
+                  readOnly
+                  value={distance === null ? '—' : `${miles(distance)} mi`}
+                />
                 <p className="hint">
                   {distance === null
                     ? 'Fill both readings.'

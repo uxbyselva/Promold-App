@@ -31,7 +31,13 @@ export function JobSidebar({
   status: string;
   deleted: boolean;
   crew: { id: string; name: string; acceptance: string; respondedAt: string | null }[];
-  visits: { id: string; seq: number; scheduled_start: string; scheduled_end: string; status: string }[];
+  visits: {
+    id: string;
+    seq: number;
+    scheduled_start: string;
+    scheduled_end: string;
+    status: string;
+  }[];
   blockers: string[];
   canReview: boolean;
   canClose: boolean;
@@ -204,7 +210,11 @@ export function JobSidebar({
                   </p>
                 </div>
                 <div className="btn-row">
-                  <button className="btn ghost" onClick={() => setRemoving(false)} disabled={working}>
+                  <button
+                    className="btn ghost"
+                    onClick={() => setRemoving(false)}
+                    disabled={working}
+                  >
                     Keep it
                   </button>
                   <button

@@ -132,10 +132,7 @@ export function StoreView({
   const levelAt = (itemId: string) =>
     Number(levels.find((l) => l.item_id === itemId && l.location_id === locationId)?.quantity ?? 0);
 
-  const counted = useMemo(
-    () => items.filter((i) => !isPack(i.consumption_mode)),
-    [items],
-  );
+  const counted = useMemo(() => items.filter((i) => !isPack(i.consumption_mode)), [items]);
   const packItems = useMemo(() => items.filter((i) => isPack(i.consumption_mode)), [items]);
   const myPacks = packs.filter((p) => p.location_id === locationId);
 
@@ -238,10 +235,7 @@ export function StoreView({
             <p className="empty">Nothing of ours is on these sites.</p>
           ) : (
             onMyJobs.map((k) => (
-              <div
-                key={k.equipment_id}
-                className={`panel${!k.expected_end_at ? ' flag' : ''}`}
-              >
+              <div key={k.equipment_id} className={`panel${!k.expected_end_at ? ' flag' : ''}`}>
                 <div className="row between">
                   <span className="row" style={{ gap: 8 }}>
                     <span className="mono" style={{ fontSize: 13 }}>
@@ -333,8 +327,7 @@ export function StoreView({
                   </div>
                 ))}
                 <p className="hint">
-                  Shown so nobody drives to the warehouse for something that is already on a
-                  site.
+                  Shown so nobody drives to the warehouse for something that is already on a site.
                 </p>
               </div>
             </>
@@ -467,8 +460,8 @@ export function StoreView({
                     </span>
                   </div>
                   <p className="hint">
-                    {modeLabel(item.consumption_mode)}. Nobody is ever asked how much is left —
-                    only whether it is empty.
+                    {modeLabel(item.consumption_mode)}. Nobody is ever asked how much is left — only
+                    whether it is empty.
                   </p>
                   {canLogUsage ? (
                     <button
@@ -502,8 +495,8 @@ export function StoreView({
           <div className="panel">
             <h3>Need something the van does not have</h3>
             <p className="sub">
-              Ask the office. They can approve some of it and not the rest, so put down
-              everything you need rather than guessing what will get through.
+              Ask the office. They can approve some of it and not the rest, so put down everything
+              you need rather than guessing what will get through.
             </p>
             <button className="btn wide" onClick={() => setBuying(true)}>
               Ask to buy something
@@ -515,10 +508,7 @@ export function StoreView({
             <p className="empty">Nothing yet.</p>
           ) : (
             requests.map((r) => (
-              <div
-                key={r.id}
-                className={`panel${r.status === 'submitted' ? ' flag' : ''}`}
-              >
+              <div key={r.id} className={`panel${r.status === 'submitted' ? ' flag' : ''}`}>
                 <div className="row between">
                   <span className="mono" style={{ fontSize: 13 }}>
                     {r.request_number}

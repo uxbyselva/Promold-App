@@ -19,7 +19,9 @@ export default async function ApprovalsPage() {
     canReschedule
       ? supabase
           .from('reschedule_requests')
-          .select('id, job_id, assignment_id, requested_by, reason, proposed_start, proposed_end, created_at')
+          .select(
+            'id, job_id, assignment_id, requested_by, reason, proposed_start, proposed_end, created_at',
+          )
           .eq('status', 'pending')
           .order('created_at')
       : Promise.resolve({ data: [] as never[] }),
@@ -90,8 +92,8 @@ export default async function ApprovalsPage() {
         <div>
           <h1>Waiting on you</h1>
           <p>
-            What the crew have asked for. A request nobody answers is worse than no request —
-            they stop using the app and go back to phoning.
+            What the crew have asked for. A request nobody answers is worse than no request — they
+            stop using the app and go back to phoning.
           </p>
         </div>
       </div>

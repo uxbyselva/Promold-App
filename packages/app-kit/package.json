@@ -12,7 +12,8 @@
     "./login-form": "./src/login-form.tsx"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "lint": "prettier --check \"src/**/*.{ts,tsx}\""
   },
   "dependencies": {
     "@promold/shared": "workspace:*",
