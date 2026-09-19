@@ -1,12 +1,95 @@
 # Prototypes
 
-Two clickable prototypes, built to settle layout and flow before any of it is
-wired to the database.
+Three clickable prototypes, built to settle layout and flow before any of it is
+wired to the database. **They are views only** — nothing is saved, nothing is
+wired up. The real screens get built once these are approved.
 
 | File | Who it is for | Surface |
 |---|---|---|
 | `field-prototype.html` | Crew lead, technician | Phone |
 | `admin-prototype.html` | Manager, owner | Desktop |
+| `flows-prototype.html` | All four roles | Phone drawn inside the web page, plus desktop |
+
+## Flows prototype — the four remaining flows
+
+`flows-prototype.html` covers what the first two did not: mileage and
+vehicles, time off, customers and sites, and job costing with its exports. It
+carries a persona switcher, because the point is that these are four
+different apps rather than one app with things greyed out.
+
+| Persona | Surface | Tabs |
+|---|---|---|
+| Priya Nair, technician | Phone | My day · Mileage · Time off |
+| Marcus Bell, crew lead | Phone | My day (plus the crew clock) · Mileage · Time off |
+| Ray Alvarez, manager | Web | Vehicles & mileage · Time off · Customers & sites |
+| Helen Osei, bookkeeper | Web | Job costing · Exports |
+
+Under each persona is the list of what that login can and cannot reach. The
+flags are the ones `provision_org_roles()` actually writes, so the strip is
+checkable against the database rather than decorative.
+
+The two phone personas are drawn inside a phone frame on the web page, so the
+field app can be reviewed without installing anything.
+
+### Mileage
+
+Odometer start and end are what gets typed; `distance` is a generated column
+in `mileage_logs`, so nobody enters a mileage figure and nobody can round one
+up. The opening reading is prefilled from the van's last closing reading, and
+if the two do not meet, the difference is written to `continuity_gap` and
+shown to the office — a note on the row, never a refusal. Vans do get moved
+without a log, and a hard block just stops people logging at all.
+
+The crew see their own trips. `mileage.view_all` is the manager's, the
+owner's and the bookkeeper's; the manager's register adds the fleet, the
+per-person totals payroll needs, and a correction path that records
+`edited_by` and `edited_at`.
+
+### Time off
+
+Only `status = 'approved'` blocks scheduling — that is the partial gist index
+in `0002_identity.sql`, and it is what the dispatch board already refuses
+drops against. A request on its own blocks nothing.
+
+Both sides are shown the same clash: if the dates cover a job the person is
+already on, the phone says so before the request is sent, and the manager
+sees it on the approval. Approving does **not** move the booked work. That is
+deliberate — reassigning someone else's job is a decision, not a side effect.
+
+### Customers and sites
+
+List, detail, sites under the customer, and the job history at each address.
+Access notes live on `sites`, not in a job note, so the crew reads the gate
+code in the driveway whatever job brought them there. Nothing on the record
+says what is owed or what has been paid.
+
+### Job costing
+
+Four tiles, two charts and the same numbers as a table.
+
+- **Where the money went** — a stacked bar of what each job cost, with the
+  contract price as a tick on the same dollar axis. When the bar runs past
+  the tick, that job lost money, and you can see which line did it.
+- **Margin against the target** — the same jobs as distance from the 35%
+  target, above on one side and below on the other.
+
+Colour follows the method in the `dataviz` skill: the categorical slots are
+assigned in fixed order and validated against this app's own chart surfaces
+(`#FFFFFF` light, `#18211F` dark) rather than the reference ones. Both modes
+clear the lightness band, the chroma floor, adjacent CVD separation and the
+normal-vision floor. Light mode returns a contrast warning on three slots,
+which obliges the relief rule — hence the value labels on every bar and the
+full table underneath. Dark mode is its own set of steps, not an inverted
+copy.
+
+Two of the exports (job costing, mileage) really do download a CSV built from
+what is on screen.
+
+### What it does not have, on purpose
+
+No invoice, no balance, no paid flag, nothing about what the customer owes.
+Cost to us is in; owed by the customer is out. See the scope boundary in
+[`CLAUDE.md`](../../CLAUDE.md).
 
 ## Admin prototype — the manager's day
 
