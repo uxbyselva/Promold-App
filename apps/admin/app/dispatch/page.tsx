@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { supabaseServer } from '@/lib/supabase-server';
 import { Board } from '@/components/board';
+import { OfficeShell } from '@/components/office-shell';
 import { requireSession } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
@@ -48,13 +49,15 @@ export default async function Dispatch({
     : { data: [] };
 
   return (
-    <Board
-      day={day}
-      me={{ name: me.full_name }}
-      crew={crew ?? []}
-      jobs={jobs ?? []}
-      assignments={assignments ?? []}
-      timeOff={off ?? []}
-    />
+    <OfficeShell session={session} mode="office">
+      <Board
+        day={day}
+        me={{ name: me.full_name }}
+        crew={crew ?? []}
+        jobs={jobs ?? []}
+        assignments={assignments ?? []}
+        timeOff={off ?? []}
+      />
+    </OfficeShell>
   );
 }

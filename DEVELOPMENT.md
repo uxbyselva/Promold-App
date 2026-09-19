@@ -20,18 +20,68 @@ Studio runs at http://localhost:54323.
 
 ```
 apps/
-  mobile/     Expo field app                      (not yet built)
-  admin/      Next.js admin web                   (not yet built)
+  admin/      The office app — Next.js, desktop      (port 3000)
+  field/      The crew's app — Next.js, phone-first  (port 3001)
+  prototype/  Clickable HTML mocks, no database
 packages/
   shared/     Types, permission flags, state machines, validation
+  app-kit/    Session, middleware, sign-in form, design tokens — shared
+              by both apps
 supabase/
   migrations/ SQL migrations — the source of truth for the schema
   tests/      Schema assertions
   seed.sql    Development data
+  storage.sql One-time setup for the job photo bucket
 scripts/
   verify-schema.sh
 docs/         Specification set
 ```
+
+## Two apps, one database
+
+| | `apps/admin` | `apps/field` |
+|---|---|---|
+| Who | Owner, manager, bookkeeper | Crew lead, technician |
+| Where | A desk | A phone, installed from a link |
+| Deployed as | Its own Vercel project, root `apps/admin` | Its own Vercel project, root `apps/field` |
+
+They are separate deployments because they are separate jobs, not because the
+data differs. Row-level security is what actually divides them: a crew lead
+signing into the office app would see the same nothing they see in the field
+app, because `jobs_safe` masks the price and RLS limits the rows.
+
+**The office app has two modes.** *Office* is the day job — the calendar,
+booking work, customers. *Admin* is the other question: what happened to this
+record, who changed it, and can I get back the thing I deleted. The switch is
+in the masthead and appears only for `audit.view`.
+
+### What is shared, and what deliberately is not
+
+`packages/app-kit` holds session loading, the auth middleware, the sign-in
+form and the design tokens — two apps on one database is two chances to get
+auth subtly different.
+
+Reading the environment variables is **not** shared. Next.js inlines
+`process.env.NEXT_PUBLIC_…` by substituting the literal text at build time,
+which only works on a static reference inside the app being built. Each app
+keeps its own `lib/env.ts`. An earlier version read them through a helper and
+the values silently never reached the browser.
+
+## Running both
+
+```bash
+pnpm --filter @promold/admin dev   # http://localhost:3000
+pnpm --filter @promold/field dev   # http://localhost:3001
+```
+
+Both need `.env.local` in their own directory — copy the `.env.example` beside
+it.
+
+## Photos
+
+Job photos go to a private Supabase Storage bucket. Run `supabase/storage.sql`
+once in the SQL editor to create it and its policies. Until then the gallery
+says so rather than failing silently.
 
 ## Where the rules live
 

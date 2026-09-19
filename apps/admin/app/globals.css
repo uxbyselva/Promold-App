@@ -1,1 +1,105 @@
 @import '@promold/app-kit/styles.css';
+
+/* The office app runs on a desk, so it can afford a table. Anything phone-
+   shaped belongs in the field app. */
+.office{min-height:100dvh;display:flex;flex-direction:column}
+.masthead{background:var(--surface);border-bottom:1px solid var(--line);
+  padding:11px 20px 0;position:sticky;top:0;z-index:20}
+.masthead-row{display:flex;align-items:center;justify-content:space-between;gap:16px;
+  flex-wrap:wrap;max-width:1320px;margin:0 auto;width:100%}
+.brand{display:flex;align-items:baseline;gap:10px}
+.brand b{font-size:17px;font-weight:600;letter-spacing:-.01em}
+.brand span{font-size:12.5px;color:var(--muted)}
+
+/* Two modes, not two apps: the same login, a different set of doors. */
+.modes{display:flex;gap:3px;background:var(--surface-2);border:1px solid var(--line);
+  border-radius:999px;padding:3px}
+.modes a{padding:5px 13px;border-radius:999px;font-size:13px;font-weight:600;
+  color:var(--muted);text-decoration:none}
+.modes a[aria-current="page"]{background:var(--surface);color:var(--ink);
+  box-shadow:var(--shadow)}
+.modes a[data-mode="admin"][aria-current="page"]{background:var(--ink);color:var(--ground)}
+
+.nav{display:flex;gap:4px;max-width:1320px;margin:0 auto;width:100%;
+  overflow-x:auto;padding-top:11px}
+.nav a{padding:8px 14px;border-radius:9px 9px 0 0;font-size:14px;font-weight:500;
+  color:var(--muted);text-decoration:none;border:1px solid transparent;border-bottom:none;
+  white-space:nowrap;margin-bottom:-1px}
+.nav a[aria-current="page"]{background:var(--ground);color:var(--ink);
+  border-color:var(--line);font-weight:600}
+.office main{flex:1;max-width:1320px;margin:0 auto;width:100%;padding:20px;
+  display:flex;flex-direction:column;gap:16px}
+
+.page-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.page-head p{font-size:13.5px;color:var(--muted);margin-top:3px;max-width:68ch}
+
+.box{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+  box-shadow:var(--shadow);overflow:hidden}
+.box > header{padding:12px 15px;border-bottom:1px solid var(--line);display:flex;
+  align-items:baseline;justify-content:space-between;gap:12px}
+.box > .body{padding:14px 15px;display:flex;flex-direction:column;gap:12px}
+
+.cols{display:grid;gap:16px;align-items:start}
+.cols.two{grid-template-columns:repeat(auto-fit,minmax(340px,1fr))}
+.cols.aside{grid-template-columns:minmax(260px,340px) minmax(0,1fr)}
+@media (max-width:900px){.cols.aside{grid-template-columns:minmax(0,1fr)}}
+
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+  padding:13px 15px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:3px}
+.tile .fig{font-size:26px;font-weight:600;letter-spacing:-.02em;line-height:1.1;
+  font-variant-numeric:tabular-nums}
+.tile a{font-size:12.5px}
+
+/* office month grid */
+.omonth{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--line);
+  border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+.omonth > .dow{display:block;background:var(--surface-2);padding:6px 8px;
+  font-family:var(--font-cond);font-size:11px;font-weight:600;text-transform:uppercase;
+  letter-spacing:.07em;color:var(--faint);text-align:center}
+.oday{background:var(--surface);min-height:104px;padding:6px 7px;display:flex;
+  flex-direction:column;gap:4px;text-align:left;align-items:stretch;position:relative}
+.oday.out{background:var(--surface-2)}
+.oday .n{font-family:var(--font-mono);font-size:12px;font-variant-numeric:tabular-nums;
+  color:var(--muted);display:flex;justify-content:space-between;align-items:center}
+.oday.today .n{color:var(--accent-ink);font-weight:700}
+.oday.today{box-shadow:inset 0 0 0 2px var(--accent)}
+.oday .add{opacity:0;font-size:15px;line-height:1;color:var(--accent);
+  border-radius:5px;width:18px;height:18px;display:grid;place-items:center}
+.oday:hover .add,.oday:focus-within .add{opacity:1}
+.chip{display:block;width:100%;text-align:left;border-radius:6px;padding:3px 6px;
+  font-size:11.5px;line-height:1.25;background:var(--accent-soft);color:var(--accent-ink);
+  border-left:3px solid var(--accent);text-decoration:none;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chip[data-s="assigned"]{background:var(--warn-soft);color:var(--warn);border-left-color:var(--warn)}
+.chip[data-s="in_progress"]{background:var(--ok-soft);color:var(--ok);border-left-color:var(--ok)}
+.chip[data-s="work_complete"],.chip[data-s="approved"],.chip[data-s="closed"]{
+  background:var(--idle-soft);color:var(--idle);border-left-color:var(--idle)}
+.chip[data-s="cancelled"]{background:var(--crit-soft);color:var(--crit);
+  border-left-color:var(--crit);text-decoration:line-through}
+.more{font-size:11px;color:var(--faint);padding-left:6px}
+
+.pickrow{display:flex;align-items:center;gap:11px;width:100%;padding:10px 13px;
+  border-bottom:1px solid var(--line);background:var(--surface);text-decoration:none;color:inherit}
+.pickrow:last-child{border-bottom:none}
+.pickrow[aria-current="page"],.pickrow[aria-pressed="true"]{background:var(--accent-soft)}
+.pickrow b{display:block;font-weight:600;font-size:14px}
+.pickrow span{font-size:12.5px;color:var(--muted)}
+
+/* audit trail */
+.trail{list-style:none;margin:0;padding:0}
+.trail li{display:grid;grid-template-columns:132px 1fr;gap:12px;padding:10px 0;
+  border-bottom:1px solid var(--line)}
+.trail li:last-child{border-bottom:none}
+@media (max-width:640px){.trail li{grid-template-columns:1fr;gap:3px}}
+.trail time{font-family:var(--font-mono);font-size:12px;color:var(--faint);
+  font-variant-numeric:tabular-nums}
+.diff{margin:6px 0 0;display:grid;grid-template-columns:auto 1fr;gap:3px 12px;
+  font-size:12.5px;align-items:baseline}
+.diff dt{color:var(--muted);white-space:nowrap}
+.diff dd{margin:0;font-family:var(--font-mono);font-size:12px;word-break:break-word}
+.diff del{color:var(--crit);text-decoration:line-through;opacity:.85}
+.diff ins{color:var(--ok);text-decoration:none}
+
+.danger-zone{border-color:var(--crit)}
+.danger-zone > header{background:var(--crit-soft);color:var(--crit)}

@@ -176,3 +176,65 @@ export function recordTitle(
 ): string {
   return record.title ?? record.ref ?? record.recordId.slice(0, 8);
 }
+
+/*
+ * The database speaks snake_case and these types do not, so the translation
+ * happens once, here, rather than in every screen that reads one of these
+ * functions. Changing a column name then breaks in one place.
+ */
+
+export interface DeletedRecordRow {
+  table_name: string;
+  label: string;
+  record_id: string;
+  title: string | null;
+  ref: string | null;
+  deleted_at: string;
+  deleted_by: string | null;
+  deleted_by_name: string | null;
+  delete_reason: string | null;
+  blocked_by: string | null;
+}
+
+export function toDeletedRecord(row: DeletedRecordRow): DeletedRecord {
+  return {
+    tableName: row.table_name,
+    label: row.label,
+    recordId: row.record_id,
+    title: row.title,
+    ref: row.ref,
+    deletedAt: row.deleted_at,
+    deletedBy: row.deleted_by,
+    deletedByName: row.deleted_by_name,
+    deleteReason: row.delete_reason,
+    blockedBy: row.blocked_by,
+  };
+}
+
+export interface AuditEntryRow {
+  id: number;
+  at: string;
+  table_name: string;
+  label: string;
+  record_id: string | null;
+  action: string;
+  actor_id: string | null;
+  actor_name: string;
+  fields: string[] | null;
+  diff: Record<string, unknown> | null;
+}
+
+export function toAuditEntry(row: AuditEntryRow): AuditEntry {
+  return {
+    id: row.id,
+    at: row.at,
+    tableName: row.table_name,
+    label: row.label,
+    recordId: row.record_id,
+    action: row.action,
+    actorId: row.actor_id,
+    actorName: row.actor_name,
+    fields: row.fields ?? [],
+    diff: row.diff,
+  };
+}

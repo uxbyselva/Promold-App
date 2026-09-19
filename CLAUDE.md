@@ -22,6 +22,21 @@ Approving a change order records an agreement; it does not bill anything.
 Adding any payment state would make this app a second, worse source of
 financial truth, and the two would drift. Do not add one.
 
+## The two apps
+
+- **`apps/admin`** — the office. Owner and manager: the calendar, booking and
+  editing work, customers and sites. It has a second **admin mode** behind
+  `audit.view` for the audit trail, a record's history, and restoring
+  something deleted.
+- **`apps/field`** — the crew. Phone-first, installed from a link rather than
+  a store. Their jobs, the completion gate, photos, mileage, time off.
+
+`packages/app-kit` holds what both need — session, middleware, the sign-in
+form, the design tokens. **Reading `NEXT_PUBLIC_*` is not shared**: Next
+inlines those by text substitution at build time, so each app keeps its own
+`lib/env.ts` with literal `process.env.NEXT_PUBLIC_X` reads. A computed key
+never reaches the browser.
+
 ## Where the rules live
 
 Business rules are enforced in **Postgres**, not in the clients:
@@ -34,6 +49,15 @@ Business rules are enforced in **Postgres**, not in the clients:
   by the `job_transitions` table. Nothing writes a status column directly.
 - **Stock** is derived from the append-only `stock_movements` ledger. There
   is no writable quantity anywhere.
+- **Booking a job** goes through `create_job()`, `reschedule_job()` and
+  `set_job_crew()`. A job is three writes that have to agree — the row, its
+  work days, its crew — so they happen in one transaction. Approved time off
+  is refused outright; a double booking is refused unless forced.
+- **Deleting and restoring** go through `soft_delete_record()` and
+  `restore_record()`, driven by the `deletable_tables` registry. A delete is
+  refused while live children point at the row; a restore is refused while the
+  parent is still deleted. `data.restore` is the owner's alone and is
+  deliberately not implied by any delete permission.
 - **Equipment custody** is enforced by a gist exclusion constraint: one unit
   cannot be in two places at once, whatever the client sends.
 - **Price is manager and owner information.** `jobs.quoted_price`,

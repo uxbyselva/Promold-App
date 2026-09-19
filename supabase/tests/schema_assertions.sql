@@ -819,3 +819,115 @@ begin
 end $$;
 
 \echo 'ADMIN MODE ASSERTIONS PASSED'
+
+-- ---------------------------------------------------------------------------
+-- Putting work on the calendar
+-- ---------------------------------------------------------------------------
+
+set role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000a002', false);
+
+do $$
+declare
+  v_d1 uuid := '00000000-0000-0000-0000-0000000000d1';  -- Helen Brooks
+  v_d2 uuid := '00000000-0000-0000-0000-0000000000d2';  -- Cardinal Property Group
+  v_e1 uuid := '00000000-0000-0000-0000-0000000000e1';  -- 42 Oak St, under d1
+  v_priya uuid := '00000000-0000-0000-0000-00000000a005';
+  v_marcus uuid := '00000000-0000-0000-0000-00000000a003';
+  v_job jobs;
+  v_n int;
+  v_pending int;
+begin
+  perform assert_raises(
+    format('select create_job(%L, %L, ''Wrong pairing'', ''2026-11-02T08:00:00Z'')', v_d2, v_e1),
+    'a site cannot be booked under a customer it does not belong to');
+
+  perform assert_raises(
+    format('select create_job(%L, %L, ''   '', ''2026-11-02T08:00:00Z'')', v_d1, v_e1),
+    'a job needs a title');
+
+  perform assert_raises(
+    format('select create_job(%L, %L, ''Backwards'', ''2026-11-04T08:00:00Z'', ''2026-11-02T16:00:00Z'')',
+           v_d1, v_e1),
+    'a job cannot end before it starts');
+
+  -- Three days, one job, three work days behind it.
+  v_job := create_job(v_d1, v_e1, 'Three day strip out',
+                      '2026-11-02T08:00:00Z', '2026-11-04T16:00:00Z');
+  select count(*) into v_n from job_visits where job_id = v_job.id;
+  perform assert(v_n = 3, 'a three-day job produces three visits, not one');
+  perform assert(v_job.status = 'scheduled',
+    'a job booked on the calendar is scheduled, not left as a draft');
+
+  -- Approved time off is not negotiable. Priya is away 29 Sep to 3 Oct, so a
+  -- job inside that window is the case worth testing.
+  declare v_away jobs;
+  begin
+    v_away := create_job(v_d1, v_e1, 'While she is away',
+                         '2026-09-30T08:00:00Z', '2026-09-30T16:00:00Z');
+    perform assert_raises(
+      format('select set_job_crew(%L, array[%L]::uuid[])', v_away.id, v_priya),
+      'nobody is assigned over approved time off');
+    perform assert_raises(
+      format('select set_job_crew(%L, array[%L]::uuid[], true)', v_away.id, v_priya),
+      'and forcing it does not help: approved time off is not a judgement call');
+    perform soft_delete_record('jobs', v_away.id, 'test fixture');
+  end;
+
+  perform set_job_crew(v_job.id, array[v_marcus]::uuid[]);
+  select count(*) into v_n from job_assignments where job_id = v_job.id;
+  perform assert(v_n = 1, 'the crew went on');
+
+  select status into v_job.status from jobs where id = v_job.id;
+  perform assert(v_job.status = 'assigned',
+    'a job with people on it is assigned, without anyone setting the column');
+
+  -- A second job over the same hours is refused, then allowed deliberately.
+  declare v_clash jobs;
+  begin
+    v_clash := create_job(v_d1, v_e1, 'Same window',
+                          '2026-11-02T09:00:00Z', '2026-11-02T12:00:00Z');
+    perform assert_raises(
+      format('select set_job_crew(%L, array[%L]::uuid[])', v_clash.id, v_marcus),
+      'a double booking is refused');
+    perform set_job_crew(v_clash.id, array[v_marcus]::uuid[], true);
+    select count(*) into v_n from job_assignments where job_id = v_clash.id;
+    perform assert(v_n = 1, 'and goes through when the manager insists');
+    perform soft_delete_record('jobs', v_clash.id, 'test fixture');
+  end;
+
+  -- Moving it re-cuts the days and un-agrees everyone.
+  update job_assignments set acceptance_status = 'accepted' where job_id = v_job.id;
+  perform reschedule_job(v_job.id, '2026-11-09T08:00:00Z', '2026-11-10T16:00:00Z', 'Customer moved it');
+
+  select count(*) into v_n from job_visits where job_id = v_job.id;
+  perform assert(v_n = 2, 'a shorter job loses the day it no longer runs');
+
+  select count(*) into v_pending from job_assignments
+   where job_id = v_job.id and acceptance_status = 'pending';
+  perform assert(v_pending = 1,
+    'everyone re-accepts after a move: they agreed to the old time');
+
+  perform soft_delete_record('jobs', v_job.id, 'test fixture');
+end $$;
+
+-- A crew lead cannot book work, whatever they send.
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000a003', false);
+
+do $$
+declare
+  v_d1 uuid := '00000000-0000-0000-0000-0000000000d1';
+  v_e1 uuid := '00000000-0000-0000-0000-0000000000e1';
+begin
+  perform assert_raises(
+    format('select create_job(%L, %L, ''Not mine to make'', ''2026-12-01T08:00:00Z'')', v_d1, v_e1),
+    'creating a job is refused without job.edit');
+  perform assert_raises(
+    format('select set_job_crew(%L, array[]::uuid[])', '00000000-0000-0000-0000-00000000bb03'),
+    'setting a crew is refused without job.assign');
+end $$;
+
+reset role;
+select set_config('request.jwt.claim.sub', '', false);
+
+\echo 'JOB AUTHORING ASSERTIONS PASSED'
