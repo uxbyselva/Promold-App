@@ -20,6 +20,9 @@ importers:
 
   apps/admin:
     dependencies:
+      '@promold/app-kit':
+        specifier: workspace:*
+        version: link:../../packages/app-kit
       '@promold/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -48,6 +51,71 @@ importers:
       '@types/react-dom':
         specifier: ^19.0.2
         version: 19.3.0(@types/react@19.3.0)
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+
+  apps/field:
+    dependencies:
+      '@promold/app-kit':
+        specifier: workspace:*
+        version: link:../../packages/app-kit
+      '@promold/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      '@supabase/ssr':
+        specifier: ^0.5.2
+        version: 0.5.2(@supabase/supabase-js@2.116.0)
+      '@supabase/supabase-js':
+        specifier: ^2.47.10
+        version: 2.116.0
+      next:
+        specifier: ^15.1.3
+        version: 15.5.25(@types/node@22.20.3)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      react:
+        specifier: ^19.0.0
+        version: 19.3.0
+      react-dom:
+        specifier: ^19.0.0
+        version: 19.3.0(react@19.3.0)
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.2
+        version: 22.20.3
+      '@types/react':
+        specifier: ^19.0.2
+        version: 19.3.0
+      '@types/react-dom':
+        specifier: ^19.0.2
+        version: 19.3.0(@types/react@19.3.0)
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+
+  packages/app-kit:
+    dependencies:
+      '@promold/shared':
+        specifier: workspace:*
+        version: link:../shared
+      '@supabase/ssr':
+        specifier: ^0.5.2
+        version: 0.5.2(@supabase/supabase-js@2.116.0)
+      '@supabase/supabase-js':
+        specifier: ^2.47.10
+        version: 2.116.0
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.2
+        version: 22.20.3
+      '@types/react':
+        specifier: ^19.0.2
+        version: 19.3.0
+      next:
+        specifier: ^15.1.3
+        version: 15.5.25(@types/node@22.20.3)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      react:
+        specifier: ^19.0.0
+        version: 19.3.0
       typescript:
         specifier: ^5.7.2
         version: 5.9.3
