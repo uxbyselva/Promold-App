@@ -115,6 +115,72 @@ Open http://localhost:3000. Stop it with Ctrl+C.
 
 ---
 
+# The crew's app — a second project
+
+There are two apps: **the office** (`apps/admin`) and **the crew's**
+(`apps/field`). They share one database and one repository, and each gets its
+own Vercel project and its own web address. You do the import twice.
+
+## Set it up
+
+Repeat **Route A** from the top with two things changed:
+
+| Setting | Value |
+|---|---|
+| **Root Directory** | `apps/field` — not `apps/admin` |
+| **Project Name** | Something like `promold-field`, so the address differs |
+
+Everything else is identical: Framework Preset **Next.js**, the same two
+environment variables, the same branch.
+
+Then go back to the **office** project and add one more variable so it can
+show the crew's link on its own "Crew app" page:
+
+```
+NEXT_PUBLIC_FIELD_APP_URL   https://promold-field.vercel.app
+```
+
+Redeploy the office project after adding it — environment variables are read
+at build time, so an existing deployment will not pick it up.
+
+## Give it to the crew
+
+Send one person the field app's address and do this with them once, on their
+phone:
+
+1. Open the link and sign in with their work email.
+2. **iPhone:** the Share button → **Add to Home Screen**.
+   **Android:** the ⋮ menu → **Install app**.
+3. It now has its own icon and opens full-screen, like any other app.
+
+No App Store, no Play Store, no developer account, nothing to approve. When a
+fix is pushed, they have it the next time they open it — there is no update to
+chase.
+
+The one thing worth doing rather than explaining: on an iPhone, notifications
+only work once it is on the home screen. Do step 2 with them.
+
+---
+
+# One-time database setup
+
+Some things are not migrations and have to be run once by hand, in Supabase →
+**SQL Editor**.
+
+| File | What it does | When |
+|---|---|---|
+| `supabase/bootstrap.sql` | Builds the whole schema | First time only |
+| `supabase/storage.sql` | Creates the private bucket job photos go in | Before the crew take any |
+
+If a migration has been added since you last ran `bootstrap.sql`, run the new
+numbered file from `supabase/migrations/` on its own rather than re-running
+the whole bootstrap.
+
+Until `storage.sql` has been run, the photo galleries in the field app say so
+plainly rather than failing in a way nobody can diagnose.
+
+---
+
 # Either way, when you first open it
 
 **"No profile for this login"** — you signed in, but step 4 of
