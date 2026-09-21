@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { refusalMessage } from '@promold/app-kit';
 import { supabaseBrowser } from '@/lib/supabase-browser';
 import { clock, longDate, dayOf, initials } from '@/lib/format';
+import { ChangeOrderSheet } from './change-order-sheet';
 
 type Job = {
   id: string;
@@ -63,6 +64,8 @@ export function JobDetail({
   photos,
   equipment,
   decision,
+  changeOrders,
+  canDraftChangeOrder,
   blockers,
   warnings,
   canComplete,
@@ -83,6 +86,16 @@ export function JobDetail({
     decidedAt: string | null;
     decidedBy: string;
   } | null;
+  changeOrders: {
+    id: string;
+    seq: number;
+    title: string;
+    description: string | null;
+    status: string;
+    amount: number | null;
+    decision_reason: string | null;
+  }[];
+  canDraftChangeOrder: boolean;
   blockers: string[];
   warnings: string[];
   canComplete: boolean;
@@ -95,6 +108,7 @@ export function JobDetail({
   const [error, setError] = useState<string | null>(null);
   const [asking, setAsking] = useState(false);
   const [reason, setReason] = useState('');
+  const [raisingChange, setRaisingChange] = useState(false);
   const uploadRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const working = busy !== null || refreshing;
@@ -399,6 +413,67 @@ export function JobDetail({
           </div>
         );
       })}
+
+      {/* Extra work found on site. The crew describe it; the office prices it.
+          change_orders_safe nulls the amount for anyone without price.view,
+          so there is no number here to hide. */}
+      {canDraftChangeOrder || changeOrders.length ? (
+        <div className="panel">
+          <div className="row between">
+            <p className="lbl">Extra work</p>
+            {changeOrders.length ? <span className="pill">{changeOrders.length}</span> : null}
+          </div>
+
+          {changeOrders.map((co) => (
+            <div key={co.id} style={{ paddingBottom: 8 }}>
+              <div className="row between">
+                <b style={{ fontSize: 14 }}>{co.title}</b>
+                {co.status === 'approved' ? (
+                  <span className="pill" data-t="ok">
+                    Agreed
+                  </span>
+                ) : co.status === 'rejected' ? (
+                  <span className="pill" data-t="crit">
+                    Not agreed
+                  </span>
+                ) : co.status === 'presented' ? (
+                  <span className="pill" data-t="accent">
+                    With the customer
+                  </span>
+                ) : (
+                  <span className="pill" data-t="warn">
+                    <span className="dot" />
+                    With the office
+                  </span>
+                )}
+              </div>
+              {co.description ? <p className="sub">{co.description}</p> : null}
+              {co.decision_reason ? <p className="hint">{co.decision_reason}</p> : null}
+            </div>
+          ))}
+
+          {changeOrders.length === 0 ? (
+            <p className="sub">
+              Nothing extra raised on this job. If you find something the job was not quoted for,
+              write it up before you do it.
+            </p>
+          ) : null}
+
+          {canDraftChangeOrder ? (
+            <button className="btn ghost" onClick={() => setRaisingChange(true)}>
+              Found something extra
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+
+      {raisingChange ? (
+        <ChangeOrderSheet
+          jobId={job.id}
+          jobNumber={job.job_number}
+          onClose={() => setRaisingChange(false)}
+        />
+      ) : null}
 
       {equipment.length ? (
         <div className="panel">

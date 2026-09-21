@@ -15,12 +15,13 @@ async function waitingCount(session: Session): Promise<number> {
   if (
     !session.can('reschedule.decide') &&
     !session.can('timeoff.manage') &&
-    !session.can('purchase.approve')
+    !session.can('purchase.approve') &&
+    !session.can('changeorder.manage')
   ) {
     return 0;
   }
   const supabase = await supabaseServer();
-  const [moves, off, buys] = await Promise.all([
+  const [moves, off, buys, changes] = await Promise.all([
     session.can('reschedule.decide')
       ? supabase
           .from('reschedule_requests')
@@ -39,8 +40,14 @@ async function waitingCount(session: Session): Promise<number> {
           .select('id', { count: 'exact', head: true })
           .in('status', ['submitted', 'under_review'])
       : Promise.resolve({ count: 0 }),
+    session.can('changeorder.manage')
+      ? supabase
+          .from('change_orders')
+          .select('id', { count: 'exact', head: true })
+          .in('status', ['draft', 'presented'])
+      : Promise.resolve({ count: 0 }),
   ]);
-  return (moves.count ?? 0) + (off.count ?? 0) + (buys.count ?? 0);
+  return (moves.count ?? 0) + (off.count ?? 0) + (buys.count ?? 0) + (changes.count ?? 0);
 }
 
 interface Tab {
@@ -81,7 +88,8 @@ export async function OfficeShell({
       when:
         session.can('reschedule.decide') ||
         session.can('timeoff.manage') ||
-        session.can('purchase.approve'),
+        session.can('purchase.approve') ||
+        session.can('changeorder.manage'),
       badge: waiting,
     },
     { href: '/customers', label: 'Customers', when: session.can('customer.manage') },

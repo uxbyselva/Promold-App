@@ -130,7 +130,11 @@ export function JobForm({
       return;
     }
 
-    // Editing: the plain fields go straight to the row under job.edit; the
+    // Editing. Three doors, because three different rules apply.
+    //
+    // The plain fields go straight to the row under job.edit. The price does
+    // not: `jobs.quoted_price` is not writable by the signed-in role at all,
+    // so it goes through set_job_price(), which wants price.view as well. The
     // date is its own function because the work days and everyone's
     // acceptance have to follow it.
     const { error: fieldErr } = await supabase
@@ -139,7 +143,6 @@ export function JobForm({
         title: draft.title,
         description: draft.description || null,
         priority: draft.priority,
-        quoted_price: price,
         customer_id: draft.customer_id,
         site_id: draft.site_id,
         template_id: draft.template_id || null,
@@ -150,6 +153,22 @@ export function JobForm({
       setError(refusalMessage(fieldErr));
       setBusy(false);
       return;
+    }
+
+    // Only when it actually changed — a manager opening a job and saving it
+    // should not need price.view just to fix a typo in the title.
+    const priceChanged =
+      (initial.quoted_price.trim() === '' ? null : Number(initial.quoted_price)) !== price;
+    if (canSeePrice && priceChanged) {
+      const { error: priceErr } = await supabase.rpc('set_job_price', {
+        p_job_id: draft.id,
+        p_quoted_price: price,
+      });
+      if (priceErr) {
+        setError(refusalMessage(priceErr));
+        setBusy(false);
+        return;
+      }
     }
 
     const movedStart = start !== new Date(initial.scheduled_start || 0).toISOString();

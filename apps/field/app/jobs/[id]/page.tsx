@@ -66,6 +66,15 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
       .maybeSingle(),
   ]);
 
+  // Change orders raised on this job. change_orders_safe masks the amount for
+  // anyone without price.view, so the crew see their own words and the
+  // outcome but never the number.
+  const { data: changeOrders } = await supabase
+    .from('change_orders_safe')
+    .select('id, seq, title, description, status, amount, decided_at, decision_reason')
+    .eq('job_id', id)
+    .order('seq');
+
   const { data: decider } = decided?.decided_by
     ? await supabase
         .from('profiles_safe')
@@ -121,6 +130,8 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
               }
             : null
         }
+        changeOrders={changeOrders ?? []}
+        canDraftChangeOrder={session.can('changeorder.draft')}
         blockers={(blockers as string[] | null) ?? []}
         warnings={(warnings as string[] | null) ?? []}
         canComplete={session.can('job.complete')}

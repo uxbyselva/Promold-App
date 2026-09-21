@@ -7,6 +7,7 @@ import { refusalMessage } from '@promold/app-kit';
 import { supabaseBrowser } from '@/lib/supabase-browser';
 import { clock, dayOf, initials, localInput, longDate, shortDate } from '@/lib/format';
 import { PurchaseApproval, type PurchaseLine, type PurchaseRequest } from './purchase-approval';
+import { ChangeOrderCard, type ChangeOrder } from './change-order-card';
 
 type Reschedule = {
   id: string;
@@ -49,6 +50,7 @@ export function Approvals({
   timeOff,
   purchases,
   purchaseLines,
+  changeOrders,
   clashes,
   jobs,
   sites,
@@ -58,11 +60,13 @@ export function Approvals({
   canReschedule,
   canTimeOff,
   canBuy,
+  canChange,
 }: {
   reschedules: Reschedule[];
   timeOff: TimeOff[];
   purchases: PurchaseRequest[];
   purchaseLines: (PurchaseLine & { request_id: string })[];
+  changeOrders: ChangeOrder[];
   clashes: Record<string, Clash[]>;
   jobs: Job[];
   sites: { id: string; label: string }[];
@@ -72,11 +76,16 @@ export function Approvals({
   canReschedule: boolean;
   canTimeOff: boolean;
   canBuy: boolean;
+  canChange: boolean;
 }) {
   const [error, setError] = useState<string | null>(null);
   const nameOf = (id: string) => people.find((p) => p.id === id)?.full_name ?? 'Someone';
 
-  const nothing = reschedules.length === 0 && timeOff.length === 0 && purchases.length === 0;
+  const nothing =
+    reschedules.length === 0 &&
+    timeOff.length === 0 &&
+    purchases.length === 0 &&
+    changeOrders.length === 0;
 
   return (
     <>
@@ -108,6 +117,23 @@ export function Approvals({
                   null
                 }
                 who={nameOf(r.requested_by)}
+                onError={setError}
+              />
+            ))}
+          </div>
+        </>
+      ) : null}
+
+      {canChange && changeOrders.length ? (
+        <>
+          <h2>Extra work found · {changeOrders.length}</h2>
+          <div className="cols two">
+            {changeOrders.map((c) => (
+              <ChangeOrderCard
+                key={c.id}
+                order={c}
+                jobNumber={jobs.find((j) => j.id === c.job_id)?.job_number ?? null}
+                who={nameOf(c.created_by ?? '')}
                 onError={setError}
               />
             ))}

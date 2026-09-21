@@ -70,12 +70,21 @@ Business rules are enforced in **Postgres**, not in the clients:
   deliberately not implied by any delete permission.
 - **Equipment custody** is enforced by a gist exclusion constraint: one unit
   cannot be in two places at once, whatever the client sends.
-- **Price is manager and owner information.** `jobs.quoted_price`,
-  `change_orders.amount` and `profiles.cost_rate` are revoked from the
-  `authenticated` role. Read jobs through `jobs_safe`, change orders through
-  `change_orders_safe`, people through `profiles_safe` — never the base
-  table, where `select *` now fails by design. Adding a column to one of
-  those three tables means re-running `grant_columns_except()` for it.
+- **Price is manager and owner information, to write as well as to read.**
+  `jobs.quoted_price`, `change_orders.amount` and `profiles.cost_rate` are
+  revoked from the `authenticated` role for **select and for insert/update**.
+  Read jobs through `jobs_safe`, change orders through `change_orders_safe`,
+  people through `profiles_safe` — never the base table, where `select *`
+  fails by design. Write a price through `set_job_price()` or
+  `present_change_order()`; nothing writes those columns directly, not even a
+  manager, because a column grant cannot tell two signed-in users apart.
+  Adding a column to one of those three tables means re-running **both**
+  `grant_columns_except()` and `grant_writes_except()` for it.
+- **Change orders** are drafted by whoever finds the work
+  (`create_change_order()`, no price on it), priced and presented by a manager
+  (`present_change_order()`), and only move `job_contract_price()` once the
+  customer has agreed (`decide_change_order()`). A draft stays a draft: its
+  row policy pins the status, so nobody approves their own.
 
 Add a rule to the database first, mirror it in `packages/shared` second.
 

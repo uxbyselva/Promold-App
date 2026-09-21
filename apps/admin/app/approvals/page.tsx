@@ -11,7 +11,8 @@ export default async function ApprovalsPage() {
   const canReschedule = session.can('reschedule.decide');
   const canTimeOff = session.can('timeoff.manage');
   const canBuy = session.can('purchase.approve');
-  if (!canReschedule && !canTimeOff && !canBuy) redirect('/jobs');
+  const canChange = session.can('changeorder.manage');
+  if (!canReschedule && !canTimeOff && !canBuy && !canChange) redirect('/jobs');
 
   const supabase = await supabaseServer();
 
@@ -34,6 +35,19 @@ export default async function ApprovalsPage() {
       : Promise.resolve({ data: [] as never[] }),
     supabase.from('profiles_safe').select('id, full_name'),
   ]);
+
+  // Extra work found on site: drafts to price, and priced ones waiting on the
+  // customer's answer. Read through change_orders_safe — the base table's
+  // amount column is not readable by the signed-in role.
+  const { data: changeOrders } = canChange
+    ? await supabase
+        .from('change_orders_safe')
+        .select(
+          'id, seq, job_id, title, description, status, amount, added_hours, created_by, created_at',
+        )
+        .in('status', ['draft', 'presented'])
+        .order('created_at')
+    : { data: [] };
 
   // Purchase requests waiting on a decision, with their lines.
   const [{ data: purchases }, { data: org }] = await Promise.all([
@@ -64,6 +78,7 @@ export default async function ApprovalsPage() {
     ...new Set([
       ...(reschedules ?? []).map((r) => r.job_id),
       ...(purchases ?? []).map((p) => p.job_id).filter(Boolean),
+      ...(changeOrders ?? []).map((c) => c.job_id).filter(Boolean),
     ]),
   ];
   const { data: jobs } = jobIds.length
@@ -101,6 +116,8 @@ export default async function ApprovalsPage() {
       <Approvals
         reschedules={reschedules ?? []}
         timeOff={timeOff ?? []}
+        changeOrders={changeOrders ?? []}
+        canChange={canChange}
         purchases={purchases ?? []}
         purchaseLines={purchaseLines ?? []}
         threshold={threshold}

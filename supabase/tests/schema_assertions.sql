@@ -859,12 +859,28 @@ begin
   perform assert(v_job.status = 'scheduled',
     'a job booked on the calendar is scheduled, not left as a draft');
 
-  -- Approved time off is not negotiable. Priya is away 29 Sep to 3 Oct, so a
-  -- job inside that window is the case worth testing.
-  declare v_away jobs;
+  -- Approved time off is not negotiable, so a job inside the window is the
+  -- case worth testing.
+  --
+  -- The window is READ from the row rather than written here. The seed dates
+  -- it relative to now(), so a literal date passes on the day it is written
+  -- and quietly stops testing anything a week later — which is exactly what
+  -- happened to the first version of this.
+  declare
+    v_away jobs;
+    v_off_start timestamptz;
+    v_off_end timestamptz;
   begin
+    select starts_at, ends_at into v_off_start, v_off_end
+      from time_off
+     where user_id = v_priya and status = 'approved'
+     order by starts_at limit 1;
+    perform assert(v_off_start is not null,
+      'the seed still has approved time off to test against');
+
     v_away := create_job(v_d1, v_e1, 'While she is away',
-                         '2026-09-30T08:00:00Z', '2026-09-30T16:00:00Z');
+                         v_off_start + interval '1 day',
+                         v_off_start + interval '1 day 8 hours');
     perform assert_raises(
       format('select set_job_crew(%L, array[%L]::uuid[])', v_away.id, v_priya),
       'nobody is assigned over approved time off');
@@ -1323,3 +1339,106 @@ reset role;
 select set_config('request.jwt.claim.sub', '', false);
 
 \echo 'PURCHASING ASSERTIONS PASSED'
+
+-- ---------------------------------------------------------------------------
+-- Price is manager information to write, not only to read
+--
+-- 0018 hid the price columns from the signed-in role. It only revoked SELECT,
+-- and the policy on a draft change order did not pin its status — so a crew
+-- lead could draft one, put fifty thousand on it and approve it himself,
+-- moving job_contract_price() and the owner's margin without ever seeing a
+-- number. These prove both halves are shut.
+-- ---------------------------------------------------------------------------
+
+set role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000a003', false);
+
+do $$
+declare
+  v_job uuid := '00000000-0000-0000-0000-00000000bb02';
+  v_id uuid;
+  v_n int;
+begin
+  -- Drafting is his job and still works.
+  v_id := create_change_order(v_job, 'Rot behind the north wall',
+                              'Found pulling the vanity out', 4);
+  perform assert(v_id is not null, 'a crew lead can still raise a change order');
+
+  select count(*) into v_n from change_orders where id = v_id and status = 'draft';
+  perform assert(v_n = 1, 'it lands as a draft');
+
+  -- Pricing it is not.
+  perform assert_raises(
+    format('update change_orders set amount = 50000 where id = %L', v_id),
+    'he cannot put a price on it — the column is not writable by his role');
+
+  -- Nor is approving it.
+  perform assert_raises(
+    format('update change_orders set status = ''approved'' where id = %L', v_id),
+    'he cannot approve his own draft');
+
+  perform assert_raises(
+    format('select present_change_order(%L, 50000)', v_id),
+    'and the front door needs changeorder.manage');
+
+  perform assert_raises(
+    format('select decide_change_order(%L, true)', v_id),
+    'as does deciding it');
+
+  -- The same guard on the job's own price.
+  perform assert_raises(
+    format('update jobs set quoted_price = 50000 where id = %L', v_job),
+    'he cannot set the job price directly either');
+  perform assert_raises(
+    format('select set_job_price(%L, 50000)', v_job),
+    'and the function refuses him too');
+
+  -- Editing his own draft's words is still his to do.
+  update change_orders set description = 'Worse than it looked' where id = v_id;
+  select count(*) into v_n from change_orders
+   where id = v_id and description = 'Worse than it looked';
+  perform assert(v_n = 1, 'he can still correct what he wrote');
+end $$;
+
+-- The manager does all of it.
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000a002', false);
+
+do $$
+declare
+  v_job uuid := '00000000-0000-0000-0000-00000000bb02';
+  v_id uuid;
+  v_before numeric;
+  v_after numeric;
+  v_amount numeric;
+begin
+  select id into v_id from change_orders
+   where job_id = v_job and status = 'draft' and title = 'Rot behind the north wall';
+
+  v_before := job_contract_price(v_job);
+
+  perform present_change_order(v_id, 1800);
+  select amount into v_amount from change_orders_safe where id = v_id;
+  perform assert(v_amount = 1800, 'the manager prices it');
+
+  -- Presented is not agreed: the contract price must not move yet.
+  perform assert(job_contract_price(v_job) = v_before,
+    'presenting it does not change what the job is worth');
+
+  perform decide_change_order(v_id, true, 'verbal', 'Helen Brooks');
+  v_after := job_contract_price(v_job);
+  perform assert(v_after = v_before + 1800,
+    'agreeing it does, and by exactly the amount agreed');
+
+  -- And the office can still set a job price, through the one door that is left.
+  perform set_job_price(v_job, 8600);
+  perform assert((select quoted_price from jobs_safe where id = v_job) = 8600,
+    'the office sets a price through set_job_price()');
+  perform assert_raises(
+    format('update jobs set quoted_price = 9999 where id = %L', v_job),
+    'but not by writing the column, even as a manager — nobody writes it directly');
+end $$;
+
+reset role;
+select set_config('request.jwt.claim.sub', '', false);
+
+\echo 'PRICE WRITE ASSERTIONS PASSED'

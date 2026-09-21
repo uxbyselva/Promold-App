@@ -34,6 +34,7 @@ with probe as (
     (select count(*) from information_schema.tables
       where table_schema = 'public' and table_name = 'stock_packs') as m0025,
     (select count(*) from pg_proc where proname = 'create_purchase_request') as m0026,
+    (select count(*) from pg_proc where proname = 'set_job_price') as m0027,
     (select count(*) from information_schema.tables
       where table_schema = 'public') as tables,
     (select count(*) from pg_policies where schemaname = 'public') as policies,
@@ -62,9 +63,9 @@ with probe as (
      end) as bucket
 )
 select * from (
-  select 1 as n, 'Schema' as part,
-    case when m0026 > 0 then 'Up to date (0001–0026)'
-         when m0022 > 0 then 'Partly updated — stopped somewhere in 0022–0026'
+  select 1::numeric as n, 'Schema' as part,
+    case when m0027 > 0 then 'Up to date (0001–0027)'
+         when m0022 > 0 then 'Partly updated — stopped somewhere in 0022–0027'
          when m0018 > 0 then 'At 0021 — run supabase/update.sql'
          when m0002 > 0 then 'Older than 0018 — run supabase/bootstrap.sql on a fresh project'
          else 'Empty — run supabase/bootstrap.sql' end as verdict,
@@ -113,6 +114,12 @@ select * from (
     case when m0026>0 then 'Present' else 'Missing' end,
     case when m0026>0 then 'Asking to buy, and approving it'
          else 'Purchase approvals will fail' end from probe
+
+  union all
+  select 7.5, 'Price guard (0027)',
+    case when m0027>0 then 'Present' else 'MISSING — security fix' end,
+    case when m0027>0 then 'Prices are not writable by the field'
+         else 'Without it a crew lead can price and approve a change order' end from probe
 
   union all
   select 8, 'Your organisation',
