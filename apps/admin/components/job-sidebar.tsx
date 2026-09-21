@@ -18,7 +18,6 @@ export function JobSidebar({
   jobId,
   jobNumber,
   status,
-  deleted,
   crew,
   visits,
   blockers,
@@ -29,7 +28,6 @@ export function JobSidebar({
   jobId: string;
   jobNumber: string;
   status: string;
-  deleted: boolean;
   crew: { id: string; name: string; acceptance: string; respondedAt: string | null }[];
   visits: {
     id: string;
@@ -169,7 +167,7 @@ export function JobSidebar({
         </div>
       ) : null}
 
-      {!deleted && actions.some((a) => a.when) ? (
+      {actions.some((a) => a.when) ? (
         <div className="box">
           <header>
             <h3>Move it on</h3>
@@ -193,7 +191,7 @@ export function JobSidebar({
         </div>
       ) : null}
 
-      {canEdit && !deleted ? (
+      {canEdit ? (
         <div className="box danger-zone">
           <header>
             <h3>Delete {jobNumber}</h3>

@@ -31,10 +31,12 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
         .eq('id', job.site_id)
         .maybeSingle(),
       supabase.from('customers').select('id, name, phone').eq('id', job.customer_id).maybeSingle(),
-      supabase
-        .from('job_assignments')
-        .select('id, user_id, acceptance_status, profiles_safe!inner(full_name)')
-        .eq('job_id', id),
+      // Names come in a second query rather than an embedded join. Embedding
+      // through profiles_safe means PostgREST inferring a relationship for a
+      // VIEW, which has no foreign key to follow — it usually works and it
+      // cannot be tested without a live PostgREST. Not worth the risk on the
+      // screen the crew open first.
+      supabase.from('job_assignments').select('id, user_id, acceptance_status').eq('job_id', id),
       supabase
         .from('job_photos')
         .select('id, phase, storage_path, room_label, taken_at')
@@ -97,6 +99,13 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
     }
   }
 
+  const crewIds = [...new Set((crew ?? []).map((a) => a.user_id))];
+  const { data: crewNames } = crewIds.length
+    ? await supabase.from('profiles_safe').select('id, full_name').in('id', crewIds)
+    : { data: [] };
+  const nameOf = (userId: string) =>
+    (crewNames ?? []).find((p) => p.id === userId)?.full_name ?? 'Someone';
+
   const mine = (crew ?? []).find((a) => a.user_id === session.userId);
 
   return (
@@ -108,7 +117,7 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
         crew={(crew ?? []).map((a) => ({
           id: a.id,
           userId: a.user_id,
-          name: (a.profiles_safe as unknown as { full_name: string }).full_name,
+          name: nameOf(a.user_id),
           acceptance: a.acceptance_status,
         }))}
         myAssignment={mine ? { id: mine.id, acceptance: mine.acceptance_status } : null}

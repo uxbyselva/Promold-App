@@ -13,8 +13,9 @@
     "test": "turbo run test",
     "db:start": "supabase start",
     "db:reset": "supabase db reset",
-    "db:verify": "./scripts/verify-schema.sh",
-    "format": "prettier --write \"**/*.{ts,tsx,json}\""
+    "db:verify": "./scripts/verify-schema.sh && node scripts/check-db-calls.mjs",
+    "format": "prettier --write \"**/*.{ts,tsx,json}\"",
+    "db:check-calls": "node scripts/check-db-calls.mjs"
   },
   "devDependencies": {
     "turbo": "^2.3.3",

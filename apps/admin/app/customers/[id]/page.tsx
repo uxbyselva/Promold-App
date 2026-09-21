@@ -38,7 +38,8 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
         .from('jobs_safe')
         .select('id, job_number, title, status, scheduled_start, site_id')
         .in('site_id', siteIds)
-        .is('deleted_at', null)
+        // No deleted_at filter: jobs_safe does not carry the column, because
+        // it has already excluded deleted rows.
         .order('scheduled_start', { ascending: false })
         .limit(50)
     : { data: [] };

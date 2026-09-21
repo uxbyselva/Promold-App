@@ -102,11 +102,21 @@ Add a rule to the database first, mirror it in `packages/shared` second.
 ## Before pushing
 
 ```bash
-pnpm db:verify     # every migration onto a clean database, then the assertions
+pnpm db:verify     # migrations onto a clean database, the assertions, then
+                   # every database call the apps make, checked against it
 pnpm test          # unit tests
 pnpm typecheck     # both apps and both packages
 pnpm lint          # prettier --check; `pnpm format` writes
 ```
+
+`scripts/check-db-calls.mjs` is the second half of `db:verify` and exists
+because **TypeScript cannot see Postgres**. A mistyped RPC name, a renamed
+argument, a column that never existed — all compile and all fail when somebody
+opens the page. It reads the call sites out of the source and asks the
+database whether each is real. What it cannot check, it says so rather than
+skipping quietly: embedded joins (`table!inner(...)`) need checking by hand,
+and embedding through one of the `_safe` views asks PostgREST to infer a
+relationship for a view with no foreign key — prefer a second query.
 
 On Claude Code on the web these run with no setup: `.claude/hooks/session-start.sh`
 installs dependencies and starts a Postgres on 54322, which is the port

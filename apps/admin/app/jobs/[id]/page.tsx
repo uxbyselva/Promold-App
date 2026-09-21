@@ -17,7 +17,11 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
   const { data: job } = await supabase
     .from('jobs_safe')
     .select(
-      'id, job_number, title, description, status, priority, scheduled_start, scheduled_end, quoted_price, site_id, customer_id, template_id, deleted_at, delete_reason',
+      // jobs_safe filters deleted jobs out itself and does not carry
+      // deleted_at — asking for it fails the whole query. A deleted job is
+      // simply not found here; the recycle bin in admin mode is where it
+      // lives and where it comes back from.
+      'id, job_number, title, description, status, priority, scheduled_start, scheduled_end, quoted_price, site_id, customer_id, template_id',
     )
     .eq('id', id)
     .maybeSingle();
@@ -25,9 +29,13 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
   if (!job) notFound();
 
   const [{ data: crew }, { data: visits }, { data: blockers }, options] = await Promise.all([
+    // Names in a second query, not an embedded join: embedding through
+    // profiles_safe asks PostgREST to infer a relationship for a view, which
+    // has no foreign key to follow and cannot be tested without a live
+    // PostgREST.
     supabase
       .from('job_assignments')
-      .select('id, user_id, acceptance_status, responded_at, profiles_safe!inner(full_name)')
+      .select('id, user_id, acceptance_status, responded_at')
       .eq('job_id', id),
     supabase
       .from('job_visits')
@@ -38,7 +46,14 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
     jobFormOptions(),
   ]);
 
-  const canEdit = session.can('job.edit') && !job.deleted_at;
+  const crewIds = [...new Set((crew ?? []).map((c) => c.user_id))];
+  const { data: crewNames } = crewIds.length
+    ? await supabase.from('profiles_safe').select('id, full_name').in('id', crewIds)
+    : { data: [] };
+  const nameOf = (userId: string) =>
+    (crewNames ?? []).find((p) => p.id === userId)?.full_name ?? 'Someone';
+
+  const canEdit = session.can('job.edit');
 
   return (
     <OfficeShell session={session} mode="office">
@@ -58,13 +73,6 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
           </Link>
         ) : null}
       </div>
-
-      {job.deleted_at ? (
-        <p className="note">
-          <b>This job is deleted.</b> {job.delete_reason ? `Reason: ${job.delete_reason}. ` : ''}
-          It is read-only here. Admin mode is where it goes back.
-        </p>
-      ) : null}
 
       <div
         className="cols aside"
@@ -88,11 +96,7 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
             </header>
             <div className="body">
               <p className="sub">{job.description || 'No notes.'}</p>
-              <p className="hint">
-                {job.deleted_at
-                  ? 'Deleted jobs are not editable.'
-                  : 'You can see this job but not change it — that is job.edit.'}
-              </p>
+              <p className="hint">You can see this job but not change it — that is job.edit.</p>
             </div>
           </div>
         )}
@@ -101,10 +105,9 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
           jobId={job.id}
           jobNumber={job.job_number}
           status={job.status}
-          deleted={Boolean(job.deleted_at)}
           crew={(crew ?? []).map((c) => ({
             id: c.id,
-            name: (c.profiles_safe as unknown as { full_name: string }).full_name,
+            name: nameOf(c.user_id),
             acceptance: c.acceptance_status,
             respondedAt: c.responded_at,
           }))}
