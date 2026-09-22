@@ -10,7 +10,7 @@
 -- Contains, in order:
 --   0027_price_write_guard.sql
 --   0028_crew_lead_sees_price.sql
--- Generated from e413d3d
+-- Generated from 4741d82
 
 begin;
 
@@ -296,9 +296,11 @@ update roles
 -- Did it land?
 -- ===========================================================
 -- Printed by the same transaction that applied it, so there is no
--- second round trip to find out whether it worked.
+-- second round trip to find out whether it worked. One column per
+-- migration in this bundle: every one of them must read true.
 select 'Applied' as result,
-  (select count(*) from pg_proc where proname = 'set_job_price') > 0 as price_guard_0027,
+  exists (select 1 from pg_proc where proname = 'set_job_price') as price_guard_0027,
+  exists (select 1 from roles where key = 'crew_lead' and is_system and (permissions ->> 'price.view')::boolean) as crew_lead_price_0028,
   (select count(*) from information_schema.tables
     where table_schema = 'public') as tables,
   (select count(*) from pg_policies where schemaname = 'public') as policies;

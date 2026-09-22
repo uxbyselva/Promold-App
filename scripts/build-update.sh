@@ -24,6 +24,22 @@ if [ ${#FILES[@]} -eq 0 ]; then
   exit 1
 fi
 
+# How each migration is detected once applied. These mirror supabase/health-check.sql,
+# which is the source of truth — keep them in step when adding a migration.
+# Each entry is a boolean SQL expression and a short column name.
+probe_for() {
+  case "$1" in
+    0022) echo "to_regclass('public.deletable_tables') is not null|admin_mode_0022" ;;
+    0023) echo "exists (select 1 from pg_proc where proname = 'create_job')|job_authoring_0023" ;;
+    0024) echo "exists (select 1 from pg_proc where proname = 'decide_time_off')|decisions_0024" ;;
+    0025) echo "to_regclass('public.stock_packs') is not null|consumables_0025" ;;
+    0026) echo "exists (select 1 from pg_proc where proname = 'create_purchase_request')|purchasing_0026" ;;
+    0027) echo "exists (select 1 from pg_proc where proname = 'set_job_price')|price_guard_0027" ;;
+    0028) echo "exists (select 1 from roles where key = 'crew_lead' and is_system and (permissions ->> 'price.view')::boolean)|crew_lead_price_0028" ;;
+    *)    echo "" ;;
+  esac
+}
+
 # Whether a second run would stop on something that already exists. A bundle
 # that only replaces functions and policies is safe to paste twice, and saying
 # "run this once" about one of those makes a person afraid of the safe path.
@@ -69,9 +85,18 @@ fi
   echo "-- Did it land?"
   echo "-- ==========================================================="
   echo "-- Printed by the same transaction that applied it, so there is no"
-  echo "-- second round trip to find out whether it worked."
+  echo "-- second round trip to find out whether it worked. One column per"
+  echo "-- migration in this bundle: every one of them must read true."
   echo "select 'Applied' as result,"
-  echo "  (select count(*) from pg_proc where proname = 'set_job_price') > 0 as price_guard_0027,"
+  for f in "${FILES[@]}"; do
+    n="$(basename "$f" | cut -c1-4)"
+    probe="$(probe_for "$n")"
+    if [ -z "$probe" ]; then
+      echo "  -- no probe defined for ${n}; add one to scripts/build-update.sh" >&2
+      exit 1
+    fi
+    echo "  ${probe%%|*} as ${probe##*|},"
+  done
   echo "  (select count(*) from information_schema.tables"
   echo "    where table_schema = 'public') as tables,"
   echo "  (select count(*) from pg_policies where schemaname = 'public') as policies;"
