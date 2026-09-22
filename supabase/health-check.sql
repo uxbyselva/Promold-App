@@ -64,8 +64,17 @@ with probe as (
 )
 select * from (
   select 1::numeric as n, 'Schema' as part,
+    -- Each migration in turn, so a database that stopped cleanly between two
+    -- of them is told which one to run rather than "something failed halfway".
+    -- The old version collapsed everything from 0022 to 0027 into one alarming
+    -- verdict, which said "get help" to an owner whose database was fine and
+    -- one file behind.
     case when m0027 > 0 then 'Up to date (0001–0027)'
-         when m0022 > 0 then 'Partly updated — stopped somewhere in 0022–0027'
+         when m0026 > 0 then 'At 0026 — run supabase/update-0027.sql (security fix)'
+         when m0025 > 0 then 'At 0025 — ask for a catch-up from 0025'
+         when m0024 > 0 then 'At 0024 — ask for a catch-up from 0024'
+         when m0023 > 0 then 'At 0023 — ask for a catch-up from 0023'
+         when m0022 > 0 then 'At 0022 — ask for a catch-up from 0022'
          when m0018 > 0 then 'At 0021 — run supabase/update.sql'
          when m0002 > 0 then 'Older than 0018 — run supabase/bootstrap.sql on a fresh project'
          else 'Empty — run supabase/bootstrap.sql' end as verdict,
