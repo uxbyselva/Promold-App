@@ -120,7 +120,7 @@ cost.
 |---|:--:|:--:|:--:|:--:|:--:|
 | Manage users and roles | ● | ◐⁸ | ○ | ○ | ○ |
 | View / edit cost rates | ● | ○ | ○ | ○ | ○ |
-| **View job price** (quote, contract price, change order amounts) | ● | ● | ○ | ○ | ● |
+| **View job price** (quote, contract price, change order amounts) | ● | ● | ●⁹ | ○ | ● |
 | View job costing and margin | ● | ● | ○ | ○ | ● |
 | Org settings and thresholds | ● | ○ | ○ | ○ | ○ |
 | Manage customers and sites | ● | ● | ○ | ○ | ◐³ |
@@ -130,12 +130,20 @@ cost.
 
 ⁸ Can invite and deactivate field users; cannot change roles or cost rates.
 
+⁹ Reading only, and the price only. The crew lead is the person standing in
+front of the wall when it comes off, so he needs to know what the job was
+quoted at to recognise that what is behind it is not that job. He cannot move
+the number by any route: the columns are not writable by the signed-in role at
+all, `set_job_price()` also requires `job.edit`, and pricing a change order
+requires `changeorder.manage`. A technician still sees no price.
+
 ### Money is two separate grants
 
 `price.view` and `costing.view` are deliberately distinct. What the customer
 pays and what the job cost us are different questions, and a role can hold
-one without the other — whoever keeps the books needs the price, the crew
-needs neither.
+one without the other — whoever keeps the books needs the price, and so does
+the crew lead. Neither of them sees the margin, and what people are paid is a
+third flag again (`user.view_cost_rates`, owner only).
 
 Withholding a *column* needs more than RLS, which is row level. Under
 Supabase every signed-in user is the same `authenticated` database role, so a

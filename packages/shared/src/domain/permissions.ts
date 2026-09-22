@@ -62,7 +62,8 @@ export const PERMISSIONS = {
   // Money
   // Two separate questions: what the customer pays, and what the job cost us.
   // A role can reasonably hold one without the other — a bookkeeper needs the
-  // price, a crew lead needs neither.
+  // price, and so does a crew lead, who has to recognise when the work has
+  // outgrown the quote. Neither of them sees the margin.
   'price.view': 'See the quoted and contract price of a job',
   'costing.view': 'See job cost and margin',
 

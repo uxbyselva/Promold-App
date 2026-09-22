@@ -70,9 +70,14 @@ Business rules are enforced in **Postgres**, not in the clients:
   deliberately not implied by any delete permission.
 - **Equipment custody** is enforced by a gist exclusion constraint: one unit
   cannot be in two places at once, whatever the client sends.
-- **Price is manager and owner information, to write as well as to read.**
-  `jobs.quoted_price`, `change_orders.amount` and `profiles.cost_rate` are
-  revoked from the `authenticated` role for **select and for insert/update**.
+- **Price is read by the office, the bookkeeper and the crew lead; it is
+  written by nobody directly.** `jobs.quoted_price`, `change_orders.amount` and
+  `profiles.cost_rate` are revoked from the `authenticated` role for **select
+  and for insert/update**. `price.view` opens the reading, and a crew lead
+  holds it so he can tell the office the work has outgrown the quote; it opens
+  nothing else, because `costing.view` (cost and margin) and
+  `user.view_cost_rates` (what people are paid) are separate flags he does not
+  have.
   Read jobs through `jobs_safe`, change orders through `change_orders_safe`,
   people through `profiles_safe` — never the base table, where `select *`
   fails by design. Write a price through `set_job_price()` or

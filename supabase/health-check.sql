@@ -35,6 +35,16 @@ with probe as (
       where table_schema = 'public' and table_name = 'stock_packs') as m0025,
     (select count(*) from pg_proc where proname = 'create_purchase_request') as m0026,
     (select count(*) from pg_proc where proname = 'set_job_price') as m0027,
+    -- 0028 creates nothing; it grants price.view to the crew lead. The flag on
+    -- the system role is the only thing there is to look at. -1 when the roles
+    -- table does not exist yet, same trick as the rows below.
+    (select case
+       when to_regclass('public.roles') is null then -1
+       else (xpath('/row/c/text()', query_to_xml(
+              'select count(*) as c from public.roles where key = ''crew_lead''
+                 and is_system and (permissions ->> ''price.view'')::boolean',
+              false, true, '')))[1]::text::int
+     end) as m0028,
     (select count(*) from information_schema.tables
       where table_schema = 'public') as tables,
     (select count(*) from pg_policies where schemaname = 'public') as policies,
@@ -69,8 +79,9 @@ select * from (
     -- The old version collapsed everything from 0022 to 0027 into one alarming
     -- verdict, which said "get help" to an owner whose database was fine and
     -- one file behind.
-    case when m0027 > 0 then 'Up to date (0001–0027)'
-         when m0026 > 0 then 'At 0026 — run supabase/update-0027.sql (security fix)'
+    case when m0028 > 0 then 'Up to date (0001–0028)'
+         when m0027 > 0 then 'At 0027 — run supabase/update-from-0027.sql'
+         when m0026 > 0 then 'At 0026 — run supabase/update-from-0026.sql (includes a security fix)'
          when m0025 > 0 then 'At 0025 — ask for a catch-up from 0025'
          when m0024 > 0 then 'At 0024 — ask for a catch-up from 0024'
          when m0023 > 0 then 'At 0023 — ask for a catch-up from 0023'
@@ -123,6 +134,13 @@ select * from (
     case when m0026>0 then 'Present' else 'Missing' end,
     case when m0026>0 then 'Asking to buy, and approving it'
          else 'Purchase approvals will fail' end from probe
+
+  union all
+  select 7.6, 'Crew lead price (0028)',
+    case when m0028 > 0 then 'Present' else 'Missing' end,
+    case when m0028 > 0 then 'The crew lead sees what a job is worth, and cannot change it'
+         else 'The crew lead cannot see the quote, so cannot say when work outgrew it' end
+  from probe
 
   union all
   select 7.5, 'Price guard (0027)',

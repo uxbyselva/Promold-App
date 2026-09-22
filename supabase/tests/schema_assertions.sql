@@ -314,6 +314,11 @@ perform set_config('request.jwt.claim.sub', '', true);
 -- agreed and priced or done for free.
 perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000a002', true);
 
+-- Relative to what the job already has, not a hardcoded 1: the seed carries
+-- an agreed change order on this job, and "the next number" is the thing
+-- being asserted anyway.
+select coalesce(max(seq), 0) into v_int from change_orders where job_id = v_job;
+
 insert into change_orders (id, org_id, job_id, title, description, created_by)
 values ('00000000-0000-0000-0000-00000000ca01', v_org, v_job,
         'Rot behind north wall',
@@ -321,7 +326,8 @@ values ('00000000-0000-0000-0000-00000000ca01', v_org, v_job,
         '00000000-0000-0000-0000-00000000a003');
 
 perform assert(
-  (select seq from change_orders where id = '00000000-0000-0000-0000-00000000ca01') = 1,
+  (select seq from change_orders where id = '00000000-0000-0000-0000-00000000ca01')
+    = v_int + 1,
   'change orders are numbered per job, assigned server side');
 
 -- An unpriced change order cannot be put in front of the customer.
@@ -358,6 +364,11 @@ perform assert_raises($q$
   select decide_change_order('00000000-0000-0000-0000-00000000ca01', false, 'verbal')
 $q$, 'declining without a reason is rejected');
 
+-- What the job is worth before this one is agreed. The seed already carries
+-- an agreed change order, so the figures below are movements, not totals —
+-- which is what the rule actually says.
+v_n := job_contract_price(v_job);
+
 perform decide_change_order('00000000-0000-0000-0000-00000000ca01', true, 'verbal',
                             'Helen Brooks');
 
@@ -375,16 +386,19 @@ perform assert(
 
 -- 18. Contract price ---------------------------------------------------------
 perform assert(
-  job_contract_price(v_job) = 8600.00 + 1250.00,
+  job_contract_price(v_job) = v_n + 1250.00,
   'the contract price is the base quote plus approved change orders');
 
 perform assert(
-  (select base_price from job_costs where job_id = v_job) = 8600.00,
+  (select base_price from job_costs where job_id = v_job)
+    = (select quoted_price from jobs where id = v_job),
   'the original quote stays visible alongside the contract price');
 
 perform assert(
-  (select contract_price from job_costs where job_id = v_job) = 9850.00,
+  (select contract_price from job_costs where job_id = v_job) = job_contract_price(v_job),
   'job costing measures margin against the contract price');
+
+v_n := job_contract_price(v_job);
 
 -- A rejected change order changes nothing.
 insert into change_orders (id, org_id, job_id, title, description, amount, created_by)
@@ -396,7 +410,7 @@ perform decide_change_order('00000000-0000-0000-0000-00000000ca02', false, 'verb
                             null, null, 'Customer will handle painting themselves');
 
 perform assert(
-  job_contract_price(v_job) = 9850.00,
+  job_contract_price(v_job) = v_n,
   'a declined change order does not move the contract price');
 
 -- A descope credit is a change order too.
@@ -408,7 +422,7 @@ perform present_change_order('00000000-0000-0000-0000-00000000ca03');
 perform decide_change_order('00000000-0000-0000-0000-00000000ca03', true, 'verbal', 'Helen Brooks');
 
 perform assert(
-  job_contract_price(v_job) = 9450.00,
+  job_contract_price(v_job) = v_n - 400.00,
   'a negative change order credits the contract price');
 
 -- 19. Who may do what with change orders -------------------------------------
@@ -425,8 +439,9 @@ $q$, 'a crew lead cannot present a change order');
 perform set_config('request.jwt.claim.sub', '', true);
 
 -- 20. Price visibility ------------------------------------------------------
--- What a job is worth is manager and owner information. The crew gets the
--- address, the scope and the evidence; not the number the customer pays.
+-- What a job is worth stops at the crew lead. He needs it to tell the office
+-- the work has outgrown the quote (0028); a technician gets the address, the
+-- scope and the evidence, and not the number the customer pays.
 perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000a002', true);
 perform assert(has_permission('price.view'), 'a manager can see the price');
 
@@ -438,7 +453,8 @@ perform assert(has_permission('price.view'),
   'the bookkeeper can see the price, since they keep the books');
 
 perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000a003', true);
-perform assert(not has_permission('price.view'), 'a crew lead cannot see the price');
+perform assert(has_permission('price.view'),
+  'a crew lead can see the price, so he can report work that outgrew it');
 
 perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000a004', true);
 perform assert(not has_permission('price.view'), 'a technician cannot see the price');
@@ -634,25 +650,56 @@ end $$;
 
 set role authenticated;
 
--- Crew lead: the masked view gives them the job without the money.
-select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000a003', false);
+-- Technician: the masked view gives them the job without the money. This is
+-- the role the masking is tested through now — the crew lead reads the price
+-- since 0028, so asserting the mask against him would assert nothing.
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000a004', false);
 
 do $$
 declare v_price numeric; v_n int;
 begin
   select quoted_price into v_price from jobs_safe
   where job_number = 'J00102';
-  perform assert(v_price is null, 'jobs_safe masks the price from a crew lead');
+  perform assert(v_price is null, 'jobs_safe masks the price from a technician');
 
   select count(*) into v_n from jobs_safe where job_number = 'J00102';
-  perform assert(v_n = 1, 'a crew lead still sees the job itself, just not its price');
+  perform assert(v_n = 1, 'a technician still sees the job itself, just not its price');
 
   select amount into v_price from change_orders_safe where seq = 1
     and job_id = (select id from jobs where job_number = 'J00102');
   perform assert(v_price is null, 'change order amounts are masked too');
 
   select count(*) into v_n from job_costs;
-  perform assert(v_n = 0, 'a crew lead sees no costing rows at all');
+  perform assert(v_n = 0, 'a technician sees no costing rows at all');
+end $$;
+
+-- Crew lead: the price comes through, and nothing else does.
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000a003', false);
+
+do $$
+declare v_price numeric; v_n int;
+begin
+  select quoted_price into v_price from jobs_safe where job_number = 'J00102';
+  perform assert(v_price = 8600.00, 'jobs_safe shows the quote to a crew lead');
+
+  -- Against the quote rather than a fixed total: the assertions above agree
+  -- and decline change orders on this job, so the total is theirs to move.
+  select contract_price into v_price from jobs_safe where job_number = 'J00102';
+  perform assert(v_price > 8600.00,
+    'and the contract price — what the job is worth after agreed extras');
+
+  select amount into v_price from change_orders_safe where seq = 1
+    and job_id = (select id from jobs where job_number = 'J00102');
+  perform assert(v_price = 1250.00,
+    'and what an extra was priced at, so he can see it was taken seriously');
+
+  -- The line the flag draws. Price is not cost, and cost is not his.
+  select count(*) into v_n from job_costs;
+  perform assert(v_n = 0, 'but still no costing rows: the price is not the margin');
+
+  select cost_rate into v_price from profiles_safe
+   where id = '00000000-0000-0000-0000-00000000a005';
+  perform assert(v_price is null, 'and no colleague''s cost rate');
 end $$;
 
 -- And the direct path is closed, or the view would be decoration.
@@ -676,7 +723,7 @@ begin
   perform assert(v_price = 8600.00, 'jobs_safe shows the price to a manager');
 
   select contract_price into v_price from jobs_safe where job_number = 'J00102';
-  perform assert(v_price = 9450.00,
+  perform assert(v_price > 8600.00,
     'the contract price reaches a manager through the safe view');
 
   select amount into v_price from change_orders_safe where seq = 1
@@ -1436,6 +1483,63 @@ begin
   perform assert_raises(
     format('update jobs set quoted_price = 9999 where id = %L', v_job),
     'but not by writing the column, even as a manager — nobody writes it directly');
+end $$;
+
+-- ---------------------------------------------------------------------------
+-- 0028: the crew lead reads the price, and still cannot move it
+--
+-- The two halves are asserted together on purpose. Reading it is the whole
+-- point of 0028; the moment reading implies writing, 0027 has been undone.
+-- ---------------------------------------------------------------------------
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000a003', false);
+
+do $$
+declare
+  v_job uuid := '00000000-0000-0000-0000-00000000bb02';
+  v_price numeric;
+  v_contract numeric;
+  v_id uuid;
+begin
+  perform assert(has_permission('price.view'),
+    'the crew lead holds price.view');
+
+  select quoted_price, contract_price into v_price, v_contract
+    from jobs_safe where id = v_job;
+  perform assert(v_price is not null,
+    'he reads the quoted price off jobs_safe');
+  perform assert(v_contract is not null and v_contract >= v_price,
+    'and the contract price, which is what the job is now worth');
+
+  -- What he must NOT have gained along with it.
+  perform assert(not has_permission('costing.view'),
+    'but not what the job cost us');
+  perform assert(not has_permission('user.view_cost_rates'),
+    'nor what anybody is paid');
+  perform assert((select cost_rate from profiles_safe
+                   where id = '00000000-0000-0000-0000-00000000a005') is null,
+    'a colleague''s cost rate is still masked');
+  perform assert(not has_permission('job.edit'),
+    'and no job.edit, which set_job_price() also requires');
+
+  -- Every door onto the number, still shut.
+  perform assert_raises(
+    format('update jobs set quoted_price = 99999 where id = %L', v_job),
+    'he cannot write the price column');
+  perform assert_raises(
+    format('select set_job_price(%L, 99999)', v_job),
+    'nor go through set_job_price(), which needs job.edit');
+
+  select create_change_order(v_job, 'Wall is worse than quoted',
+                             'Rot runs past the corner.') into v_id;
+  perform assert_raises(
+    format('update change_orders set amount = 50000 where id = %L', v_id),
+    'nor price the change order he just raised');
+  perform assert_raises(
+    format('select present_change_order(%L, 50000)', v_id),
+    'nor present it, which needs changeorder.manage');
+  perform assert_raises(
+    format('update change_orders set status = ''approved'' where id = %L', v_id),
+    'nor approve his own draft');
 end $$;
 
 reset role;

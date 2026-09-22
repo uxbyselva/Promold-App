@@ -84,6 +84,11 @@ export const monthName = (month: string) =>
 export const miles = (n: number) =>
   n.toLocaleString(LOCALE, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
+export const money = (n: number | null | undefined) =>
+  n === null || n === undefined
+    ? '—'
+    : Number(n).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+
 export const initials = (name: string) =>
   name
     .split(' ')

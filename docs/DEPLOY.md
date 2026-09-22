@@ -172,7 +172,8 @@ to run next and whether your organisation and login are set up.
 |---|---|
 | Empty | `supabase/bootstrap.sql`, then steps 3–4 of [SUPABASE-SETUP.md](SUPABASE-SETUP.md) |
 | At 0021 | `supabase/update.sql` |
-| At 0026 | `supabase/update-0027.sql` — the price guard, a security fix |
+| At 0026 | `supabase/update-from-0026.sql` — includes the price guard, a security fix |
+| At 0027 | `supabase/update-from-0027.sql` |
 | At 0022–0025 | Ask for a catch-up built from that number |
 | Up to date | Nothing — check rows 8–10 for the org, profile and photo bucket |
 
@@ -218,16 +219,19 @@ the right behaviour but looks alarming.
 Then, separately, `supabase/storage.sql` — the bucket job photos go in. Same
 steps, new query. Running that one twice is safe.
 
-`supabase/update-0027.sql` is the same idea for a database already at 0026:
-just the price guard. Unlike `update.sql` it creates nothing, so running it
-twice is safe — its header says so, and the last thing it prints is whether
-the guard is in place.
+The `update-from-NNNN.sql` files are the same idea from a later starting
+point. Each is named for the migration you are **on**, not the one you are
+going to, so the health check's verdict and the filename match. Unlike
+`update.sql` these create nothing, so running one twice is safe — the header
+says which it is, and the last thing every catch-up prints is whether it
+landed.
 
-Regenerate either after adding a migration:
+Regenerate them after adding a migration:
 
 ```bash
-./scripts/build-update.sh 0021                             # -> supabase/update.sql
-./scripts/build-update.sh 0026 supabase/update-0027.sql    # a named catch-up
+./scripts/build-update.sh 0021                                # -> supabase/update.sql
+./scripts/build-update.sh 0026 supabase/update-from-0026.sql
+./scripts/build-update.sh 0027 supabase/update-from-0027.sql
 ```
 
 ---

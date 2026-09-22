@@ -14,7 +14,10 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
   const { data: job } = await supabase
     .from('jobs_safe')
     .select(
-      'id, job_number, title, description, status, scheduled_start, scheduled_end, site_id, customer_id',
+      // quoted_price and contract_price come back null for anyone without
+      // price.view — the view decides, not this query. Since 0028 the crew
+      // lead has it, so he can see when the work has outgrown the quote.
+      'id, job_number, title, description, status, scheduled_start, scheduled_end, site_id, customer_id, quoted_price, contract_price, change_order_total',
     )
     .eq('id', id)
     .maybeSingle();
@@ -69,8 +72,8 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
   ]);
 
   // Change orders raised on this job. change_orders_safe masks the amount for
-  // anyone without price.view, so the crew see their own words and the
-  // outcome but never the number.
+  // anyone without price.view: a technician sees their own words and the
+  // outcome, the crew lead also sees what it was priced at.
   const { data: changeOrders } = await supabase
     .from('change_orders_safe')
     .select('id, seq, title, description, status, amount, decided_at, decision_reason')

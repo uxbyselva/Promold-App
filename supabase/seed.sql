@@ -242,7 +242,10 @@ insert into equipment_assignments (org_id, equipment_id, kind, job_id, site_id,
    seed_at(-2, 8), seed_at(1, 16), '00000000-0000-0000-0000-00000000a003', null),
   ('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-00000000ee04', 'site_staging',
    '00000000-0000-0000-0000-00000000bb02', '00000000-0000-0000-0000-0000000000e1',
-   seed_at(-2, 8), seed_at(0, 10), '00000000-0000-0000-0000-00000000a003', null),
+   -- Yesterday afternoon, not an hour of today: due back "at 10:00" is only
+   -- overdue after 10:00, and a seed that tests differently before lunch is
+   -- not a test.
+   seed_at(-2, 8), seed_at(-1, 16), '00000000-0000-0000-0000-00000000a003', null),
   ('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-00000000ee05', 'checkout',
    '00000000-0000-0000-0000-00000000bb02', null,
    seed_at(-2, 8), null, '00000000-0000-0000-0000-00000000a003',
@@ -284,6 +287,28 @@ insert into mileage_logs (org_id, vehicle_id, user_id, job_id, trip_date,
   ('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-00000000cc01',
    '00000000-0000-0000-0000-00000000a003', '00000000-0000-0000-0000-00000000bb02',
    current_date - 1, 68449.0, 68477.0, 'Shop to 42 Oak St and return');
+
+-- Extra work found on site, priced by the office, agreed by the customer.
+--
+-- This is the loop the crew lead's price view exists for: he could see the
+-- job was quoted at 8,600, found the rot ran past the corner, wrote it up,
+-- and the contract price is 9,850 because the customer said yes. Seeded in
+-- its finished state so every screen that reads a contract price has one that
+-- is not just the quote.
+insert into change_orders (id, org_id, job_id, seq, title, description, amount,
+                           added_hours, status, presented_at, decided_at,
+                           approval_method, customer_name, created_by,
+                           presented_by, recorded_by) values
+  ('00000000-0000-0000-0000-00000000c001', '00000000-0000-0000-0000-0000000000a1',
+   '00000000-0000-0000-0000-00000000bb02', 1,
+   'Rot behind the north wall',
+   'Framing is gone past the corner — another 8 ft of stud and sheathing.',
+   1250.00, 6, 'approved',
+   seed_at(-1, 11), seed_at(-1, 15),
+   'verbal', 'Helen Brooks',
+   '00000000-0000-0000-0000-00000000a003',
+   '00000000-0000-0000-0000-00000000a002',
+   '00000000-0000-0000-0000-00000000a002');
 
 -- A purchase request mid-approval.
 insert into purchase_requests (id, org_id, request_number, requested_by, assigned_to, job_id,

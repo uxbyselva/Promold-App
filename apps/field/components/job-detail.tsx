@@ -4,7 +4,7 @@ import { useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { refusalMessage } from '@promold/app-kit';
 import { supabaseBrowser } from '@/lib/supabase-browser';
-import { clock, longDate, dayOf, initials } from '@/lib/format';
+import { clock, longDate, dayOf, initials, money } from '@/lib/format';
 import { ChangeOrderSheet } from './change-order-sheet';
 
 type Job = {
@@ -15,6 +15,10 @@ type Job = {
   status: string;
   scheduled_start: string | null;
   scheduled_end: string | null;
+  /** All three are null unless the signed-in user holds price.view. */
+  quoted_price: number | null;
+  contract_price: number | null;
+  change_order_total: number | null;
 };
 type Site = {
   label: string;
@@ -414,9 +418,53 @@ export function JobDetail({
         );
       })}
 
+      {/* What the job is worth.
+       *
+       * Only rendered when the view actually sent a number — jobs_safe masks
+       * these for anyone without price.view, so a technician gets no panel at
+       * all rather than a row of dashes. It sits directly above Extra work
+       * because that is what it is for: the crew lead who can see the job was
+       * quoted at 8,600 is the one who can tell the office when what is
+       * behind the wall is not an 8,600 job.
+       */}
+      {job.contract_price !== null ? (
+        <div className="panel">
+          <p className="lbl">What it is worth</p>
+          <dl className="kv">
+            <div>
+              <dt>Quoted</dt>
+              <dd className="mono num">{money(job.quoted_price)}</dd>
+            </div>
+            {job.change_order_total ? (
+              <div>
+                <dt>Agreed extras</dt>
+                <dd className="mono num">
+                  {job.change_order_total > 0 ? '+' : ''}
+                  {money(job.change_order_total)}
+                </dd>
+              </div>
+            ) : null}
+            {job.change_order_total ? (
+              <div>
+                <dt>
+                  <b>Now</b>
+                </dt>
+                <dd className="mono num">
+                  <b>{money(job.contract_price)}</b>
+                </dd>
+              </div>
+            ) : null}
+          </dl>
+          <p className="hint">
+            This is what the customer agreed to pay, not what the job costs us. If what you have
+            found is bigger than this, say so below before you do it.
+          </p>
+        </div>
+      ) : null}
+
       {/* Extra work found on site. The crew describe it; the office prices it.
-          change_orders_safe nulls the amount for anyone without price.view,
-          so there is no number here to hide. */}
+          change_orders_safe nulls the amount for anyone without price.view:
+          a technician sees the outcome, the crew lead also sees the number. */}
       {canDraftChangeOrder || changeOrders.length ? (
         <div className="panel">
           <div className="row between">
@@ -448,6 +496,12 @@ export function JobDetail({
                 )}
               </div>
               {co.description ? <p className="sub">{co.description}</p> : null}
+              {co.amount !== null ? (
+                <p className="mono num" style={{ fontSize: 13 }}>
+                  {co.status === 'approved' ? 'Agreed at ' : 'Priced at '}
+                  {money(co.amount)}
+                </p>
+              ) : null}
               {co.decision_reason ? <p className="hint">{co.decision_reason}</p> : null}
             </div>
           ))}
