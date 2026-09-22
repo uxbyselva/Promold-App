@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { refusalMessage } from '@promold/app-kit';
 import { supabaseBrowser } from '@/lib/supabase-browser';
-import { dayOf, daysBetween, longDate, shortDate, today } from '@/lib/format';
+import { dayOf, dayWindow, daysBetween, longDate, shortDate, today } from '@/lib/format';
 
 type Request = {
   id: string;
@@ -107,8 +107,10 @@ export function TimeOffView({
         org_id: orgId,
         user_id: userId,
         kind,
-        starts_at: new Date(`${from}T00:00`).toISOString(),
-        ends_at: new Date(`${to}T23:59:59`).toISOString(),
+        // In the company's zone, not the phone's: a lead requesting a day off
+        // from another state was booking someone else's day.
+        starts_at: dayWindow(from).from,
+        ends_at: dayWindow(to).to,
         reason: reason.trim() || null,
       });
 

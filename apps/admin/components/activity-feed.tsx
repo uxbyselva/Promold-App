@@ -6,6 +6,7 @@ import {
   auditActionLabel,
   describeAuditEntry,
   fieldChanges,
+  tableLabel,
   wholeRow,
   type AuditEntry,
 } from '@promold/shared';
@@ -66,7 +67,7 @@ export function ActivityFeed({
                 <option value="">Everything</option>
                 {tables.map((t) => (
                   <option key={t.table_name} value={t.table_name}>
-                    {t.label} ({t.entries})
+                    {tableLabel(t.table_name)} ({t.entries})
                   </option>
                 ))}
               </select>
@@ -137,7 +138,7 @@ function Entry({ row }: { row: Row }) {
       <time>{stamp(row.at)}</time>
       <div>
         <div className="row wrap" style={{ gap: 8 }}>
-          <b>{row.label}</b>
+          <b>{tableLabel(row.table_name)}</b>
           <span className="pill" data-t={toneFor(row.action)}>
             {auditActionLabel(row.action)}
           </span>

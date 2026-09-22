@@ -2,6 +2,25 @@
 --
 -- Deterministic UUIDs so tests and fixtures can reference rows directly.
 
+/*
+ * A timestamp at a chosen hour on a day relative to today, in the
+ * organisation's zone.
+ *
+ * The seed used bare `now()`, so whatever minute it was loaded became the
+ * start of every job: a demo seeded at 22:13 showed a crew on site at ten
+ * past ten at night, and a job that ran 22:13 Monday to 04:13 Tuesday. Work
+ * happens in working hours. Anchoring to the local day makes the seed read
+ * like a real week whenever it is loaded, and keeps each job inside one day
+ * so the calendars are legible. Dropped at the end of the file — this is a
+ * seeding convenience, not part of the schema.
+ */
+create function seed_at(days int, hour numeric) returns timestamptz
+language sql stable as $$
+  select (date_trunc('day', now() at time zone 'America/New_York')
+          + make_interval(days => days, mins => (hour * 60)::int))
+         at time zone 'America/New_York';
+$$;
+
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-00000000a001', 'owner@promold.test'),
   ('00000000-0000-0000-0000-00000000a002', 'manager@promold.test'),
@@ -172,29 +191,29 @@ insert into jobs (id, org_id, job_number, customer_id, site_id, template_id, tit
    '00000000-0000-0000-0000-0000000000d1', '00000000-0000-0000-0000-0000000000e1',
    '00000000-0000-0000-0000-0000000000f1', 'Basement mold inspection',
    'Musty smell reported after spring flooding.', 'closed', 'normal',
-   now() - interval '21 days', now() - interval '21 days' + interval '2 hours', 450.00),
+   seed_at(-21, 9), seed_at(-21, 11), 450.00),
 
   ('00000000-0000-0000-0000-00000000bb02', '00000000-0000-0000-0000-0000000000a1', 'J00102',
    '00000000-0000-0000-0000-0000000000d1', '00000000-0000-0000-0000-0000000000e1',
    '00000000-0000-0000-0000-0000000000f3', 'Basement remediation — 3 day',
    'Containment, removal and treatment of affected framing and drywall.',
    'in_progress', 'high',
-   now() - interval '2 days', now() + interval '1 day', 8600.00),
+   seed_at(-2, 8), seed_at(0, 16), 8600.00),
 
   ('00000000-0000-0000-0000-00000000bb03', '00000000-0000-0000-0000-0000000000a1', 'J00103',
    '00000000-0000-0000-0000-0000000000d2', '00000000-0000-0000-0000-0000000000e2',
    '00000000-0000-0000-0000-0000000000f2', 'Unit 3B containment setup',
    'Bathroom ceiling, suspected ongoing leak from unit above.', 'assigned', 'normal',
-   now() + interval '1 day', now() + interval '1 day' + interval '6 hours', 2200.00);
+   seed_at(1, 8), seed_at(1, 14), 2200.00);
 
 -- The multi-day job runs as three visits; the dispatch board plots these.
 insert into job_visits (org_id, job_id, seq, scheduled_start, scheduled_end, status) values
   ('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-00000000bb02', 1,
-   now() - interval '2 days', now() - interval '2 days' + interval '8 hours', 'done'),
+   seed_at(-2, 8), seed_at(-2, 16), 'done'),
   ('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-00000000bb02', 2,
-   now() - interval '1 day', now() - interval '1 day' + interval '8 hours', 'done'),
+   seed_at(-1, 8), seed_at(-1, 16), 'done'),
   ('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-00000000bb02', 3,
-   now(), now() + interval '8 hours', 'in_progress');
+   seed_at(0, 8), seed_at(0, 16), 'in_progress');
 
 insert into job_assignments (org_id, job_id, user_id, crew_id, acceptance_status, responded_at) values
   ('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-00000000bb02',
@@ -217,16 +236,16 @@ insert into equipment_assignments (org_id, equipment_id, kind, job_id, site_id,
                                    assigned_to_user_id) values
   ('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-00000000ee01', 'site_staging',
    '00000000-0000-0000-0000-00000000bb02', '00000000-0000-0000-0000-0000000000e1',
-   now() - interval '2 days', now() + interval '1 day', '00000000-0000-0000-0000-00000000a003', null),
+   seed_at(-2, 8), seed_at(1, 16), '00000000-0000-0000-0000-00000000a003', null),
   ('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-00000000ee02', 'site_staging',
    '00000000-0000-0000-0000-00000000bb02', '00000000-0000-0000-0000-0000000000e1',
-   now() - interval '2 days', now() + interval '1 day', '00000000-0000-0000-0000-00000000a003', null),
+   seed_at(-2, 8), seed_at(1, 16), '00000000-0000-0000-0000-00000000a003', null),
   ('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-00000000ee04', 'site_staging',
    '00000000-0000-0000-0000-00000000bb02', '00000000-0000-0000-0000-0000000000e1',
-   now() - interval '2 days', now() - interval '6 hours', '00000000-0000-0000-0000-00000000a003', null),
+   seed_at(-2, 8), seed_at(0, 10), '00000000-0000-0000-0000-00000000a003', null),
   ('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-00000000ee05', 'checkout',
    '00000000-0000-0000-0000-00000000bb02', null,
-   now() - interval '2 days', null, '00000000-0000-0000-0000-00000000a003',
+   seed_at(-2, 8), null, '00000000-0000-0000-0000-00000000a003',
    '00000000-0000-0000-0000-00000000a003');
 
 -- Rented in because all three owned scrubbers were committed.
@@ -236,21 +255,18 @@ insert into equipment_rentals (org_id, supplier_id, job_id, site_id, description
   ('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-000000000b02',
    '00000000-0000-0000-0000-00000000bb02', '00000000-0000-0000-0000-0000000000e1',
    'HEPA air scrubber (rental)', 'air_scrubber', 2, 45.00, 'day',
-   now() - interval '2 days', now() + interval '1 day', 270.00, 'on_hire', 'NER-88213');
+   seed_at(-2, 8), seed_at(1, 16), 270.00, 'on_hire', 'NER-88213');
 
 -- Field capture on the running job -----------------------------------------
 
 insert into time_entries (org_id, job_id, user_id, clock_in_at, clock_out_at, within_geofence, break_minutes)
 values
   ('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-00000000bb02',
-   '00000000-0000-0000-0000-00000000a003', now() - interval '2 days' - interval '8 hours',
-   now() - interval '2 days', true, 30),
+   '00000000-0000-0000-0000-00000000a003', seed_at(-2, 8), seed_at(-2, 16), true, 30),
   ('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-00000000bb02',
-   '00000000-0000-0000-0000-00000000a004', now() - interval '2 days' - interval '8 hours',
-   now() - interval '2 days', true, 30),
+   '00000000-0000-0000-0000-00000000a004', seed_at(-2, 8), seed_at(-2, 16), true, 30),
   ('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-00000000bb02',
-   '00000000-0000-0000-0000-00000000a005', now() - interval '1 day' - interval '8 hours',
-   now() - interval '1 day', true, 45);
+   '00000000-0000-0000-0000-00000000a005', seed_at(-1, 8), seed_at(-1, 16), true, 45);
 
 insert into material_usage (org_id, job_id, item_id, location_id, quantity, logged_by) values
   ('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-00000000bb02',
@@ -306,3 +322,5 @@ where p.org_id = '00000000-0000-0000-0000-0000000000a1'
   and p.id in ('00000000-0000-0000-0000-00000000a003',
                '00000000-0000-0000-0000-00000000a004',
                '00000000-0000-0000-0000-00000000a005');
+
+drop function seed_at(int, numeric);

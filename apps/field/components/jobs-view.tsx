@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { dayOf, isoDay, today, clock, longDate } from '@/lib/format';
+import { dayOf, daySpan, isoDay, today, clock, longDate, monthName } from '@/lib/format';
 
 export type Job = {
   id: string;
@@ -73,14 +73,7 @@ export function JobsView({
         map.set(job.id, []);
         continue;
       }
-      const days: string[] = [];
-      const cursor = new Date(job.scheduled_start);
-      const last = new Date(job.scheduled_end ?? job.scheduled_start);
-      // Guard against a bad range producing an endless loop.
-      for (let i = 0; i < 90 && cursor <= last; i++) {
-        days.push(isoDay(cursor));
-        cursor.setDate(cursor.getDate() + 1);
-      }
+      const days = daySpan(job.scheduled_start, job.scheduled_end);
       map.set(job.id, days.length ? days : [dayOf(job.scheduled_start)]);
     }
     return map;
@@ -250,7 +243,7 @@ function MonthGrid({
   return (
     <div className="cal">
       <div className="cal-head">
-        <h2>{first.toLocaleDateString([], { month: 'long', year: 'numeric' })}</h2>
+        <h2>{monthName(`${month.y}-${String(month.m + 1).padStart(2, '0')}`)}</h2>
         <div className="cal-nav">
           <button onClick={() => onMove(-1)} aria-label="Previous month">
             ‹

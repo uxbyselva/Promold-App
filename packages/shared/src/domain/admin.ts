@@ -98,6 +98,46 @@ const FIELD_LABELS: Record<string, string> = {
   org_id: 'Organisation',
 };
 
+/**
+ * What a table is called in the activity trail.
+ *
+ * `audit_feed()` labels the eight tables in the recycle-bin registry and falls
+ * back to the raw name for everything else — so an owner reading the trail saw
+ * `purchase_request_lines` and `job_assignments`. These are the rest of what
+ * is audited, in the words the business uses.
+ */
+const TABLE_LABELS: Record<string, string> = {
+  jobs: 'Job',
+  job_visits: 'Work day',
+  job_assignments: 'Crew on a job',
+  job_photos: 'Job photo',
+  job_comments: 'Job note',
+  customers: 'Customer',
+  sites: 'Site',
+  equipment: 'Equipment',
+  equipment_assignments: 'Equipment placement',
+  equipment_rentals: 'Rental',
+  vehicles: 'Vehicle',
+  mileage_logs: 'Mileage',
+  time_entries: 'Hours',
+  time_off: 'Time off',
+  inventory_items: 'Stock item',
+  stock_packs: 'Pack',
+  purchase_requests: 'Purchase request',
+  purchase_request_lines: 'Purchase line',
+  change_orders: 'Change order',
+  profiles: 'Person',
+  roles: 'Role',
+};
+
+export function tableLabel(table: string): string {
+  const known = TABLE_LABELS[table];
+  if (known) return known;
+  // Anything new reads as words rather than as a table name.
+  const words = table.replace(/_/g, ' ').trim();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
 /** `scheduled_start` → `Start`; `make_model` → `Make model`. */
 export function fieldLabel(field: string): string {
   const known = FIELD_LABELS[field];

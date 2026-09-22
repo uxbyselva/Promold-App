@@ -27,8 +27,11 @@ type Trip = {
 };
 type Job = { id: string; job_number: string; title: string };
 
+// Explicit locale, not the machine's: this renders on the server and again in
+// the browser, and a different thousands separator between the two is a
+// hydration mismatch.
 const money = (n: number) =>
-  n.toLocaleString([], { style: 'currency', currency: 'USD', minimumFractionDigits: 2 });
+  n.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 });
 
 export function MileageView({
   vehicles,

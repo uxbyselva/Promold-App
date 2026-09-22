@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 import Link from 'next/link';
-import { clock, dayOf, isoDay, monthName, shiftMonth, today } from '@/lib/format';
+import { clock, dayOf, daySpan, isoDay, monthName, shiftMonth, today } from '@/lib/format';
 
 type Job = {
   id: string;
@@ -57,12 +57,7 @@ export function OfficeCalendar({
         continue;
       }
       if (!job.scheduled_start) continue;
-      const cursor = new Date(job.scheduled_start);
-      const last = new Date(job.scheduled_end ?? job.scheduled_start);
-      for (let i = 0; i < 90 && cursor <= last; i++) {
-        push(isoDay(cursor), job);
-        cursor.setDate(cursor.getDate() + 1);
-      }
+      for (const day of daySpan(job.scheduled_start, job.scheduled_end)) push(day, job);
     }
     for (const list of map.values()) {
       list.sort((a, b) => (a.scheduled_start ?? '').localeCompare(b.scheduled_start ?? ''));

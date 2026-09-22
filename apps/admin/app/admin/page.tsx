@@ -4,7 +4,7 @@ import { requireSession } from '@/lib/session';
 import { supabaseServer } from '@/lib/supabase-server';
 import { OfficeShell } from '@/components/office-shell';
 import { stamp } from '@/lib/format';
-import { describeAuditEntry } from '@promold/shared';
+import { describeAuditEntry, tableLabel } from '@promold/shared';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,7 +23,7 @@ export default async function AdminHome() {
   const entries = (recent ?? []) as {
     id: number;
     at: string;
-    label: string;
+    table_name: string;
     action: string;
     fields: string[];
     actor_name: string;
@@ -48,7 +48,7 @@ export default async function AdminHome() {
       <div className="tiles">
         <div className="tile">
           <span className="lbl">Changes recorded</span>
-          <span className="fig">{totalEntries.toLocaleString()}</span>
+          <span className="fig">{totalEntries.toLocaleString('en-GB')}</span>
           <Link href="/admin/activity">See the activity →</Link>
         </div>
         <div className="tile">
@@ -90,7 +90,8 @@ export default async function AdminHome() {
               <li key={e.id}>
                 <time>{stamp(e.at)}</time>
                 <div>
-                  <b>{e.label}</b> · {describeAuditEntry({ action: e.action, fields: e.fields })}
+                  <b>{tableLabel(e.table_name)}</b> ·{' '}
+                  {describeAuditEntry({ action: e.action, fields: e.fields })}
                   <br />
                   <span className="sub">{e.actor_name}</span>
                 </div>

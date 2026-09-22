@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { SignOut } from './sign-out';
+import { clock, longDate, money } from '@/lib/format';
 
 const START_HOUR = 7;
 const END_HOUR = 18;
@@ -21,29 +21,38 @@ type Job = {
 type Assignment = { job_id: string; user_id: string; acceptance_status: string };
 type TimeOff = { user_id: string; kind: string; starts_at: string; ends_at: string };
 
+/*
+ * The board had its own copies of these and they used the machine's timezone.
+ * On the server that is UTC and in the browser it is wherever the viewer is,
+ * so the two rendered different times and React threw the server's HTML away
+ * — a hydration error, on the busiest screen in the app.
+ *
+ * Worse than the error: a job booked for 08:00 in Springfield was drawn on the
+ * wrong row for anyone looking from another timezone. The shared formatter
+ * pins everything to the company's zone, which is the only reading of "08:00"
+ * that means anything to a crew.
+ */
 const hourOf = (iso: string | null) => {
   if (!iso) return START_HOUR;
-  const d = new Date(iso);
-  return d.getHours() + d.getMinutes() / 60;
+  const [h, m] = clock(iso).split(':').map(Number);
+  return (h ?? START_HOUR) + (m ?? 0) / 60;
 };
-const hhmm = (iso: string | null) =>
-  iso ? new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '';
+const hhmm = (iso: string | null) => clock(iso);
 const addDays = (iso: string, n: number) => {
-  const d = new Date(`${iso}T00:00`);
-  d.setDate(d.getDate() + n);
+  // Noon UTC, so adding days never trips over a daylight-saving boundary.
+  const d = new Date(`${iso}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
   return d.toISOString().slice(0, 10);
 };
 
 export function Board({
   day,
-  me,
   crew,
   jobs,
   assignments,
   timeOff,
 }: {
   day: string;
-  me: { name: string };
   crew: Crew[];
   jobs: Job[];
   assignments: Assignment[];
@@ -60,46 +69,42 @@ export function Board({
 
   return (
     <>
+      {/*
+       * Just the day navigator. The board sits inside the office shell, which
+       * already carries the wordmark, the signed-in name and sign-out — this
+       * header used to repeat all three, so the page showed two headers
+       * stacked on top of each other.
+       */}
       <header
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: 14,
-          padding: '11px 18px',
-          background: 'var(--surface)',
-          borderBottom: '1px solid var(--line)',
-          flexWrap: 'wrap',
+          justifyContent: 'center',
+          gap: 10,
+          padding: '12px 18px 2px',
         }}
       >
-        <span style={{ fontWeight: 600, fontSize: 16 }}>Promold</span>
         <button
           className="btn ghost"
           style={{ padding: '6px 11px' }}
           onClick={() => go(addDays(day, -1))}
+          aria-label="Previous day"
         >
           ‹
         </button>
         <h1
           style={{ margin: 0, fontSize: 15, fontWeight: 600, minWidth: 190, textAlign: 'center' }}
         >
-          {new Date(`${day}T00:00`).toLocaleDateString('en-GB', {
-            weekday: 'long',
-            day: 'numeric',
-            month: 'long',
-            year: 'numeric',
-          })}
+          {longDate(day)}
         </h1>
         <button
           className="btn ghost"
           style={{ padding: '6px 11px' }}
           onClick={() => go(addDays(day, 1))}
+          aria-label="Next day"
         >
           ›
         </button>
-        <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>{me.name}</span>
-          <SignOut />
-        </span>
       </header>
 
       <div style={{ padding: '14px 18px 24px', display: 'grid', gap: 14 }}>
@@ -138,7 +143,7 @@ export function Board({
                   <p style={{ fontWeight: 600, fontSize: 13.5 }}>{j.title}</p>
                   {showsPrice && j.quoted_price !== null ? (
                     <span className="mono num" style={{ fontSize: 12.5, color: 'var(--muted)' }}>
-                      ${Number(j.quoted_price).toLocaleString('en-US')}
+                      {money(j.quoted_price)}
                     </span>
                   ) : null}
                 </div>

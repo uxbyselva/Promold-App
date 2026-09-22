@@ -4,6 +4,7 @@ import { requireSession } from '@/lib/session';
 import { supabaseServer } from '@/lib/supabase-server';
 import { OfficeShell } from '@/components/office-shell';
 import { RecordHistory } from '@/components/record-history';
+import { tableLabel } from '@promold/shared';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,7 +43,7 @@ export default async function RecordPage({
       <div className="page-head">
         <div>
           <h1>
-            {kind?.label ?? table}
+            {kind?.label ?? tableLabel(table)}
             {name ? ` · ${String(name)}` : ''}
           </h1>
           <p className="mono" style={{ fontSize: 12.5 }}>
