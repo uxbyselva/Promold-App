@@ -18,6 +18,12 @@ received are tracked in a separate system and must stay there.
 
 The test: **cost to us is in, owed by the customer is out.**
 
+**Crews are paid per job, not per hour.** Nothing records hours — no clock
+in/out, no timesheet, no geofence. `time_entries` and `profiles.cost_rate`
+remain in the schema for a future hourly crew, but no screen writes them, so
+`job_labour_cost()` is zero everywhere. Anything that shows a margin has to
+say what it is actually showing until a per-job crew payment exists.
+
 Approving a change order records an agreement; it does not bill anything.
 Adding any payment state would make this app a second, worse source of
 financial truth, and the two would drift. Do not add one.

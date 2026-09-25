@@ -12,7 +12,8 @@ approval thresholds, geofence radius, timezone, plus `job_steps` and
 `photo_phases` — which status steps and photo galleries this shop uses).
 
 **`profiles`** — one row per user, keyed to `auth.users.id`. `full_name`,
-`phone`, `role_id`, `cost_rate` (internal hourly cost for job costing),
+`phone`, `role_id`, `cost_rate` (internal hourly cost; **unused — crews are
+paid per job, see [07-roadmap.md](07-roadmap.md)**),
 `is_active`, `push_token`.
 
 **`roles`** — `name`, `permissions` (jsonb flag set). See
@@ -230,7 +231,8 @@ Detailed in [06-equipment.md](06-equipment.md). Tables:
 **`job_costs`** is a **view**, not a table:
 
 ```
-labour     = Σ time_entries.hours × profiles.cost_rate
+labour     = Σ time_entries.hours × profiles.cost_rate   (always 0 today:
+             nothing records hours, because crews are paid per job)
 materials  = Σ material_usage.quantity × inventory_items.average_cost
 purchases  = Σ approved purchase_request_lines billed to the job
 mileage    = Σ mileage_logs.distance × org mileage rate

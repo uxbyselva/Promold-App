@@ -3,6 +3,25 @@
 Estimates assume one experienced full-stack developer. They are ranges, not
 commitments, and exclude App Store review time.
 
+## Crews are paid per job, not per hour
+
+Decided by the owner, September 2026. It is here rather than in a phase
+because it removes work from several of them and changes what a cost is.
+
+Nothing in the apps records hours, and nothing should. No clock in/out, no
+timesheet, no geofence. `time_entries` and `profiles.cost_rate` stay in the
+schema — they cost nothing empty and an hourly crew is the sort of thing a
+contractor adds later — but no screen writes to them, and `job_labour_cost()`
+returns zero for every job as a result.
+
+**The open consequence: what a job costs in labour has no source yet.** Until
+one exists, `job_costs.margin` is contract price minus materials, purchases,
+mileage, equipment and rentals — a real number, but not margin, because the
+largest cost is missing from it. Either a per-job crew payment gets recorded
+and margin means margin, or the costing screens name the number honestly.
+That decision belongs with whoever builds the costing dashboard, and it
+belongs before it ships, not after.
+
 ## Phase 0 — Foundations (1–2 weeks)
 
 - Monorepo, Supabase project, CI, migration pipeline
@@ -43,7 +62,7 @@ documentation package moved out.
 
 **Field app**
 - List / Kanban / Calendar toggle
-- Status progression with geofenced clock in/out
+- Status progression (**no clock in/out** — see "Crews are paid per job" below)
 - Photo capture with before/during/after and room tagging
 - Job chat
 - Completion gates
