@@ -1,0 +1,8 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "comment": "The deployable app is apps/admin. Set Root Directory to apps/admin in the Vercel project; this file pins the framework so a dashboard setting cannot silently turn the build into a static one.",
+  "framework": "nextjs",
+  "buildCommand": "cd ../.. && pnpm --filter @promold/admin build",
+  "installCommand": "cd ../.. && pnpm install --frozen-lockfile",
+  "outputDirectory": ".next"
+}

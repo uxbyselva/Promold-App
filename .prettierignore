@@ -1,0 +1,15 @@
+# Prose is wrapped by hand in these, at a width chosen for reading rather than
+# for a formatter. Reflowing it would produce a large diff and a worse
+# document, so Prettier governs code here and not writing.
+*.md
+docs/
+
+# Generated: concatenated migrations, rewritten by scripts/build-bootstrap.sh.
+supabase/bootstrap.sql
+
+# Self-contained clickable mocks, written as single files on purpose.
+apps/prototype/
+
+pnpm-lock.yaml
+.next/
+node_modules/
