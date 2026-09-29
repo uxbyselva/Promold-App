@@ -4,26 +4,12 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { refusalMessage } from '@promold/app-kit';
 import { supabaseBrowser } from '@/lib/supabase-browser';
-import { initials, localInput } from '@/lib/format';
+import { initials } from '@/lib/format';
+// The draft shape and `draftFromJob()` live in lib/ because the server page
+// calls the function, and a server page cannot call into a client module.
+import type { Customer, Site, Template, Person, JobDraft } from '@/lib/job-draft';
 
-export type Customer = { id: string; name: string };
-export type Site = { id: string; customer_id: string; label: string; city: string | null };
-export type Template = { id: string; name: string; default_duration_hours: number };
-export type Person = { id: string; full_name: string };
-
-export type JobDraft = {
-  id?: string;
-  customer_id: string;
-  site_id: string;
-  template_id: string;
-  title: string;
-  description: string;
-  priority: string;
-  scheduled_start: string;
-  scheduled_end: string;
-  quoted_price: string;
-  crew: string[];
-};
+export type { Customer, Site, Template, Person, JobDraft };
 
 const PRIORITIES = ['low', 'normal', 'high', 'emergency'];
 
@@ -415,34 +401,4 @@ export function JobForm({
 /** 16:00 on the same day as the given `datetime-local` value. */
 function endOfSameDay(start: string): string {
   return `${start.slice(0, 10)}T16:00`;
-}
-
-export function draftFromJob(
-  job: {
-    id: string;
-    customer_id: string;
-    site_id: string;
-    template_id: string | null;
-    title: string;
-    description: string | null;
-    priority: string;
-    scheduled_start: string | null;
-    scheduled_end: string | null;
-    quoted_price: number | null;
-  },
-  crew: string[],
-): JobDraft {
-  return {
-    id: job.id,
-    customer_id: job.customer_id,
-    site_id: job.site_id,
-    template_id: job.template_id ?? '',
-    title: job.title,
-    description: job.description ?? '',
-    priority: job.priority,
-    scheduled_start: localInput(job.scheduled_start),
-    scheduled_end: localInput(job.scheduled_end),
-    quoted_price: job.quoted_price === null ? '' : String(job.quoted_price),
-    crew,
-  };
 }

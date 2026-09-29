@@ -4,8 +4,10 @@ import { requireSession } from '@/lib/session';
 import { supabaseServer } from '@/lib/supabase-server';
 import { jobFormOptions } from '@/lib/office-data';
 import { OfficeShell } from '@/components/office-shell';
-import { JobForm, draftFromJob } from '@/components/job-form';
+import { JobForm } from '@/components/job-form';
+import { draftFromJob } from '@/lib/job-draft';
 import { JobSidebar } from '@/components/job-sidebar';
+import { CrewPay } from '@/components/crew-pay';
 
 export const dynamic = 'force-dynamic';
 
@@ -54,6 +56,40 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
     (crewNames ?? []).find((p) => p.id === userId)?.full_name ?? 'Someone';
 
   const canEdit = session.can('job.edit');
+  const canSeeCosts = session.can('costing.view');
+
+  /*
+   * The cost side of the job. Both come back empty for anyone without
+   * costing.view — job_costs filters on the flag itself and job_crew_pay's
+   * row policy does the same — so this is asked for rather than guarded, and
+   * the panel is only rendered when the flag is there.
+   */
+  const [{ data: costs }, { data: payments }] = canSeeCosts
+    ? await Promise.all([
+        supabase
+          .from('job_costs')
+          .select(
+            'contract_price, labour_cost, material_cost, purchase_cost, mileage_cost, equipment_cost, rental_cost, total_cost, margin',
+          )
+          .eq('job_id', id)
+          .maybeSingle(),
+        supabase
+          .from('job_crew_pay')
+          .select('id, user_id, amount, note')
+          .eq('job_id', id)
+          .order('created_at'),
+      ])
+    : [{ data: null }, { data: [] }];
+
+  // Everyone active, not just this job's crew: a weekend hand who helped out
+  // still has to be nameable.
+  const { data: people } = canSeeCosts
+    ? await supabase
+        .from('profiles_safe')
+        .select('id, full_name')
+        .eq('is_active', true)
+        .order('full_name')
+    : { data: [] };
 
   return (
     <OfficeShell session={session} mode="office">
@@ -118,6 +154,23 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
           canEdit={session.can('job.edit')}
         />
       </div>
+
+      {canSeeCosts ? (
+        <div
+          className="cols aside"
+          style={{ gridTemplateColumns: 'minmax(0,1fr) minmax(280px,360px)', marginTop: 14 }}
+        >
+          <CrewPay
+            jobId={job.id}
+            orgId={session.orgId}
+            userId={session.userId}
+            payments={payments ?? []}
+            costs={costs ?? null}
+            people={people ?? []}
+            canEdit={canEdit}
+          />
+        </div>
+      ) : null}
     </OfficeShell>
   );
 }

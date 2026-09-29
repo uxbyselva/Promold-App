@@ -20,9 +20,10 @@ The test: **cost to us is in, owed by the customer is out.**
 
 **Crews are paid per job, not per hour.** Nothing records hours — no clock
 in/out, no timesheet, no geofence. `time_entries` and `profiles.cost_rate`
-remain in the schema for a future hourly crew, but no screen writes them, so
-`job_labour_cost()` is zero everywhere. Anything that shows a margin has to
-say what it is actually showing until a per-job crew payment exists.
+remain in the schema for a future hourly crew, and stay empty until there is
+one. The labour cost of a job is `job_crew_pay`: flat amounts the office
+records, named or as a lump for the crew. `job_labour_cost()` adds both
+sources, so an hourly crew later needs no migration.
 
 Approving a change order records an agreement; it does not bill anything.
 Adding any payment state would make this app a second, worse source of
@@ -91,6 +92,16 @@ Business rules are enforced in **Postgres**, not in the clients:
   manager, because a column grant cannot tell two signed-in users apart.
   Adding a column to one of those three tables means re-running **both**
   `grant_columns_except()` and `grant_writes_except()` for it.
+- **Crew pay** is a cost, so it sits behind `costing.view` with margin rather
+  than behind `price.view`. Recording one needs `costing.view` **and**
+  `job.edit`, the same pairing `set_job_price()` uses. No masking view is
+  needed because the whole row is a cost — that makes it a row-level rule, and
+  RLS does it. `job_crew_pay_total()` and `job_labour_cost()` are
+  `security definer` and check the flag themselves: `job_labour_cost()` reads
+  `profiles.cost_rate`, which is revoked, and it only ever worked because
+  Postgres inlined it into `job_costs`. Relying on the planner for a
+  permission check is how a costing screen starts returning "permission denied
+  for table profiles".
 - **Change orders** are drafted by whoever finds the work
   (`create_change_order()`, no price on it), priced and presented by a manager
   (`present_change_order()`), and only move `job_contract_price()` once the
@@ -116,9 +127,16 @@ Add a rule to the database first, mirror it in `packages/shared` second.
 pnpm db:verify     # migrations onto a clean database, the assertions, then
                    # every database call the apps make, checked against it
 pnpm test          # unit tests
-pnpm typecheck     # both apps and both packages
+pnpm typecheck     # both apps and both packages, then the client boundary
 pnpm lint          # prettier --check; `pnpm format` writes
 ```
+
+`scripts/check-client-boundary.mjs` runs after `typecheck` and is there for
+the same reason: **TypeScript cannot see the server/client boundary.** A
+server page importing a *function* from a `'use client'` module compiles,
+builds, and throws when somebody opens the page. It happened to the office job
+editor, which rendered nothing for every user who could edit a job. Put
+anything a server component calls in `lib/`, not in a component file.
 
 `scripts/check-db-calls.mjs` is the second half of `db:verify` and exists
 because **TypeScript cannot see Postgres**. A mistyped RPC name, a renamed

@@ -231,7 +231,8 @@ Detailed in [06-equipment.md](06-equipment.md). Tables:
 **`job_costs`** is a **view**, not a table:
 
 ```
-labour     = Σ time_entries.hours × profiles.cost_rate   (always 0 today:
+labour     = Σ job_crew_pay.amount                       (flat per-job pay)
+           + Σ time_entries.hours × profiles.cost_rate   (always 0 today:
              nothing records hours, because crews are paid per job)
 materials  = Σ material_usage.quantity × inventory_items.average_cost
 purchases  = Σ approved purchase_request_lines billed to the job

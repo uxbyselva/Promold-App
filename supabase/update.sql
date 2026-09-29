@@ -17,7 +17,8 @@
 --   0026_purchasing.sql
 --   0027_price_write_guard.sql
 --   0028_crew_lead_sees_price.sql
--- Generated from 4741d82
+--   0029_crew_pay.sql
+-- Generated from 2d8c9af
 
 begin;
 
@@ -2202,6 +2203,185 @@ update roles
    and is_system
    and coalesce((permissions ->> 'price.view')::boolean, false) = false;
 
+-- ===========================================================
+-- 0029_crew_pay.sql
+-- ===========================================================
+-- 0029 What the crew was paid for the job
+--
+-- Crews here are paid a flat amount per job, not by the hour. Nothing records
+-- hours and nothing should, so `job_labour_cost()` returned zero for every
+-- job and `job_costs.margin` was contract price minus everything except the
+-- largest cost on it. On a 9,850 job with a thousand pounds of materials and
+-- equipment that reads as an 8,800 margin, which is not a small error — it is
+-- the wrong answer to the only question the costing screens exist to answer.
+--
+-- One line per payment. The office records what was agreed, as one lump for
+-- the crew or a line each, whichever matches how the job was actually paid.
+--
+-- Two decisions worth stating, because both could reasonably go the other way:
+--
+--   1. `user_id` is optional. "3,200 to Marcus's crew" is how a lot of these
+--      get agreed, and forcing a split across names would invent detail that
+--      was never decided. Name someone when the job was paid per person.
+--
+--   2. This is a cost, not payroll. It is what the job cost the company, so
+--      it sits behind costing.view with margin and job cost, and it never
+--      reaches the field app. What an individual takes home over a year is a
+--      payroll question, and this app is not the place for it.
+
+create table job_crew_pay (
+  id uuid primary key default gen_random_uuid(),
+  org_id uuid not null references organizations(id) on delete cascade,
+  job_id uuid not null references jobs(id) on delete cascade,
+  -- Optional: see decision 1 above.
+  user_id uuid references profiles(id),
+  amount numeric(12,2) not null check (amount >= 0),
+  note text,
+  recorded_by uuid references profiles(id),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz,
+  deleted_by uuid references profiles(id),
+  delete_reason text
+);
+
+create index job_crew_pay_job_idx on job_crew_pay (job_id) where deleted_at is null;
+
+comment on table job_crew_pay is
+  'What the crew was paid for a job. Crews are paid per job, not per hour, so '
+  'this is the labour cost — there are no hours to multiply by a rate.';
+
+select attach_updated_at('job_crew_pay');
+select enable_rls('job_crew_pay');
+select attach_audit('job_crew_pay');
+
+-- ---------------------------------------------------------------------------
+-- Who may see it, and who may record it
+-- ---------------------------------------------------------------------------
+--
+-- Unlike a price, this needs no masking view: the whole row is a cost, so
+-- there is nothing on it to show someone who may not see costs. That makes it
+-- a row-level rule, which is what RLS is for.
+--
+-- Reading is costing.view — the same flag as job cost and margin, which is
+-- what this feeds. The crew lead holds price.view and not costing.view, so he
+-- sees what the job is worth and not what it cost, which is the line 0028
+-- drew.
+
+create policy job_crew_pay_select on job_crew_pay for select
+  using (
+    org_id = auth_org_id()
+    and has_permission('costing.view')
+    and (deleted_at is null or has_permission('audit.view'))
+  );
+
+-- Writing needs both flags, the same shape as set_job_price(): someone who
+-- cannot see what a job cost has no business setting part of it, and could
+-- not tell you what they had changed it from.
+create policy job_crew_pay_write on job_crew_pay for all
+  using (
+    org_id = auth_org_id()
+    and has_permission('costing.view')
+    and has_permission('job.edit')
+  )
+  with check (
+    org_id = auth_org_id()
+    and has_permission('costing.view')
+    and has_permission('job.edit')
+  );
+
+-- Removing one is a soft delete like everything else, so it goes in the
+-- registry and comes back through restore_record().
+insert into deletable_tables
+  (table_name, label, title_column, ref_column, write_permission, parent_table, parent_fk, sort)
+values
+  ('job_crew_pay', 'Crew pay', 'note', null, 'job.edit', 'jobs', 'job_id', 35);
+
+-- ---------------------------------------------------------------------------
+-- Into the costing
+-- ---------------------------------------------------------------------------
+
+-- Both of these are `security definer`, and the reason is worth writing down
+-- because getting it wrong breaks the costing screens with a permission error.
+--
+-- `job_labour_cost()` reads `profiles.cost_rate`, which is revoked from the
+-- signed-in role. It got away with that as a one-line SQL function because
+-- Postgres inlined it into `job_costs`, whose own definer rights covered the
+-- read. Adding a second term to it makes inlining a planner's decision rather
+-- than a certainty, and the day it declines, every costing screen returns
+-- "permission denied for table profiles" to a manager who has done nothing
+-- wrong. Definer rights make it deterministic instead of lucky.
+--
+-- Which means each needs its own gate, since a definer function is reachable
+-- directly and RLS no longer applies inside it. Both check costing.view, the
+-- same flag `job_costs` checks, so nothing is readable through the function
+-- that was not already readable through the view.
+
+create or replace function job_crew_pay_total(p_job_id uuid)
+returns numeric
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select case
+    when not has_permission('costing.view') then
+      -- Not an error: this is called per row from a view that has already
+      -- excluded anyone without the flag. Reached directly, it says nothing.
+      null
+    else coalesce((
+      select sum(cp.amount)
+      from job_crew_pay cp
+      join jobs j on j.id = cp.job_id
+      where cp.job_id = p_job_id
+        and cp.deleted_at is null
+        and j.org_id = auth_org_id()
+    ), 0)
+  end;
+$$;
+
+comment on function job_crew_pay_total(uuid) is
+  'Flat crew payments recorded against a job. Definer rights, gated on '
+  'costing.view and filtered to the caller''s org, exactly like job_costs.';
+
+-- Both sources, added. The hourly half is zero today and stays in place: an
+-- hourly crew is the sort of thing a contractor adds later, and when they do,
+-- this keeps working without a migration.
+create or replace function job_labour_cost(p_job_id uuid)
+returns numeric
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select case
+    when not has_permission('costing.view') then null
+    else
+      coalesce((
+        select sum(time_entry_hours(t) * coalesce(p.cost_rate, 0))
+        from time_entries t
+        join profiles p on p.id = t.user_id
+        join jobs j on j.id = t.job_id
+        where t.job_id = p_job_id
+          and t.clock_out_at is not null
+          and j.org_id = auth_org_id()
+      ), 0)
+      + coalesce(job_crew_pay_total(p_job_id), 0)
+  end;
+$$;
+
+comment on function job_labour_cost(uuid) is
+  'Labour on a job: flat crew payments, plus hours times cost rate if anyone '
+  'ever records hours. Crews are paid per job here, so in practice it is the '
+  'first term. Definer rights, gated on costing.view — see the note above.';
+
+do $$
+begin
+  if exists (select 1 from pg_roles where rolname = 'authenticated') then
+    execute 'grant select, insert, update, delete on job_crew_pay to authenticated';
+  end if;
+end $$;
+
 
 -- ===========================================================
 -- Did it land?
@@ -2217,6 +2397,7 @@ select 'Applied' as result,
   exists (select 1 from pg_proc where proname = 'create_purchase_request') as purchasing_0026,
   exists (select 1 from pg_proc where proname = 'set_job_price') as price_guard_0027,
   exists (select 1 from roles where key = 'crew_lead' and is_system and (permissions ->> 'price.view')::boolean) as crew_lead_price_0028,
+  to_regclass('public.job_crew_pay') is not null as crew_pay_0029,
   (select count(*) from information_schema.tables
     where table_schema = 'public') as tables,
   (select count(*) from pg_policies where schemaname = 'public') as policies;

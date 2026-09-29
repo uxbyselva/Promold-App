@@ -262,14 +262,12 @@ insert into equipment_rentals (org_id, supplier_id, job_id, site_id, description
 
 -- Field capture on the running job -----------------------------------------
 
-insert into time_entries (org_id, job_id, user_id, clock_in_at, clock_out_at, within_geofence, break_minutes)
-values
-  ('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-00000000bb02',
-   '00000000-0000-0000-0000-00000000a003', seed_at(-2, 8), seed_at(-2, 16), true, 30),
-  ('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-00000000bb02',
-   '00000000-0000-0000-0000-00000000a004', seed_at(-2, 8), seed_at(-2, 16), true, 30),
-  ('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-00000000bb02',
-   '00000000-0000-0000-0000-00000000a005', seed_at(-1, 8), seed_at(-1, 16), true, 45);
+-- No time entries. Crews are paid per job, not by the hour, so nothing in the
+-- apps records hours and the seed should not pretend otherwise: three shifts
+-- in here put 660 of phantom labour on the job's costs, on top of the crew
+-- pay below, and the costing screen showed a Crew line that did not match the
+-- payments listed under it. `time_entries` stays in the schema for a future
+-- hourly crew; it stays empty until there is one.
 
 insert into material_usage (org_id, job_id, item_id, location_id, quantity, logged_by) values
   ('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-00000000bb02',
@@ -308,6 +306,21 @@ insert into change_orders (id, org_id, job_id, seq, title, description, amount,
    'verbal', 'Helen Brooks',
    '00000000-0000-0000-0000-00000000a003',
    '00000000-0000-0000-0000-00000000a002',
+   '00000000-0000-0000-0000-00000000a002');
+
+-- What the crew were paid for the running job. Flat per job, not per hour —
+-- two named and one lump, which is how these actually get agreed. Without
+-- them the job's margin reads as 8,800 on 9,850, which is nobody's business
+-- reality.
+insert into job_crew_pay (org_id, job_id, user_id, amount, note, recorded_by) values
+  ('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-00000000bb02',
+   '00000000-0000-0000-0000-00000000a003', 1400.00, 'Three days, agreed up front',
+   '00000000-0000-0000-0000-00000000a002'),
+  ('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-00000000bb02',
+   '00000000-0000-0000-0000-00000000a004', 1100.00, null,
+   '00000000-0000-0000-0000-00000000a002'),
+  ('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-00000000bb02',
+   '00000000-0000-0000-0000-00000000a005', 1100.00, null,
    '00000000-0000-0000-0000-00000000a002');
 
 -- A purchase request mid-approval.

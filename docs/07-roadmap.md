@@ -14,13 +14,13 @@ schema — they cost nothing empty and an hourly crew is the sort of thing a
 contractor adds later — but no screen writes to them, and `job_labour_cost()`
 returns zero for every job as a result.
 
-**The open consequence: what a job costs in labour has no source yet.** Until
-one exists, `job_costs.margin` is contract price minus materials, purchases,
-mileage, equipment and rentals — a real number, but not margin, because the
-largest cost is missing from it. Either a per-job crew payment gets recorded
-and margin means margin, or the costing screens name the number honestly.
-That decision belongs with whoever builds the costing dashboard, and it
-belongs before it ships, not after.
+**Where the labour cost comes from instead:** `job_crew_pay`, added in 0029.
+The office records what the crew were paid for a job — one lump, or a line per
+person — and `job_labour_cost()` adds that to the (always zero) hourly term,
+so margin is the contract price less everything the job actually cost. It is
+on the job page in the office app, behind `costing.view`.
+
+Without it the demo job read as 8,146 of margin on 9,850. With it, 4,738.
 
 ## Phase 0 — Foundations (1–2 weeks)
 

@@ -36,6 +36,7 @@ probe_for() {
     0026) echo "exists (select 1 from pg_proc where proname = 'create_purchase_request')|purchasing_0026" ;;
     0027) echo "exists (select 1 from pg_proc where proname = 'set_job_price')|price_guard_0027" ;;
     0028) echo "exists (select 1 from roles where key = 'crew_lead' and is_system and (permissions ->> 'price.view')::boolean)|crew_lead_price_0028" ;;
+    0029) echo "to_regclass('public.job_crew_pay') is not null|crew_pay_0029" ;;
     *)    echo "" ;;
   esac
 }

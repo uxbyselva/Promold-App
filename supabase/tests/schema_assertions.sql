@@ -1546,3 +1546,119 @@ reset role;
 select set_config('request.jwt.claim.sub', '', false);
 
 \echo 'PRICE WRITE ASSERTIONS PASSED'
+
+-- ---------------------------------------------------------------------------
+-- Crew pay: the labour cost of a job that is paid per job
+-- ---------------------------------------------------------------------------
+
+set role authenticated;
+
+-- The manager records what the crew were paid.
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000a002', false);
+
+do $$
+declare
+  v_job uuid := '00000000-0000-0000-0000-00000000bb02';
+  v_org uuid := '00000000-0000-0000-0000-0000000000a1';
+  v_before numeric;
+  v_paid numeric;
+  v_id uuid;
+begin
+  -- Read through job_costs, the way the app does. job_labour_cost() is a
+  -- definer function gated on costing.view; the view is where it is meant to
+  -- be read from, and reading it that way is what the screens do.
+  select labour_cost into v_before from job_costs where job_id = v_job;
+  -- Relative to what the seed already recorded, not a fixed total.
+  v_paid := job_crew_pay_total(v_job);
+
+  insert into job_crew_pay (org_id, job_id, user_id, amount, note, recorded_by)
+  values (v_org, v_job, '00000000-0000-0000-0000-00000000a003', 1400.00,
+          'Agreed for the three days', auth_user_id())
+  returning id into v_id;
+
+  insert into job_crew_pay (org_id, job_id, user_id, amount, recorded_by)
+  values (v_org, v_job, '00000000-0000-0000-0000-00000000a004', 1100.00, auth_user_id());
+
+  -- A lump to the crew with nobody named: the common case, and it must be legal.
+  insert into job_crew_pay (org_id, job_id, amount, note, recorded_by)
+  values (v_org, v_job, 300.00, 'Weekend hand, cash', auth_user_id());
+
+  perform assert(job_crew_pay_total(v_job) = v_paid + 2800.00,
+    'crew payments add up, named or not');
+  perform assert(
+    (select labour_cost from job_costs where job_id = v_job) = v_before + 2800.00,
+    'and land in the labour cost the costing view reports');
+  perform assert(
+    (select margin from job_costs where job_id = v_job)
+      = (select contract_price - total_cost from job_costs where job_id = v_job),
+    'so margin is the price less everything the job cost, crew pay included');
+
+  perform assert_raises(
+    format('insert into job_crew_pay (org_id, job_id, amount) values (%L, %L, -5)',
+           v_org, v_job),
+    'a negative payment is rejected');
+
+  -- Removing one takes it out of the cost, and it can come back.
+  perform soft_delete_record('job_crew_pay', v_id, 'Recorded against the wrong job');
+  perform assert(job_crew_pay_total(v_job) = v_paid + 1400.00,
+    'a deleted payment stops counting');
+  perform assert_raises(
+    format('select restore_record(''job_crew_pay'', %L)', v_id),
+    'and the manager who deleted it is not the one who puts it back');
+end $$;
+
+-- The owner is, which is what putting it in the registry bought.
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000a001', false);
+
+do $$
+declare
+  v_job uuid := '00000000-0000-0000-0000-00000000bb02';
+  v_paid numeric;
+  v_id uuid;
+begin
+  select id into v_id from job_crew_pay
+   where job_id = v_job and deleted_at is not null limit 1;
+  v_paid := job_crew_pay_total(v_job);
+  perform restore_record('job_crew_pay', v_id);
+  perform assert(job_crew_pay_total(v_job) = v_paid + 1400.00,
+    'the owner restores it and the cost comes back');
+end $$;
+
+-- The crew lead sees the price and never the cost, which is the line 0028 drew.
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000a003', false);
+
+do $$
+declare v_n int;
+begin
+  perform assert(has_permission('price.view') and not has_permission('costing.view'),
+    'the crew lead holds price.view and not costing.view');
+
+  select count(*) into v_n from job_crew_pay;
+  perform assert(v_n = 0, 'so he sees no crew payments at all');
+
+  perform assert_raises($q$
+    insert into job_crew_pay (org_id, job_id, amount)
+    values ('00000000-0000-0000-0000-0000000000a1',
+            '00000000-0000-0000-0000-00000000bb02', 5000)
+  $q$, 'and cannot record one');
+end $$;
+
+-- The bookkeeper keeps the books, so the cost is hers to read and not to set.
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000a006', false);
+
+do $$
+declare v_n int;
+begin
+  select count(*) into v_n from job_crew_pay;
+  perform assert(v_n > 0, 'the bookkeeper reads crew pay');
+  perform assert(not has_permission('job.edit'), 'and has no job.edit');
+  perform assert_raises($q$
+    insert into job_crew_pay (org_id, job_id, amount)
+    values ('00000000-0000-0000-0000-0000000000a1',
+            '00000000-0000-0000-0000-00000000bb02', 5000)
+  $q$, 'so cannot record one either');
+end $$;
+
+reset role;
+select set_config('request.jwt.claim.sub', '', false);
+\echo 'CREW PAY ASSERTIONS PASSED'
