@@ -1,0 +1,19 @@
+node_modules/
+dist/
+.next/
+.turbo/
+.expo/
+*.tsbuildinfo
+
+.env
+.env.*
+!.env.example
+
+supabase/.branches/
+supabase/.temp/
+
+.DS_Store
+*.log
+
+# Next.js
+next-env.d.ts
