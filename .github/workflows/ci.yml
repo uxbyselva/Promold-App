@@ -19,9 +19,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # No `version:` here. package.json's `packageManager` field pins pnpm,
+      # and the action refuses to start when both say so: "Multiple versions
+      # of pnpm specified". One source of truth, and it is the one the repo
+      # already had.
       - uses: pnpm/action-setup@v4
-        with:
-          version: 10
       - uses: actions/setup-node@v4
         with:
           node-version: 22

@@ -24,10 +24,22 @@ while IFS= read -r line; do
   report "service_role reference: $line"
 done < <(git grep -lE 'service_role["'"'"']?\s*[:=]\s*["'"'"']?eyJ' -- . 2>/dev/null)
 
-# A committed env file with something in it
+# A committed env file.
+#
+# `.env.example` and friends are templates and are meant to be committed —
+# that is how somebody knows which variables to set. They are exempted by
+# shape rather than by name: this check used to carry the single literal
+# `apps/admin/.env.example`, and the day `apps/field/.env.example` was added
+# alongside it the build went red and stayed red.
+#
+# Exempting them costs nothing, because the rules above read the contents of
+# every tracked file regardless: a real key pasted into a template still trips
+# the JWT, service_role or connection-string check.
 while IFS= read -r f; do
   [ -z "$f" ] && continue
-  [ "$f" = "apps/admin/.env.example" ] && continue
+  case "$f" in
+    *.env.example | *.env.sample | *.env.template | *.env.dist) continue ;;
+  esac
   report "env file is tracked: $f"
 done < <(git ls-files | grep -E '(^|/)\.env' 2>/dev/null)
 

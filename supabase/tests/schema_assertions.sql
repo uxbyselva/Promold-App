@@ -21,6 +21,30 @@ $$;
 
 -- Runs a statement and asserts it raises. Used for the constraints whose
 -- whole value is that they refuse bad data.
+/*
+ * A timestamp N days from today, at a given hour, in UTC.
+ *
+ * This suite used to carry sixteen absolute 2026 dates, and they rotted three
+ * times. The seed is written relative to `now()` — jobs sit within a couple of
+ * days of today — so a fixed date slides through the seeded week as the
+ * calendar moves and eventually lands on top of it. The last failure was
+ * exactly that: a time-off window pinned to 5–6 October clashed with one job
+ * when it was written and with two by the seventh, and an assertion expecting
+ * one clash started failing on a Tuesday, having tested nothing in particular
+ * for a fortnight before that.
+ *
+ * Offsets of 30 days and more keep every booking these assertions make clear
+ * of the seeded week, and of each other, on whatever day the suite runs.
+ */
+create or replace function assert_day(p_days int, p_hour numeric default 8)
+returns timestamptz
+language sql
+stable
+as $$
+  select date_trunc('day', now())
+       + make_interval(days => p_days, mins => (p_hour * 60)::int);
+$$;
+
 create or replace function assert_raises(p_sql text, p_what text)
 returns void
 language plpgsql
@@ -886,21 +910,21 @@ declare
   v_pending int;
 begin
   perform assert_raises(
-    format('select create_job(%L, %L, ''Wrong pairing'', ''2026-11-02T08:00:00Z'')', v_d2, v_e1),
+    format('select create_job(%L, %L, ''Wrong pairing'', %L)', v_d2, v_e1, assert_day(30)),
     'a site cannot be booked under a customer it does not belong to');
 
   perform assert_raises(
-    format('select create_job(%L, %L, ''   '', ''2026-11-02T08:00:00Z'')', v_d1, v_e1),
+    format('select create_job(%L, %L, ''   '', %L)', v_d1, v_e1, assert_day(30)),
     'a job needs a title');
 
   perform assert_raises(
-    format('select create_job(%L, %L, ''Backwards'', ''2026-11-04T08:00:00Z'', ''2026-11-02T16:00:00Z'')',
-           v_d1, v_e1),
+    format('select create_job(%L, %L, ''Backwards'', %L, %L)',
+           v_d1, v_e1, assert_day(32), assert_day(30, 16)),
     'a job cannot end before it starts');
 
   -- Three days, one job, three work days behind it.
   v_job := create_job(v_d1, v_e1, 'Three day strip out',
-                      '2026-11-02T08:00:00Z', '2026-11-04T16:00:00Z');
+                      assert_day(30), assert_day(32, 16));
   select count(*) into v_n from job_visits where job_id = v_job.id;
   perform assert(v_n = 3, 'a three-day job produces three visits, not one');
   perform assert(v_job.status = 'scheduled',
@@ -949,7 +973,7 @@ begin
   declare v_clash jobs;
   begin
     v_clash := create_job(v_d1, v_e1, 'Same window',
-                          '2026-11-02T09:00:00Z', '2026-11-02T12:00:00Z');
+                          assert_day(30, 9), assert_day(30, 12));
     perform assert_raises(
       format('select set_job_crew(%L, array[%L]::uuid[])', v_clash.id, v_marcus),
       'a double booking is refused');
@@ -961,7 +985,7 @@ begin
 
   -- Moving it re-cuts the days and un-agrees everyone.
   update job_assignments set acceptance_status = 'accepted' where job_id = v_job.id;
-  perform reschedule_job(v_job.id, '2026-11-09T08:00:00Z', '2026-11-10T16:00:00Z', 'Customer moved it');
+  perform reschedule_job(v_job.id, assert_day(37), assert_day(38, 16), 'Customer moved it');
 
   select count(*) into v_n from job_visits where job_id = v_job.id;
   perform assert(v_n = 2, 'a shorter job loses the day it no longer runs');
@@ -983,7 +1007,7 @@ declare
   v_e1 uuid := '00000000-0000-0000-0000-0000000000e1';
 begin
   perform assert_raises(
-    format('select create_job(%L, %L, ''Not mine to make'', ''2026-12-01T08:00:00Z'')', v_d1, v_e1),
+    format('select create_job(%L, %L, ''Not mine to make'', %L)', v_d1, v_e1, assert_day(60)),
     'creating a job is refused without job.edit');
   perform assert_raises(
     format('select set_job_crew(%L, array[]::uuid[])', '00000000-0000-0000-0000-00000000bb03'),
@@ -1026,7 +1050,7 @@ begin
 
   -- Deciding is not his to do.
   perform assert_raises(
-    format('select decide_reschedule(%L, true, null, ''2026-10-05T08:00:00Z'')', v_req.id),
+    format('select decide_reschedule(%L, true, null, %L)', v_req.id, assert_day(45)),
     'a crew lead cannot decide his own reschedule request');
 end $$;
 
@@ -1052,10 +1076,10 @@ begin
     'approving with no new time is refused — they asked to move it, not drop it');
 
   perform decide_reschedule(v_req, true, 'Moved to the Monday',
-                            '2026-10-05T08:00:00Z', '2026-10-06T16:00:00Z');
+                            assert_day(45), assert_day(46, 16));
 
   select scheduled_start into v_start from jobs where id = v_job;
-  perform assert(v_start = '2026-10-05T08:00:00Z'::timestamptz,
+  perform assert(v_start = assert_day(45),
     'approving moves the job to the time the office picked');
 
   -- The bug this migration exists for: the work days have to follow.
@@ -1068,7 +1092,7 @@ begin
     'everyone re-accepts, not only the person who asked');
 
   perform assert_raises(
-    format('select decide_reschedule(%L, true, null, ''2026-10-07T08:00:00Z'')', v_req),
+    format('select decide_reschedule(%L, true, null, %L)', v_req, assert_day(47)),
     'a request cannot be decided twice');
 end $$;
 
@@ -1081,7 +1105,8 @@ begin
   insert into time_off (org_id, user_id, kind, starts_at, ends_at, reason)
   values ('00000000-0000-0000-0000-0000000000a1',
           '00000000-0000-0000-0000-00000000a003',
-          'vacation', '2026-10-05T00:00:00Z', '2026-10-06T23:59:59Z', 'Long weekend')
+          'vacation', assert_day(45, 0), assert_day(47, 0) - interval '1 second',
+          'Long weekend')
   returning id into v_id;
 
   -- He can see his own clash before he sends it — the job just moved onto
@@ -1132,7 +1157,7 @@ begin
   -- And from now on the scheduling check refuses new bookings for those days.
   perform assert(
     (select scheduling_conflicts('00000000-0000-0000-0000-00000000a003',
-       '2026-10-05T09:00:00Z', '2026-10-05T12:00:00Z') is not null),
+       assert_day(45, 9), assert_day(45, 12)) is not null),
     'approved time off starts blocking the calendar');
 end $$;
 
