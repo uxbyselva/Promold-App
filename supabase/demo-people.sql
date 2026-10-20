@@ -1,10 +1,19 @@
 -- Demo logins, one per role
 --
 -- Creates four people in YOUR organisation so you can sign in as each and see
--- what they see. Every one gets the same password, set on the first line
--- below — change it, and never use these on a real system.
+-- what they see.
 --
--- Safe to run twice. Delete them all later with the query at the bottom.
+-- THE PASSWORD IS NOT IN THIS FILE. It used to be, and this repository is
+-- public, which meant a working manager login for anyone who read it. Leave
+-- v_password as null and the script invents a strong one and prints it in the
+-- output — copy it from there. Set it yourself only if you would rather
+-- choose, and do not commit what you choose.
+--
+-- These are demo people on demo email addresses that cannot receive mail
+-- (.test is reserved for exactly this). Do not give them to anyone real, and
+-- delete them with the query at the bottom when you are done.
+--
+-- Safe to run twice. Running it again resets the password to a new one.
 --
 -- If this errors on auth.users or auth.identities, Supabase has changed those
 -- tables: create the four users by hand in Authentication → Users (tick Auto
@@ -13,7 +22,7 @@
 do $$
 declare
   v_owner_email text := 'uxbyselva@gmail.com';  -- <<< your login, to find the org
-  v_password    text := 'PromoldDemo2026';      -- <<< the demo password
+  v_password    text := null;                   -- <<< leave null: one is made for you
   v_org   uuid;
   v_uid   uuid;
   v_role  uuid;
@@ -22,6 +31,11 @@ begin
   select org_id into v_org from profiles where email = v_owner_email;
   if v_org is null then
     raise exception 'No profile for %. Run the owner step first.', v_owner_email;
+  end if;
+
+  -- 18 random characters. Printed once, below, and stored only as a hash.
+  if v_password is null then
+    v_password := translate(encode(gen_random_bytes(14), 'base64'), '+/=', 'xyz');
   end if;
 
   for p in
@@ -82,8 +96,14 @@ begin
           cost_rate = excluded.cost_rate,
           is_active = true;
 
-    raise notice '% — % — password %', p.email, p.role_key, v_password;
+    raise notice '%  (%)', p.email, p.role_key;
   end loop;
+
+  raise notice '----------------------------------------------------------';
+  raise notice 'PASSWORD FOR ALL FOUR: %', v_password;
+  raise notice 'Copy it now — it is stored only as a hash and cannot be read';
+  raise notice 'back. Re-run this script to set a new one.';
+  raise notice '----------------------------------------------------------';
 end $$;
 
 -- Who exists now, and what each may do.

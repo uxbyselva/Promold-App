@@ -1,6 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "comment": "The deployable app is apps/admin. Set Root Directory to apps/admin in the Vercel project; this file pins the framework so a dashboard setting cannot silently turn the build into a static one.",
+  "comment": "NOT the config Vercel reads. Vercel reads vercel.json from the project's Root Directory, so apps/admin/vercel.json serves the office project and apps/field/vercel.json the crew one. This file only applies if someone points a project at the repository root, which nothing should: it would build the office app under whatever name that project has. Two apps, two Vercel projects, Root Directory apps/admin and apps/field.",
   "framework": "nextjs",
   "buildCommand": "cd ../.. && pnpm --filter @promold/admin build",
   "installCommand": "cd ../.. && pnpm install --frozen-lockfile",
