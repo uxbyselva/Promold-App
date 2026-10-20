@@ -313,9 +313,18 @@ const server = createServer(async (req, res) => {
           [fn],
         );
         const setReturning = meta.rows[0]?.proretset === true;
+        /*
+         * `to_jsonb` on the scalar branch, because a function returning a
+         * composite — `create_job` returns a whole `jobs` row — comes back
+         * from node-postgres as the Postgres literal "(uuid,...)" while
+         * PostgREST serialises it to a JSON object. Without this the app
+         * books the job, reads `data.id` as undefined and redirects to
+         * /jobs/undefined. It is also right for the simple cases: a text[]
+         * becomes a JSON array, a numeric a JSON number.
+         */
         const call = setReturning
           ? `select * from ${ident(fn)}(${argList})`
-          : `select ${ident(fn)}(${argList}) as r`;
+          : `select to_jsonb(${ident(fn)}(${argList})) as r`;
 
         const out = await asUser(sub, (c) => c.query(call, names.map((n) => args[n])));
         if (setReturning) return json(res, 200, out.rows);

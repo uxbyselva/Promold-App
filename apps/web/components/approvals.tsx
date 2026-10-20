@@ -5,7 +5,15 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { refusalMessage } from '@promold/app-kit';
 import { supabaseBrowser } from '@/lib/supabase-browser';
-import { clock, dayOf, initials, localInput, longDate, shortDate } from '@/lib/format';
+import {
+  clock,
+  dayOf,
+  initials,
+  localInput,
+  longDate,
+  shortDate,
+  fromLocalInput,
+} from '@/lib/format';
 import { PurchaseApproval, type PurchaseLine, type PurchaseRequest } from './purchase-approval';
 import { ChangeOrderCard, type ChangeOrder } from './change-order-card';
 
@@ -216,8 +224,9 @@ function RescheduleCard({
       p_request_id: request.id,
       p_approve: approve,
       p_reason: reason.trim() || null,
-      p_new_start: approve && start ? new Date(start).toISOString() : null,
-      p_new_end: approve && end ? new Date(end).toISOString() : null,
+      // The company's zone, not the browser's — see fromLocalInput.
+      p_new_start: approve ? fromLocalInput(start) : null,
+      p_new_end: approve ? fromLocalInput(end) : null,
     });
     setBusy(null);
     if (error) {

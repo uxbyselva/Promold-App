@@ -170,6 +170,32 @@ export function shiftMonth(month: string, delta: number): string {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
 }
 
+/**
+ * The instant a `datetime-local` box means, read in the company's zone.
+ *
+ * The inverse of `localInput`, and it has to exist because the two halves
+ * disagreed: the box was filled from company-zone parts and read back with
+ * `new Date(value)`, which interprets the wall-clock text in whatever zone
+ * the browser is in. For anyone outside Springfield that meant opening a job,
+ * pressing Save without touching anything, and silently moving it — by five
+ * hours from London, by nine and a half from Chennai.
+ *
+ * The text is read as if it were UTC and then corrected by the zone's offset
+ * at that moment. Twice, because on the two days a year the clocks move the
+ * correction can land on the other side of the change.
+ */
+export const fromLocalInput = (value: string | null | undefined): string | null => {
+  if (!value) return null;
+  const withSeconds = value.length === 16 ? `${value}:00` : value;
+  const naive = Date.parse(`${withSeconds}Z`);
+  if (Number.isNaN(naive)) return null;
+  const offsetAt = (ms: number) =>
+    new Date(new Date(ms).toLocaleString('en-US', { timeZone: 'UTC' })).getTime() -
+    new Date(new Date(ms).toLocaleString('en-US', { timeZone: ZONE })).getTime();
+  const once = naive + offsetAt(naive);
+  return new Date(naive + offsetAt(once)).toISOString();
+};
+
 /** A `datetime-local` value from a timestamp, for an edit form. */
 export const localInput = (iso: string | null | undefined) => {
   if (!iso) return '';

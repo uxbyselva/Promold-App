@@ -43,6 +43,7 @@ with probe as (
     -- 0030 creates nothing either; it makes the gate functions definer.
     (select count(*) from pg_proc
       where proname = 'job_completion_blockers' and prosecdef) as m0030,
+    (select count(*) from pg_proc where proname = 'create_job_with_site') as m0031,
     (select case
        when to_regclass('public.roles') is null then -1
        else (xpath('/row/c/text()', query_to_xml(
@@ -84,7 +85,8 @@ select * from (
     -- The old version collapsed everything from 0022 to 0027 into one alarming
     -- verdict, which said "get help" to an owner whose database was fine and
     -- one file behind.
-    case when m0030 > 0 then 'Up to date (0001–0030)'
+    case when m0031 > 0 then 'Up to date (0001–0031)'
+         when m0030 > 0 then 'At 0030 — run supabase/update-from-0030.sql'
          when m0029 > 0 then 'At 0029 — run supabase/update-from-0029.sql'
          when m0028 > 0 then 'At 0028 — run supabase/update-from-0028.sql'
          when m0027 > 0 then 'At 0027 — run supabase/update-from-0027.sql'
@@ -141,6 +143,13 @@ select * from (
     case when m0026>0 then 'Present' else 'Missing' end,
     case when m0026>0 then 'Asking to buy, and approving it'
          else 'Purchase approvals will fail' end from probe
+
+  union all
+  select 7.9, 'New customer booking (0031)',
+    case when m0031 > 0 then 'Present' else 'Missing' end,
+    case when m0031 > 0 then 'A stranger can be booked in without two other screens first'
+         else 'Booking needs the customer and site to exist already' end
+  from probe
 
   union all
   select 7.8, 'Completion gate (0030)',

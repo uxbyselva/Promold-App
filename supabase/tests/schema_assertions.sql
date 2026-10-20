@@ -1735,3 +1735,81 @@ end $$;
 reset role;
 select set_config('request.jwt.claim.sub', '', false);
 \echo 'COMPLETION GATE ASSERTIONS PASSED'
+
+-- ---------------------------------------------------------------------------
+-- 0031: booking work for a customer who does not exist yet
+--
+-- The case a fresh organisation starts from: a stranger rings, and the first
+-- job has to be bookable without visiting two other screens first.
+-- ---------------------------------------------------------------------------
+
+set role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000a002', false);
+
+do $$
+declare
+  v_job jobs;
+  v_customers_before int;
+  v_n int;
+begin
+  select count(*) into v_customers_before from customers;
+
+  v_job := create_job_with_site(
+    null, 'Marguerite Okonjo', '555-0199',
+    null, 'Back bedroom', '77 Pine Hollow Rd', 'Springfield', 'MA', '01105',
+    'Damp behind the wardrobe', assert_day(70), assert_day(70, 16));
+
+  perform assert(v_job.id is not null, 'a stranger can be booked in one go');
+  select count(*) into v_n from customers;
+  perform assert(v_n = v_customers_before + 1, 'and the customer now exists');
+  perform assert(
+    (select c.name from customers c where c.id = v_job.customer_id) = 'Marguerite Okonjo',
+    'under the name that was typed');
+  perform assert(
+    (select s.address_line1 from sites s where s.id = v_job.site_id) = '77 Pine Hollow Rd',
+    'at the address the crew have to drive to');
+  perform assert(
+    (select count(*) from job_visits where job_id = v_job.id) = 1,
+    'with its work day cut, the same as any other booking');
+
+  -- Second job, same customer, a different property.
+  declare v_job2 jobs;
+  begin
+    v_job2 := create_job_with_site(
+      v_job.customer_id, null, null,
+      null, 'Rental unit', '9 Alder Ct', 'Springfield', 'MA', '01106',
+      'Second property', assert_day(71), assert_day(71, 16));
+    perform assert(v_job2.customer_id = v_job.customer_id,
+      'a second site goes under the customer who already exists');
+    select count(*) into v_n from customers;
+    perform assert(v_n = v_customers_before + 1, 'without duplicating them');
+  end;
+
+  -- What it refuses.
+  perform assert_raises(
+    format('select create_job_with_site(null, ''   '', null, null, ''X'', ''1 St'', null, null, null, ''t'', %L)', assert_day(72)),
+    'a new customer without a name is refused');
+  perform assert_raises(
+    format('select create_job_with_site(null, ''Name'', null, null, ''Label'', ''  '', null, null, null, ''t'', %L)', assert_day(72)),
+    'a new site without a street address is refused');
+  perform assert_raises(
+    format('select create_job_with_site(%L, null, null, %L, null, null, null, null, null, ''t'', %L)',
+           v_job.customer_id, '00000000-0000-0000-0000-0000000000e1', assert_day(72)),
+    'a site belonging to someone else is refused');
+end $$;
+
+-- A crew lead may not invent customers, whatever he sends.
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000a003', false);
+
+do $$
+begin
+  perform assert(not has_permission('customer.manage'),
+    'a crew lead has no customer.manage');
+  perform assert_raises(
+    format('select create_job_with_site(null, ''Walk-in'', null, null, ''Site'', ''1 St'', null, null, null, ''t'', %L)', assert_day(73)),
+    'so he cannot add one through the booking door either');
+end $$;
+
+reset role;
+select set_config('request.jwt.claim.sub', '', false);
+\echo 'NEW CUSTOMER BOOKING ASSERTIONS PASSED'

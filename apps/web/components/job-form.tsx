@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { refusalMessage } from '@promold/app-kit';
 import { supabaseBrowser } from '@/lib/supabase-browser';
-import { initials } from '@/lib/format';
+import { initials, fromLocalInput } from '@/lib/format';
 // The draft shape and `draftFromJob()` live in lib/ because the server page
 // calls the function, and a server page cannot call into a client module.
 import type { Customer, Site, Template, Person, JobDraft } from '@/lib/job-draft';
@@ -12,6 +12,9 @@ import type { Customer, Site, Template, Person, JobDraft } from '@/lib/job-draft
 export type { Customer, Site, Template, Person, JobDraft };
 
 const PRIORITIES = ['low', 'normal', 'high', 'emergency'];
+
+/** Picked in a dropdown whose other values are uuids, so it cannot collide. */
+const NEW = '__new__';
 
 /**
  * One form for booking a job and for editing one.
@@ -49,10 +52,31 @@ export function JobForm({
   const [saved, setSaved] = useState<string | null>(null);
   const [force, setForce] = useState(false);
 
+  /*
+   * A new customer, typed here rather than somewhere else first.
+   *
+   * Nearly every job starts with a stranger ringing up, and on a fresh
+   * organisation both dropdowns were empty — so the one thing an owner wants
+   * to do on day one was the one thing the form would not let them do. The
+   * sentinel is a value no uuid can collide with.
+   */
+  const [newCustomer, setNewCustomer] = useState({ name: '', phone: '' });
+  const [newSite, setNewSite] = useState({
+    label: '',
+    address1: '',
+    city: '',
+    state: '',
+    postal: '',
+  });
+
   const set = <K extends keyof JobDraft>(key: K, value: JobDraft[K]) =>
     setDraft((d) => ({ ...d, [key]: value }));
 
   const customerSites = sites.filter((s) => s.customer_id === draft.customer_id);
+  const addingCustomer = draft.customer_id === NEW;
+  // A brand-new customer has nowhere to put the work yet, so the site is new
+  // too and there is nothing to choose between.
+  const addingSite = addingCustomer || draft.site_id === NEW;
   const working = busy || refreshing;
 
   function toggleCrew(id: string) {
@@ -68,14 +92,30 @@ export function JobForm({
     setSaved(null);
     const supabase = supabaseBrowser();
 
-    const start = draft.scheduled_start ? new Date(draft.scheduled_start).toISOString() : null;
-    const end = draft.scheduled_end ? new Date(draft.scheduled_end).toISOString() : null;
+    // Read in the company's zone, the same zone the box was filled from.
+    // `new Date(value)` would read it in the browser's, so a booking made
+    // from anywhere but Springfield landed at the wrong hour.
+    const start = fromLocalInput(draft.scheduled_start);
+    const end = fromLocalInput(draft.scheduled_end);
     const price = draft.quoted_price.trim() === '' ? null : Number(draft.quoted_price);
 
     if (mode === 'create') {
-      const { data, error: err } = await supabase.rpc('create_job', {
-        p_customer_id: draft.customer_id,
-        p_site_id: draft.site_id,
+      /*
+       * One call, whether or not the customer and site already exist. The
+       * database makes the rows it needs and books the job in one
+       * transaction, so a refused booking cannot leave a half-made customer
+       * behind for somebody to find later and wonder about.
+       */
+      const { data, error: err } = await supabase.rpc('create_job_with_site', {
+        p_customer_id: addingCustomer ? null : draft.customer_id,
+        p_customer_name: addingCustomer ? newCustomer.name : null,
+        p_customer_phone: addingCustomer ? newCustomer.phone : null,
+        p_site_id: addingSite ? null : draft.site_id,
+        p_site_label: addingSite ? newSite.label : null,
+        p_site_address1: addingSite ? newSite.address1 : null,
+        p_site_city: addingSite ? newSite.city : null,
+        p_site_state: addingSite ? newSite.state : null,
+        p_site_postal: addingSite ? newSite.postal : null,
         p_title: draft.title,
         p_scheduled_start: start,
         p_scheduled_end: end,
@@ -157,9 +197,8 @@ export function JobForm({
       }
     }
 
-    const movedStart = start !== new Date(initial.scheduled_start || 0).toISOString();
-    const movedEnd =
-      (end ?? '') !== (initial.scheduled_end ? new Date(initial.scheduled_end).toISOString() : '');
+    const movedStart = start !== fromLocalInput(initial.scheduled_start);
+    const movedEnd = (end ?? '') !== (fromLocalInput(initial.scheduled_end) ?? '');
     if (start && (movedStart || movedEnd)) {
       const { error: moveErr } = await supabase.rpc('reschedule_job', {
         p_job_id: draft.id,
@@ -191,7 +230,14 @@ export function JobForm({
     startTransition(() => router.refresh());
   }
 
-  const ready = draft.customer_id && draft.site_id && draft.title.trim() && draft.scheduled_start;
+  // What the Save button waits for. A new customer or site is "chosen" only
+  // once the fields it revealed are filled, or the server does the refusing
+  // after the person has already pressed the button.
+  const customerReady = addingCustomer ? newCustomer.name.trim().length > 0 : !!draft.customer_id;
+  const siteReady = addingSite
+    ? newSite.label.trim().length > 0 && newSite.address1.trim().length > 0
+    : !!draft.site_id;
+  const ready = customerReady && siteReady && draft.title.trim() && draft.scheduled_start;
 
   return (
     <div className="box">
@@ -215,15 +261,39 @@ export function JobForm({
               }}
             >
               <option value="">Choose…</option>
+              <option value={NEW}>＋ Someone new</option>
               {customers.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
                 </option>
               ))}
             </select>
+            {addingCustomer ? (
+              <div className="cols two" style={{ marginTop: 8 }}>
+                <div className="field">
+                  <label htmlFor="new-customer-name">Their name</label>
+                  <input
+                    id="new-customer-name"
+                    value={newCustomer.name}
+                    onChange={(e) => setNewCustomer((c) => ({ ...c, name: e.target.value }))}
+                    placeholder="Helen Brooks"
+                  />
+                </div>
+                <div className="field">
+                  <label htmlFor="new-customer-phone">Phone</label>
+                  <input
+                    id="new-customer-phone"
+                    inputMode="tel"
+                    value={newCustomer.phone}
+                    onChange={(e) => setNewCustomer((c) => ({ ...c, phone: e.target.value }))}
+                    placeholder="555-0101"
+                  />
+                </div>
+              </div>
+            ) : null}
           </div>
 
-          <div className="field">
+          <div className="field" style={{ display: addingCustomer ? 'none' : undefined }}>
             <label htmlFor="site">Site</label>
             <select
               id="site"
@@ -232,6 +302,7 @@ export function JobForm({
               disabled={!draft.customer_id}
             >
               <option value="">{draft.customer_id ? 'Choose…' : 'Pick a customer first'}</option>
+              {draft.customer_id ? <option value={NEW}>＋ A new address</option> : null}
               {customerSites.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.label}
@@ -239,13 +310,64 @@ export function JobForm({
                 </option>
               ))}
             </select>
-            {draft.customer_id && customerSites.length === 0 ? (
-              <p className="hint">
-                That customer has no sites yet. Add one on their page before booking work there.
-              </p>
-            ) : null}
           </div>
         </div>
+
+        {addingSite ? (
+          <>
+            <div className="cols two">
+              <div className="field">
+                <label htmlFor="site-label">What the crew will call it</label>
+                <input
+                  id="site-label"
+                  value={newSite.label}
+                  onChange={(e) => setNewSite((v) => ({ ...v, label: e.target.value }))}
+                  placeholder="42 Oak St — basement"
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="site-address">Street address</label>
+                <input
+                  id="site-address"
+                  value={newSite.address1}
+                  onChange={(e) => setNewSite((v) => ({ ...v, address1: e.target.value }))}
+                  placeholder="42 Oak St"
+                />
+              </div>
+            </div>
+            <div className="cols two">
+              <div className="field">
+                <label htmlFor="site-city">Town</label>
+                <input
+                  id="site-city"
+                  value={newSite.city}
+                  onChange={(e) => setNewSite((v) => ({ ...v, city: e.target.value }))}
+                  placeholder="Springfield"
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="site-postal">State and ZIP</label>
+                <div className="row" style={{ gap: 8 }}>
+                  <input
+                    id="site-state"
+                    aria-label="State"
+                    style={{ width: 70 }}
+                    value={newSite.state}
+                    onChange={(e) => setNewSite((v) => ({ ...v, state: e.target.value }))}
+                    placeholder="MA"
+                  />
+                  <input
+                    id="site-postal"
+                    inputMode="numeric"
+                    value={newSite.postal}
+                    onChange={(e) => setNewSite((v) => ({ ...v, postal: e.target.value }))}
+                    placeholder="01103"
+                  />
+                </div>
+              </div>
+            </div>
+          </>
+        ) : null}
 
         <div className="field">
           <label htmlFor="title">What the job is</label>
