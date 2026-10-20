@@ -80,13 +80,32 @@ export async function loadSession(supabase: AnyClient): Promise<Session | null> 
  * The real protection is row-level security in Postgres; this only saves a
  * signed-out user from staring at empty screens.
  */
+/** How long the session check may take before the sign-in page wins instead. */
+const AUTH_TIMEOUT_MS = 5000;
+
 export async function authMiddleware(
   request: NextRequest,
   config: SupabaseConfig,
   options: { publicPaths?: string[] } = {},
 ) {
   const publicPaths = options.publicPaths ?? ['/login'];
+  const path = request.nextUrl.pathname;
+  const isPublic = publicPaths.some((p) => path === p || path.startsWith(`${p}/`));
   let response = NextResponse.next({ request });
+
+  /*
+   * A public path never asks Supabase anything.
+   *
+   * This used to call getUser() first and check the path afterwards, so every
+   * request — including the sign-in page — made a network call before it could
+   * render. When the Supabase project was paused, that call never came back,
+   * Vercel killed the middleware at its limit, and the whole site answered
+   * MIDDLEWARE_INVOCATION_TIMEOUT. Not even /login would load, which is the
+   * one page that could have explained the problem. A signed-in user visiting
+   * /login now misses a token refresh, which costs nothing: the page they go
+   * to next will do it.
+   */
+  if (isPublic) return response;
 
   const supabase = createServerClient(config.url, config.key, {
     cookies: {
@@ -99,15 +118,32 @@ export async function authMiddleware(
     },
   });
 
-  const { data } = await supabase.auth.getUser();
-  const path = request.nextUrl.pathname;
-  const isPublic = publicPaths.some((p) => path === p || path.startsWith(`${p}/`));
+  /*
+   * And it is given a deadline.
+   *
+   * `getUser()` has no timeout of its own, so an unreachable backend — a
+   * paused project, a DNS change, an outage — hangs until the platform gives
+   * up on the whole middleware. That produces a 504 with no indication of
+   * which dependency is at fault. Five seconds is far longer than this call
+   * takes when the backend is healthy, and far shorter than the platform's
+   * patience.
+   */
+  const user = await Promise.race([
+    supabase.auth
+      .getUser()
+      .then((r) => r.data.user)
+      .catch(() => null),
+    new Promise<'timeout'>((resolve) => setTimeout(() => resolve('timeout'), AUTH_TIMEOUT_MS)),
+  ]);
 
-  if (!data.user && !isPublic) {
+  if (!user || user === 'timeout') {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     // Come back to where they were trying to go once they are in.
     url.searchParams.set('next', path);
+    // Signed out and "we cannot reach the database" look identical from here
+    // otherwise, and they need completely different things done about them.
+    if (user === 'timeout') url.searchParams.set('unreachable', '1');
     return NextResponse.redirect(url);
   }
 

@@ -19,6 +19,13 @@ function Form() {
         'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY in Vercel → Settings → Environment ' +
         'Variables, then redeploy — they are only read at build time.'
       }
+      notice={
+        params.get('unreachable')
+          ? 'Could not reach the database, so you were sent here. Check the ' +
+            'Supabase project is not paused — a free project pauses after a ' +
+            'week unused, and resuming it takes one click in the dashboard.'
+          : null
+      }
       signIn={(email, password) => supabaseBrowser().auth.signInWithPassword({ email, password })}
       onSignedIn={() => {
         router.push(next);

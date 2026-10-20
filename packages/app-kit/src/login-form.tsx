@@ -19,12 +19,15 @@ export function LoginForm({
   signIn,
   onSignedIn,
   envHint,
+  notice,
 }: {
   title: string;
   subtitle: string;
   signIn: (email: string, password: string) => Promise<SignInResult>;
   onSignedIn: () => void;
   envHint: string;
+  /** Shown above the fields before anyone types: why they landed here. */
+  notice?: string | null;
 }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -86,6 +89,7 @@ export function LoginForm({
           </p>
         </div>
 
+        {notice && !error ? <p className="err">{notice}</p> : null}
         {error ? <p className="err">{error}</p> : null}
 
         <div className="field">
