@@ -29,18 +29,32 @@ Approving a change order records an agreement; it does not bill anything.
 Adding any payment state would make this app a second, worse source of
 financial truth, and the two would drift. Do not add one.
 
-## The two apps
+## One app, two halves
 
-- **`apps/admin`** — the office. Owner and manager: the calendar, booking and
-  editing work, customers and sites. It has a second **admin mode** behind
-  `audit.view` for the audit trail, a record's history, and restoring
-  something deleted.
-- **`apps/field`** — the crew. Phone-first, installed from a link rather than
-  a store. Their jobs, the completion gate, photos, mileage, time off.
+**`apps/web`** is the only deployable app. It serves the office and the crew
+from one build, one address and one Vercel project, because this is a dozen
+people and keeping two deployments in step was more work than it ever saved.
 
-`packages/app-kit` holds what both need — session, middleware, the sign-in
-form, the design tokens. **Reading `NEXT_PUBLIC_*` is not shared**: Next
-inlines those by text substitution at build time, so each app keeps its own
+- **The office** is at the top level — `/calendar`, `/dispatch`, `/jobs`,
+  `/customers`, `/equipment`, `/stock`, `/approvals`. Desk-shaped: a top nav
+  and tables. There is a second **admin mode** behind `audit.view` for the
+  audit trail, a record's history, and restoring something deleted.
+- **The crew** is under `/my` — `/my/jobs`, `/my/store`, `/my/mileage`,
+  `/my/time-off`. Phone-first: a bottom tab bar, one column, installed to a
+  home screen from a link rather than a store.
+
+`/` routes by role (`homeFor()`), so nobody has to learn a URL: whoever
+assigns work lands on the calendar, a bookkeeper on the job list, everyone
+else on their own jobs. That is a courtesy and not a rule — a technician who
+types `/calendar` gets the page and the same three rows RLS would have given
+them anyway. **The UI never decides who may see what.**
+
+The two halves share one stylesheet, and their class names do not collide.
+Check before adding a generic one.
+
+`packages/app-kit` holds the session, the middleware, the sign-in form and the
+design tokens. **Reading `NEXT_PUBLIC_*` does not live there**: Next inlines
+those by text substitution at build time, so the app keeps its own
 `lib/env.ts` with literal `process.env.NEXT_PUBLIC_X` reads. A computed key
 never reaches the browser.
 
@@ -127,7 +141,7 @@ Add a rule to the database first, mirror it in `packages/shared` second.
 pnpm db:verify     # migrations onto a clean database, the assertions, then
                    # every database call the apps make, checked against it
 pnpm test          # unit tests
-pnpm typecheck     # both apps and both packages, then the client boundary
+pnpm typecheck     # the app and the packages, then the client boundary
 pnpm lint          # prettier --check; `pnpm format` writes
 ```
 
@@ -149,8 +163,20 @@ relationship for a view with no foreign key — prefer a second query.
 
 On Claude Code on the web these run with no setup: `.claude/hooks/session-start.sh`
 installs dependencies and starts a Postgres on 54322, which is the port
-`scripts/verify-schema.sh` already looks for. Locally, `supabase start` gives
-you the same thing plus Auth, Storage and PostgREST — which the web container
-cannot run, since there is no Docker daemon there. That is also why the apps
-cannot be run end to end from a web session: they need a real Supabase
-project.
+`scripts/verify-schema.sh` already looks for.
+
+**To see the app actually work, `scripts/dev-stack.mjs`.** `supabase start`
+needs a Docker daemon and the web container has none, so this serves the two
+endpoints the app talks to — `/auth/v1/*` and the PostgREST subset of
+`/rest/v1/*` — against that same local Postgres:
+
+```bash
+node scripts/dev-stack.mjs --db promold_demo --port 3400   # then point the app at it
+```
+
+Every request runs as `authenticated` with the caller's id in
+`request.jwt.claim.sub`, exactly as PostgREST does, so **RLS, the masking
+views and every permission check apply**. Any password is accepted; it is a
+development stand-in over seed data. It found the 0030 bug within a minute of
+existing, which is what it is for: a screen that renders is the only check
+that catches a screen that lies.

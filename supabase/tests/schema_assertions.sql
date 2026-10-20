@@ -1687,3 +1687,51 @@ end $$;
 reset role;
 select set_config('request.jwt.claim.sub', '', false);
 \echo 'CREW PAY ASSERTIONS PASSED'
+
+-- ---------------------------------------------------------------------------
+-- 0030: the completion gate, read the way a client reads it
+--
+-- These run as `authenticated`, which is the whole point. The gate assertions
+-- further up run as the superuser, so they never noticed that 0027 had made
+-- `select * from jobs` impossible for a signed-in user and that every client
+-- call to these two functions had been raising "permission denied for table
+-- jobs" ever since. The crew saw "Nothing outstanding" over an enabled
+-- button, and the refusal arrived only when they pressed it.
+-- ---------------------------------------------------------------------------
+
+set role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000a003', false);
+
+do $$
+declare
+  v_job uuid := '00000000-0000-0000-0000-00000000bb02';
+  v_blockers text[];
+  v_warnings text[];
+begin
+  v_blockers := job_completion_blockers(v_job);
+  v_warnings := job_completion_warnings(v_job);
+  perform assert(v_blockers is not null,
+    'a crew lead can read the completion gate on his own job');
+  perform assert(v_warnings is not null,
+    'and the warnings beside it');
+
+  -- Answering is not enough: it has to answer with the real list rather than
+  -- the empty one a swallowed error produces. The same question asked from a
+  -- database session is the control.
+  perform assert(
+    v_blockers = (select job_completion_blockers(v_job) from (select 1) _),
+    'and gets the same answer the database gives, not an empty one');
+  perform assert(
+    array_length(v_blockers, 1) > 0,
+    'which on this job is a real list of what is missing');
+
+  -- A job that is not his tells him nothing, rather than telling him about
+  -- somebody else's site.
+  perform assert(
+    job_completion_blockers('00000000-0000-0000-0000-00000000bb01') = array['Job not found'],
+    'a job he cannot see reports nothing about itself');
+end $$;
+
+reset role;
+select set_config('request.jwt.claim.sub', '', false);
+\echo 'COMPLETION GATE ASSERTIONS PASSED'

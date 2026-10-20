@@ -18,8 +18,9 @@
     "db:check-calls": "node scripts/check-db-calls.mjs"
   },
   "devDependencies": {
+    "pg": "^8.23.1",
+    "prettier": "^3.4.2",
     "turbo": "^2.3.3",
-    "typescript": "^5.7.2",
-    "prettier": "^3.4.2"
+    "typescript": "^5.7.2"
   }
 }

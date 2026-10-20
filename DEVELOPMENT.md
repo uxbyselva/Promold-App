@@ -20,13 +20,12 @@ Studio runs at http://localhost:54323.
 
 ```
 apps/
-  admin/      The office app — Next.js, desktop      (port 3000)
-  field/      The crew's app — Next.js, phone-first  (port 3001)
+  web/        The app — Next.js. The office at the top level, the crew
+              under /my. One build, one address.        (port 3000)
   prototype/  Clickable HTML mocks, no database
 packages/
   shared/     Types, permission flags, state machines, validation
-  app-kit/    Session, middleware, sign-in form, design tokens — shared
-              by both apps
+  app-kit/    Session, middleware, sign-in form, design tokens
 supabase/
   migrations/ SQL migrations — the source of truth for the schema
   tests/      Schema assertions
@@ -37,35 +36,40 @@ scripts/
 docs/         Specification set
 ```
 
-## Two apps, one database
+## One app, two halves
 
-| | `apps/admin` | `apps/field` |
+| | The office | The crew |
 |---|---|---|
 | Who | Owner, manager, bookkeeper | Crew lead, technician |
 | Where | A desk | A phone, installed from a link |
-| Deployed as | Its own Vercel project, root `apps/admin` | Its own Vercel project, root `apps/field` |
+| Routes | `/calendar`, `/jobs`, `/customers`, … | `/my/jobs`, `/my/store`, … |
+| Frame | Top nav, tables | Bottom tab bar, one column |
 
-They are separate deployments because they are separate jobs, not because the
-data differs. Row-level security is what actually divides them: a crew lead
-signing into the office app would see the same nothing they see in the field
-app, because `jobs_safe` masks the price and RLS limits the rows.
+It was two separate deployments once, on the theory that two jobs want two
+apps. For a dozen people that was two of everything to keep in step —
+projects, environment variables, addresses — to save work nobody was doing.
+One app now, and `/` routes by role so nobody types a path.
 
-**The office app has two modes.** *Office* is the day job — the calendar,
-booking work, customers. *Admin* is the other question: what happened to this
-record, who changed it, and can I get back the thing I deleted. The switch is
-in the masthead and appears only for `audit.view`.
+**None of that is the security boundary.** Row-level security is: a technician
+who opens `/calendar` gets the page and the same three rows they would have
+seen anyway, because `jobs_safe` masks the price and RLS limits the rows. The
+split exists so each person's screen suits the thing they are holding.
+
+**The office has two modes.** *Office* is the day job — the calendar, booking
+work, customers. *Admin* is the other question: what happened to this record,
+who changed it, and can I get back the thing I deleted. The switch is in the
+masthead and appears only for `audit.view`.
 
 ### What is shared, and what deliberately is not
 
 `packages/app-kit` holds session loading, the auth middleware, the sign-in
-form and the design tokens — two apps on one database is two chances to get
-auth subtly different.
+form and the design tokens.
 
-Reading the environment variables is **not** shared. Next.js inlines
+Reading the environment variables is **not** in there. Next.js inlines
 `process.env.NEXT_PUBLIC_…` by substituting the literal text at build time,
-which only works on a static reference inside the app being built. Each app
-keeps its own `lib/env.ts`. An earlier version read them through a helper and
-the values silently never reached the browser.
+which only works on a static reference inside the app being built, so
+`lib/env.ts` lives in the app. An earlier version read them through a helper
+and the values silently never reached the browser.
 
 ## Claude Code on the web
 
@@ -74,20 +78,18 @@ dependencies and initialises a Postgres on port 54322, so `pnpm db:verify`,
 `pnpm test`, `pnpm typecheck` and `pnpm lint` all work without any setup.
 
 What it cannot give you is the rest of Supabase. There is no Docker daemon in
-that container, so Auth, Storage and PostgREST are not there, and the two apps
-cannot be run end to end from a web session — they need a real Supabase
+that container, so Auth, Storage and PostgREST are not there, and the app
+cannot be run end to end from a web session — it needs a real Supabase
 project. Schema work, unit tests and builds are all fine; seeing the apps work
 means deploying, or running locally.
 
-## Running both
+## Running it
 
 ```bash
-pnpm --filter @promold/admin dev   # http://localhost:3000
-pnpm --filter @promold/field dev   # http://localhost:3001
+pnpm --filter @promold/web dev   # http://localhost:3000
 ```
 
-Both need `.env.local` in their own directory — copy the `.env.example` beside
-it.
+Needs `apps/web/.env.local` — copy the `.env.example` beside it.
 
 ## Photos
 

@@ -40,6 +40,9 @@ with probe as (
     -- table does not exist yet, same trick as the rows below.
     (select count(*) from information_schema.tables
       where table_schema = 'public' and table_name = 'job_crew_pay') as m0029,
+    -- 0030 creates nothing either; it makes the gate functions definer.
+    (select count(*) from pg_proc
+      where proname = 'job_completion_blockers' and prosecdef) as m0030,
     (select case
        when to_regclass('public.roles') is null then -1
        else (xpath('/row/c/text()', query_to_xml(
@@ -81,7 +84,8 @@ select * from (
     -- The old version collapsed everything from 0022 to 0027 into one alarming
     -- verdict, which said "get help" to an owner whose database was fine and
     -- one file behind.
-    case when m0029 > 0 then 'Up to date (0001–0029)'
+    case when m0030 > 0 then 'Up to date (0001–0030)'
+         when m0029 > 0 then 'At 0029 — run supabase/update-from-0029.sql'
          when m0028 > 0 then 'At 0028 — run supabase/update-from-0028.sql'
          when m0027 > 0 then 'At 0027 — run supabase/update-from-0027.sql'
          when m0026 > 0 then 'At 0026 — run supabase/update-from-0026.sql (includes a security fix)'
@@ -137,6 +141,13 @@ select * from (
     case when m0026>0 then 'Present' else 'Missing' end,
     case when m0026>0 then 'Asking to buy, and approving it'
          else 'Purchase approvals will fail' end from probe
+
+  union all
+  select 7.8, 'Completion gate (0030)',
+    case when m0030 > 0 then 'Present' else 'Missing — the crew see a false green light' end,
+    case when m0030 > 0 then 'The gate tells the crew what is missing before they leave'
+         else 'The gate errors for the crew and reads as "nothing outstanding"' end
+  from probe
 
   union all
   select 7.7, 'Crew pay (0029)',

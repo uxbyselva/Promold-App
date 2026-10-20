@@ -17,7 +17,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 
-const ROOTS = ['apps/admin', 'apps/field', 'packages/app-kit'];
+const ROOTS = ['apps/web', 'packages/app-kit'];
 
 function sources(dir, out = []) {
   for (const entry of readdirSync(dir)) {

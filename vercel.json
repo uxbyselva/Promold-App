@@ -1,8 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "comment": "NOT the config Vercel reads. Vercel reads vercel.json from the project's Root Directory, so apps/admin/vercel.json serves the office project and apps/field/vercel.json the crew one. This file only applies if someone points a project at the repository root, which nothing should: it would build the office app under whatever name that project has. Two apps, two Vercel projects, Root Directory apps/admin and apps/field.",
+  "comment": "NOT the config Vercel reads: it reads vercel.json from the project's Root Directory, which is apps/web. This file matters only if a project is pointed at the repository root, which none should be.",
   "framework": "nextjs",
-  "buildCommand": "cd ../.. && pnpm --filter @promold/admin build",
+  "buildCommand": "cd ../.. && pnpm --filter @promold/web build",
   "installCommand": "cd ../.. && pnpm install --frozen-lockfile",
   "outputDirectory": ".next"
 }

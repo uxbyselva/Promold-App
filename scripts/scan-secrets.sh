@@ -29,8 +29,8 @@ done < <(git grep -lE 'service_role["'"'"']?\s*[:=]\s*["'"'"']?eyJ' -- . 2>/dev/
 # `.env.example` and friends are templates and are meant to be committed —
 # that is how somebody knows which variables to set. They are exempted by
 # shape rather than by name: this check used to carry the single literal
-# `apps/admin/.env.example`, and the day `apps/field/.env.example` was added
-# alongside it the build went red and stayed red.
+# one app's `.env.example`, and the day a second app was added beside it the
+# build went red and stayed red.
 #
 # Exempting them costs nothing, because the rules above read the contents of
 # every tracked file regardless: a real key pasted into a template still trips

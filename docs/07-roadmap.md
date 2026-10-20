@@ -18,7 +18,7 @@ returns zero for every job as a result.
 The office records what the crew were paid for a job — one lump, or a line per
 person — and `job_labour_cost()` adds that to the (always zero) hourly term,
 so margin is the contract price less everything the job actually cost. It is
-on the job page in the office app, behind `costing.view`.
+on the job page, behind `costing.view`.
 
 Without it the demo job read as 8,146 of margin on 9,850. With it, 4,738.
 

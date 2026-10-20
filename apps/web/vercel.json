@@ -1,0 +1,5 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "comment": "The one deployable app: the office and the crew in one build. Set the Vercel project's Root Directory to apps/web.",
+  "framework": "nextjs"
+}

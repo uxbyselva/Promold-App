@@ -25,11 +25,16 @@
  * What it flags: a lowercase value imported from a `'use client'` module into
  * a file that is not itself a client component. Move it to `lib/`.
  */
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
 
 const ROOT = resolve(import.meta.dirname, '..');
-const APPS = ['apps/admin', 'apps/field'];
+// Every app under apps/ that is a Next app. One today — the office and the
+// crew are two halves of apps/web — but derived rather than listed, so a
+// second one cannot be added and quietly go unchecked.
+const APPS = readdirSync(join(ROOT, 'apps'))
+  .map((d) => join('apps', d))
+  .filter((d) => existsSync(join(ROOT, d, 'next.config.mjs')));
 
 function walk(dir, out = []) {
   for (const entry of readdirSync(dir)) {

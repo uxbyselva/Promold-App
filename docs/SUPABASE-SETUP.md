@@ -131,7 +131,7 @@ clears its own rows first.
 | **anon public** key | `.env.local` | Low risk — RLS protects the data |
 | **service_role** key | Nowhere yet | **Yes.** Bypasses RLS entirely |
 
-Create `apps/admin/.env.local`:
+Create `apps/web/.env.local`:
 
 ```
 NEXT_PUBLIC_SUPABASE_URL=https://xxxxxxxx.supabase.co
@@ -145,7 +145,7 @@ if that ever stops being true.
 
 ```bash
 pnpm install
-pnpm --filter @promold/admin dev
+pnpm --filter @promold/web dev
 ```
 
 Open http://localhost:3000, sign in with the user from step 3, and you land on

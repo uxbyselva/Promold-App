@@ -35,13 +35,13 @@ Three settings on the import screen. The first one matters most.
 
 | Setting | Value |
 |---|---|
-| **Root Directory** | Click **Edit** and choose `apps/admin` |
+| **Root Directory** | Click **Edit** and choose `apps/web` |
 | **Framework Preset** | **Next.js** — check this, do not assume |
 | **Output Directory** | Leave empty. Next.js handles it. |
 | **Environment Variables** | The two below |
 
 > **"No Output Directory named 'public' found"** means the Framework Preset is
-> not Next.js, or the Root Directory is not `apps/admin`. Vercel has fallen
+> not Next.js, or the Root Directory is not `apps/web`. Vercel has fallen
 > back to treating the repository as a plain static site and gone looking for
 > a folder of HTML files. Fix both settings and redeploy.
 
@@ -104,48 +104,36 @@ git checkout claude/contractor-app-planning-jf5e7v
 pnpm install
 ```
 
-Create `apps/admin/.env.local` in a text editor with the two lines from step 3
+Create `apps/web/.env.local` in a text editor with the two lines from step 3
 above, then:
 
 ```bash
-pnpm --filter @promold/admin dev
+pnpm --filter @promold/web dev
 ```
 
 Open http://localhost:3000. Stop it with Ctrl+C.
 
 ---
 
-# The crew's app — a second project
+# The crew's half
 
-There are two apps: **the office** (`apps/admin`) and **the crew's**
-(`apps/field`). They share one database and one repository, and each gets its
-own Vercel project and its own web address. You do the import twice.
+There is no second project. The crew's screens are the same app under `/my` —
+`/my/jobs`, `/my/store`, `/my/mileage`, `/my/time-off` — so they deploy with
+everything else and share the address.
 
-## Set it up
+Nobody has to type that path. Signing in lands each person where they belong:
+whoever assigns work gets the calendar, a bookkeeper the job list, everyone
+else their own jobs. The office nav carries a **Crew view** link for anyone
+who wants to see what the crew sees, and the crew header carries an
+**← Office** link back for anyone allowed on that side.
 
-Repeat **Route A** from the top with two things changed:
-
-| Setting | Value |
-|---|---|
-| **Root Directory** | `apps/field` — not `apps/admin` |
-| **Project Name** | Something like `promold-field`, so the address differs |
-
-Everything else is identical: Framework Preset **Next.js**, the same two
-environment variables, the same branch.
-
-Then go back to the **office** project and add one more variable so it can
-show the crew's link on its own "Crew app" page:
-
-```
-NEXT_PUBLIC_FIELD_APP_URL   https://promold-field.vercel.app
-```
-
-Redeploy the office project after adding it — environment variables are read
-at build time, so an existing deployment will not pick it up.
+This was two deployments once. For a dozen people it was two Vercel projects,
+two sets of environment variables and two addresses to keep in step, to save
+work nobody was doing.
 
 ## Give it to the crew
 
-Send one person the field app's address and do this with them once, on their
+Send one person the address and do this with them once, on their
 phone:
 
 1. Open the link and sign in with their work email.
@@ -263,7 +251,7 @@ update organizations
 The same `settings` column holds `mileage_rate` (currently $0.67/mile), which
 is what the mileage screens reimburse at.
 
-Until `storage.sql` has been run, the photo galleries in the field app say so
+Until `storage.sql` has been run, the photo galleries on the crew screens say so
 plainly rather than failing in a way nobody can diagnose.
 
 ---
@@ -300,6 +288,6 @@ the dashboard instead of the code. If you add a variable, reference it
 literally, and check it survives the build:
 
 ```bash
-pnpm --filter @promold/admin build
-grep -rl "your-project-ref" apps/admin/.next/static   # should find it
+pnpm --filter @promold/web build
+grep -rl "your-project-ref" apps/web/.next/static   # should find it
 ```

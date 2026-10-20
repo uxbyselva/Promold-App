@@ -1,3 +1,11 @@
+> **This is the original proposal, kept for the reasoning. It is not what was
+> built.** The field app is not Expo and there is no second app: both halves
+> ship as one Next.js PWA, `apps/web`, with the office at the top level and
+> the crew under `/my`, installed to a home screen from a link rather than
+> from a store. The argument below for why the crew's half must feel native
+> still holds — it is the delivery mechanism that changed. See
+> [DEVELOPMENT.md](../DEVELOPMENT.md) for the layout as it actually is.
+
 # Architecture
 
 ## 1. Platform decision
