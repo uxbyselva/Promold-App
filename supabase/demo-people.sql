@@ -99,18 +99,24 @@ begin
     raise notice '%  (%)', p.email, p.role_key;
   end loop;
 
-  raise notice '----------------------------------------------------------';
+  -- Out through a session setting rather than only a notice: the Supabase
+  -- SQL editor shows the rows a query returns and does not reliably show
+  -- notices, so a password announced that way is a password nobody ever
+  -- sees. It is read back by the select below, in the same session.
+  perform set_config('promold.demo_password', v_password, false);
   raise notice 'PASSWORD FOR ALL FOUR: %', v_password;
-  raise notice 'Copy it now — it is stored only as a hash and cannot be read';
-  raise notice 'back. Re-run this script to set a new one.';
-  raise notice '----------------------------------------------------------';
 end $$;
 
--- Who exists now, and what each may do.
+-- Who exists now, what each may do, and the password to sign in as them.
+-- The password is the same for all four and is shown on every row so it
+-- cannot be missed.
 select
-  p.full_name,
   p.email,
   r.name as role,
+  -- Only the demo people. Your own login keeps whatever password you set
+  -- when you created it, and this script does not touch it.
+  case when p.email like '%@promold.test'
+       then current_setting('promold.demo_password', true) end as password,
   (r.permissions ->> 'job.assign')::boolean  as gets_the_dispatch_board,
   (r.permissions ->> 'price.view')::boolean  as sees_prices,
   (r.permissions ->> 'costing.view')::boolean as sees_margin
