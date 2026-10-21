@@ -45,6 +45,19 @@ Three settings on the import screen. The first one matters most.
 > back to treating the repository as a plain static site and gone looking for
 > a folder of HTML files. Fix both settings and redeploy.
 
+> **The Root Directory lives in the Vercel dashboard, not in this repository,
+> so moving a folder here breaks it silently.** When the two apps became one,
+> `apps/admin` stopped existing and every build failed from that commit on —
+> while the site carried on serving the last build that worked, so nothing
+> looked wrong for a day. If deployments start failing right after a rename,
+> check this setting first.
+
+> **A failed deployment cannot be redeployed.** Vercel answers "This
+> deployment can not be redeployed. Please try again from a fresh commit."
+> Changing a setting does not give it a new commit to build, so push one —
+> any real change will do — or use **Create Deployment** in the sidebar and
+> pick the branch.
+
 Environment variables:
 
 ```
