@@ -1,6 +1,5 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "comment": "Vercel reads this file from the project's Root Directory, which must be apps/web. The commands are pinned here rather than left to the dashboard because a dashboard override survives a rename and nobody can see it from the repository: when the two apps merged, the build kept failing with the Root Directory already corrected. A vercel.json in the Root Directory takes precedence over the dashboard, so this is the version-controlled answer.",
   "framework": "nextjs",
   "installCommand": "cd ../.. && pnpm install --frozen-lockfile",
   "buildCommand": "cd ../.. && pnpm --filter @promold/web build",

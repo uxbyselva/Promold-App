@@ -1,8 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "comment": "NOT the config Vercel reads: it reads vercel.json from the project's Root Directory, which is apps/web. This file matters only if a project is pointed at the repository root, which none should be.",
   "framework": "nextjs",
-  "buildCommand": "cd ../.. && pnpm --filter @promold/web build",
   "installCommand": "cd ../.. && pnpm install --frozen-lockfile",
+  "buildCommand": "cd ../.. && pnpm --filter @promold/web build",
   "outputDirectory": ".next"
 }

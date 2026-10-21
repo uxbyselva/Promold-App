@@ -52,6 +52,18 @@ Three settings on the import screen. The first one matters most.
 > looked wrong for a day. If deployments start failing right after a rename,
 > check this setting first.
 
+> **`vercel.json` takes no comments, and an unknown key fails the build.**
+> Vercel validates that file strictly: a `"comment"` property — the obvious
+> thing to reach for, since JSON has no comment syntax — is rejected, and the
+> deployment dies before any code is fetched. The file that used to work had
+> exactly two keys in it. Anything worth explaining goes here instead.
+>
+> `apps/web/vercel.json` pins the install and build commands rather than
+> leaving them to the dashboard, because a dashboard override survives a
+> folder rename, cannot be seen from the repository and cannot be reviewed.
+> Both commands run from the repository root: this is a pnpm workspace and
+> the app depends on `@promold/app-kit` and `@promold/shared` through it.
+
 > **A failed deployment cannot be redeployed.** Vercel answers "This
 > deployment can not be redeployed. Please try again from a fresh commit."
 > Changing a setting does not give it a new commit to build, so push one —
