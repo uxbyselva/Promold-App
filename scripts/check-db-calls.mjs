@@ -53,7 +53,19 @@ for (const file of files) {
 
   // .from('table').select('a, b, c')  — only the plain column lists; embedded
   // resource syntax (table!inner(...)) is skipped rather than half-parsed.
-  for (const m of text.matchAll(/\.from\(\s*'([a-z0-9_]+)'\s*\)\s*\.select\(\s*'([^']*)'/g)) {
+  //
+  // GAP allows comments between `.select(` and the string. It used to be
+  // `\s*`, which stops at the first `//`, so a select with a note above the
+  // column list did not match the pattern and was never checked — silently,
+  // which is the one thing this script is supposed to never do. A column
+  // added to `jobs` but not to the `jobs_safe` view went out that way and
+  // turned a live job page into a 404.
+  const GAP = String.raw`(?:\s|\/\/[^\n]*|\/\*[\s\S]*?\*\/)*`;
+  const selectPattern = new RegExp(
+    String.raw`\.from\(\s*'([a-z0-9_]+)'\s*\)${GAP}\.select\(${GAP}'([^']*)'`,
+    'g',
+  );
+  for (const m of text.matchAll(selectPattern)) {
     const [, table, cols] = m;
     const where = `${file}:${lineOf(text, m.index)}`;
     if (cols.includes('(')) {

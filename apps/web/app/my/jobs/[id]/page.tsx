@@ -17,7 +17,7 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
       // quoted_price and contract_price come back null for anyone without
       // price.view — the view decides, not this query. Since 0028 the crew
       // lead has it, so he can see when the work has outgrown the quote.
-      'id, job_number, title, description, status, scheduled_start, scheduled_end, site_id, customer_id, quoted_price, contract_price, change_order_total',
+      'id, job_number, title, description, status, scheduled_start, scheduled_end, site_id, customer_id, quoted_price, contract_price, change_order_total, settlement_method',
     )
     .eq('id', id)
     .maybeSingle();
@@ -74,6 +74,15 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
   // Change orders raised on this job. change_orders_safe masks the amount for
   // anyone without price.view: a technician sees their own words and the
   // outcome, the crew lead also sees what it was priced at.
+  // What anyone has written on the job. Only shown once it is finished, but
+  // asked for here so the page stays one round of queries.
+  const { data: notes } = await supabase
+    .from('job_comments')
+    .select('id, body')
+    .eq('job_id', id)
+    .is('deleted_at', null)
+    .order('created_at');
+
   const { data: changeOrders } = await supabase
     .from('change_orders_safe')
     .select('id, seq, title, description, status, amount, decided_at, decision_reason')
@@ -143,6 +152,7 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
             : null
         }
         changeOrders={changeOrders ?? []}
+        notes={notes ?? []}
         canDraftChangeOrder={session.can('changeorder.draft')}
         blockers={(blockers as string[] | null) ?? []}
         warnings={(warnings as string[] | null) ?? []}

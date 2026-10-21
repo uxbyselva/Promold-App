@@ -220,8 +220,22 @@ main{flex:1;padding:14px 16px 20px;display:flex;flex-direction:column;gap:12px}
 .seg{display:flex;gap:2px;margin-top:11px}
 .seg button{flex:1;padding:7px 4px;border-radius:8px;font-size:13.5px;font-weight:500;
   color:var(--muted);background:var(--surface-2);border:1px solid transparent}
-.seg button[aria-selected="true"]{background:var(--accent-soft);color:var(--accent-ink);
+/* aria-selected is the tab-list attribute; a group of toggles uses
+   aria-pressed. Both read as chosen, so both get the chosen look. */
+.seg button[aria-selected="true"],.seg button[aria-pressed="true"]{
+  background:var(--accent-soft);color:var(--accent-ink);
   border-color:var(--accent);font-weight:600}
+
+/* A sheet over the job, for the one question asked at the end. Bottom-anchored
+   because that is where a thumb is, and it keeps the safe-area inset. */
+.sheet-scrim{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.45);
+  display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--surface);width:100%;max-width:520px;
+  border-radius:16px 16px 0 0;border:1px solid var(--line-strong);border-bottom:none;
+  padding:18px 16px calc(20px + env(safe-area-inset-bottom));
+  max-height:88vh;overflow-y:auto}
+.sheet h3{font-size:17px;margin-bottom:4px}
+.sheet textarea{width:100%}
 
 /* month grid */
 .cal{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);

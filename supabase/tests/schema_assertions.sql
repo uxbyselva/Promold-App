@@ -1813,3 +1813,81 @@ end $$;
 reset role;
 select set_config('request.jwt.claim.sub', '', false);
 \echo 'NEW CUSTOMER BOOKING ASSERTIONS PASSED'
+
+-- ---------------------------------------------------------------------------
+-- 0032: how the job was settled
+--
+-- The column is a note from site, not a balance. These assertions exist as
+-- much to pin what it cannot do as what it can.
+-- ---------------------------------------------------------------------------
+
+-- The crew all answer first: a job does not move to accepted while somebody
+-- on it has not. Done from a database session because one crew member cannot
+-- answer for another, which is the rule being worked around for the fixture
+-- rather than tested here.
+update job_assignments set acceptance_status = 'accepted', responded_at = now()
+ where job_id = '00000000-0000-0000-0000-00000000bb03';
+
+-- And no template on it, so the completion gate has nothing to ask for. The
+-- gate itself is tested above; what is under test here is what finishing
+-- records, and a fixture that cannot finish tests neither.
+update jobs set template_id = null where id = '00000000-0000-0000-0000-00000000bb03';
+
+set role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000a003', false);
+
+do $$
+declare
+  v_job uuid := '00000000-0000-0000-0000-00000000bb03';
+  v_out jobs;
+  v_before int;
+begin
+  -- Get it to a state a crew can finish from.
+  perform transition_job(v_job, 'accepted', null);
+  perform transition_job(v_job, 'in_progress', null);
+
+  select count(*) into v_before from job_comments where job_id = v_job;
+
+  v_out := complete_job(v_job, 'interac', 'Left the dehu running, back Tuesday.');
+
+  perform assert(v_out.status = 'work_complete',
+    'finishing a job moves it to done');
+  perform assert(v_out.settlement_method = 'interac',
+    'and records how it was settled');
+  perform assert(v_out.settled_by = auth_user_id(),
+    'against whoever was standing there');
+  perform assert(
+    (select count(*) from job_comments where job_id = v_job) = v_before + 1,
+    'and keeps what the crew wrote');
+
+  -- There is no amount and no unpaid state, on purpose. If either of these
+  -- ever fails, the scope boundary has moved and that is a conversation.
+  perform assert(
+    not exists (
+      select 1 from information_schema.columns
+      where table_name = 'jobs'
+        and column_name in ('amount_paid', 'balance', 'is_paid', 'payment_status')
+    ),
+    'and the app still cannot say what anybody owes');
+  perform assert(
+    (select count(*) from unnest(enum_range(null::settlement_method))) = 3,
+    'three ways money changes hands, and no "unpaid" among them');
+end $$;
+
+-- Nothing recorded is an absence, not a state.
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000a002', false);
+
+do $$
+declare v_job uuid := '00000000-0000-0000-0000-00000000bb03';
+begin
+  perform assert(
+    (select settlement_method from jobs where id = v_job) is not null,
+    'the one just finished has a method on it');
+  perform assert(
+    (select count(*) from jobs where settlement_method is null) > 0,
+    'and a job nobody collected on simply has none');
+end $$;
+
+reset role;
+select set_config('request.jwt.claim.sub', '', false);
+\echo 'SETTLEMENT ASSERTIONS PASSED'

@@ -39,6 +39,7 @@ probe_for() {
     0029) echo "to_regclass('public.job_crew_pay') is not null|crew_pay_0029" ;;
     0030) echo "exists (select 1 from pg_proc where proname = 'job_completion_blockers' and prosecdef)|gate_readable_0030" ;;
     0031) echo "exists (select 1 from pg_proc where proname = 'create_job_with_site')|new_customer_booking_0031" ;;
+    0032) echo "exists (select 1 from information_schema.columns where table_name = 'jobs_safe' and column_name = 'settlement_method')|settlement_0032" ;;
     *)    echo "" ;;
   esac
 }

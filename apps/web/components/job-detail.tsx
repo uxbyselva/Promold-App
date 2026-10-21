@@ -15,6 +15,7 @@ type Job = {
   status: string;
   scheduled_start: string | null;
   scheduled_end: string | null;
+  settlement_method: string | null;
   /** All three are null unless the signed-in user holds price.view. */
   quoted_price: number | null;
   contract_price: number | null;
@@ -59,6 +60,30 @@ const PHASES: [string, string][] = [
   ['after', 'After work'],
 ];
 
+/** Settled at the door. No amount, and no "unpaid" — see migration 0032. */
+const SETTLEMENT: [string, string][] = [
+  ['cash', 'Cash'],
+  ['card', 'Card'],
+  ['interac', 'Interac'],
+];
+
+/*
+ * What each step puts in front of the crew.
+ *
+ * Before: every job showed every panel at once, so somebody standing in a
+ * driveway who had not started yet was looking at two empty photo galleries
+ * and a completion card. A screen that asks for everything at every moment
+ * asks for nothing in particular.
+ *
+ * Step one is the job. Step two is the job plus the evidence. Step three is
+ * what happened. Extra work is on all three on purpose: finding something is
+ * not something the crew schedule.
+ */
+const showsPhotos = (status: string) => status === 'in_progress' || status === 'work_complete';
+const showsOutcome = (status: string) => status === 'work_complete';
+
+const isVideo = (path: string) => /\.(mp4|mov|m4v|webm|avi|3gp)$/i.test(path);
+
 export function JobDetail({
   job,
   site,
@@ -69,6 +94,7 @@ export function JobDetail({
   equipment,
   decision,
   changeOrders,
+  notes,
   canDraftChangeOrder,
   blockers,
   warnings,
@@ -99,6 +125,8 @@ export function JobDetail({
     amount: number | null;
     decision_reason: string | null;
   }[];
+  /** What anyone has written on the job. Shown once it is finished. */
+  notes: { id: string; body: string }[];
   canDraftChangeOrder: boolean;
   blockers: string[];
   warnings: string[];
@@ -111,6 +139,9 @@ export function JobDetail({
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [asking, setAsking] = useState(false);
+  const [finishing, setFinishing] = useState(false);
+  const [settlement, setSettlement] = useState('');
+  const [finishNote, setFinishNote] = useState('');
   const [reason, setReason] = useState('');
   const [raisingChange, setRaisingChange] = useState(false);
   const uploadRefs = useRef<Record<string, HTMLInputElement | null>>({});
@@ -342,7 +373,7 @@ export function JobDetail({
       {/* The gate. Shown whenever there is work left, not only when the button
           is pressed — a list of what is outstanding is more use on arrival
           than at five to four. */}
-      {job.status === 'in_progress' || blockers.length > 0 ? (
+      {showsPhotos(job.status) && (job.status === 'in_progress' || blockers.length > 0) ? (
         <div className={`panel${blockers.length ? ' flag' : ''}`}>
           <h3>{blockers.length ? 'Before this can be marked done' : 'Everything is in'}</h3>
           <ul className="blockers">
@@ -371,7 +402,7 @@ export function JobDetail({
       ) : null}
 
       {/* Photos. Two galleries, no cap on either. */}
-      {PHASES.map(([phase, label]) => {
+      {(showsPhotos(job.status) ? PHASES : []).map(([phase, label]) => {
         const mine = photos.filter((p) => p.phase === phase);
         return (
           <div key={phase} className="panel">
@@ -394,8 +425,10 @@ export function JobDetail({
                   uploadRefs.current[phase] = el;
                 }}
                 type="file"
-                accept="image/*"
-                capture="environment"
+                // No `capture`: with it the phone opens the camera and the
+                // gallery is unreachable, so a picture taken five minutes ago
+                // could not be used. Without it the phone offers both.
+                accept="image/*,video/*"
                 multiple
                 hidden
                 onChange={(e) => {
@@ -405,8 +438,14 @@ export function JobDetail({
               />
               {mine.map((p) =>
                 p.url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img key={p.id} className="ph" src={p.url} alt={p.room_label ?? label} />
+                  // A video in an <img> is a broken icon, and the crew can now
+                  // send one. The stored path keeps the original extension.
+                  isVideo(p.storage_path) ? (
+                    <video key={p.id} className="ph" src={p.url} controls playsInline />
+                  ) : (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img key={p.id} className="ph" src={p.url} alt={p.room_label ?? label} />
+                  )
                 ) : (
                   <span key={p.id} className="ph add" style={{ borderStyle: 'solid' }}>
                     ?
@@ -578,16 +617,122 @@ export function JobDetail({
         ))}
       </div>
 
+      {/* What happened, once it has. Read-only: the crew have driven away and
+          the office owns anything that changes from here. */}
+      {showsOutcome(job.status) ? (
+        <div className="panel">
+          <p className="lbl">Finished</p>
+          <dl className="kv">
+            {job.settlement_method ? (
+              <div>
+                <dt>Settled by</dt>
+                <dd>
+                  {SETTLEMENT.find(([v]) => v === job.settlement_method)?.[1] ??
+                    job.settlement_method}
+                </dd>
+              </div>
+            ) : null}
+          </dl>
+          {!job.settlement_method ? (
+            <p className="sub">Nothing was recorded about payment on this one.</p>
+          ) : null}
+          {notes.length ? (
+            <>
+              <p className="lbl" style={{ marginTop: 12 }}>
+                Notes
+              </p>
+              {notes.map((n) => (
+                <p key={n.id} className="sub">
+                  {n.body}
+                </p>
+              ))}
+            </>
+          ) : null}
+        </div>
+      ) : null}
+
       {next && !pending && canComplete ? (
-        <button
-          className="btn wide"
-          disabled={working}
-          onClick={() =>
-            call('transition_job', { p_job_id: job.id, p_to_status: next.to }, 'advance')
-          }
-        >
-          {busy === 'advance' ? 'Working…' : next.label}
-        </button>
+        next.to === 'work_complete' ? (
+          <button className="btn wide" disabled={working} onClick={() => setFinishing(true)}>
+            {next.label}
+          </button>
+        ) : (
+          <button
+            className="btn wide"
+            disabled={working}
+            onClick={() =>
+              call('transition_job', { p_job_id: job.id, p_to_status: next.to }, 'advance')
+            }
+          >
+            {busy === 'advance' ? 'Working…' : next.label}
+          </button>
+        )
+      ) : null}
+
+      {/* Asked at the one moment the crew know the answer: standing at the
+          door, having just been paid or not. How, never how much — the amount
+          is the office's and the invoice is the finance system's. */}
+      {finishing ? (
+        <div className="sheet-scrim" onClick={() => !working && setFinishing(false)}>
+          <div className="sheet" onClick={(e) => e.stopPropagation()}>
+            <h3>Finish this job</h3>
+            <p className="sub">
+              Anything you say here goes to the office with the job. Leave the payment blank if
+              nothing changed hands.
+            </p>
+
+            <p className="lbl" style={{ marginTop: 12 }}>
+              How did they pay?
+            </p>
+            <div className="seg" role="group" aria-label="How did they pay">
+              {SETTLEMENT.map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  aria-pressed={settlement === value}
+                  onClick={() => setSettlement(settlement === value ? '' : value)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            <div className="field" style={{ marginTop: 12 }}>
+              <label htmlFor="finish-note">Anything to tell the office</label>
+              <textarea
+                id="finish-note"
+                rows={3}
+                value={finishNote}
+                onChange={(e) => setFinishNote(e.target.value)}
+                placeholder="Left the dehu running, back Tuesday."
+              />
+            </div>
+
+            <div className="row" style={{ gap: 8, marginTop: 14 }}>
+              <button
+                className="btn"
+                disabled={working}
+                onClick={async () => {
+                  const ok = await call(
+                    'complete_job',
+                    {
+                      p_job_id: job.id,
+                      p_settlement_method: settlement || null,
+                      p_note: finishNote.trim() || null,
+                    },
+                    'advance',
+                  );
+                  if (ok) setFinishing(false);
+                }}
+              >
+                {busy === 'advance' ? 'Finishing…' : 'Mark it done'}
+              </button>
+              <button className="btn ghost" disabled={working} onClick={() => setFinishing(false)}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
       ) : null}
     </>
   );

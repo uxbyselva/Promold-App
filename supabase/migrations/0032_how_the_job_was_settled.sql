@@ -1,0 +1,126 @@
+-- 0032 How the job was settled, as a note to the office
+--
+-- READ THE SCOPE BOUNDARY BEFORE EXTENDING THIS. This app tracks what a job
+-- cost us; what a customer owes lives in the finance system and must stay
+-- there. This column does not change that and must not be grown into it.
+--
+-- What it is: the crew are standing at the door, the customer hands over cash
+-- or taps a card, and that fact is useful to whoever does the books tomorrow.
+-- Recording "cash" is the same kind of thing as recording which van went —
+-- an observation from site, passed on.
+--
+-- What it deliberately is not:
+--
+--   * There is no amount. The crew do not know the number and should not be
+--     asked to guess it; the price is the office's and the invoice is the
+--     finance system's.
+--   * There is no "unpaid" value. Nothing collected means the column stays
+--     null — an absence of a note, not a balance. The moment this can answer
+--     "has this been paid?" it has become a second, worse source of financial
+--     truth, and the two will drift.
+--
+-- If someone asks for an amount or a paid flag, that is the conversation about
+-- the boundary, not a column.
+
+create type settlement_method as enum ('cash', 'card', 'interac');
+
+alter table jobs
+  add column if not exists settlement_method settlement_method,
+  add column if not exists settled_at timestamptz,
+  add column if not exists settled_by uuid references profiles(id);
+
+comment on column jobs.settlement_method is
+  'How the customer settled at the door, as told to the crew. Null means '
+  'nothing was recorded, which is not the same as unpaid. No amount here by '
+  'design — see the scope boundary.';
+
+-- Adding a column to jobs means re-running BOTH grant helpers, or the new
+-- column is readable and writable by everyone while quoted_price quietly
+-- becomes so too: both helpers rebuild the whole grant from the column list.
+select grant_columns_except('jobs', array['quoted_price']);
+select grant_writes_except('jobs', array['quoted_price']);
+
+-- ---------------------------------------------------------------------------
+-- Finishing a job
+-- ---------------------------------------------------------------------------
+
+create or replace function complete_job(
+  p_job_id uuid,
+  p_settlement_method settlement_method default null,
+  p_note text default null
+)
+returns jobs
+language plpgsql
+security definer
+set search_path = public
+as $fn$
+declare v_job jobs;
+begin
+  -- transition_job() owns the rules — the permission, the gate, the history
+  -- row. This adds the two things the crew are asked for at the same moment,
+  -- in the same transaction, so a refused completion records neither.
+  if p_settlement_method is not null or nullif(btrim(coalesce(p_note, '')), '') is not null then
+    if not can_see_job(p_job_id) then
+      raise exception 'That is not your job' using errcode = '42501';
+    end if;
+  end if;
+
+  v_job := transition_job(p_job_id, 'work_complete', null);
+
+  if p_settlement_method is not null then
+    update jobs
+       set settlement_method = p_settlement_method,
+           settled_at = now(),
+           settled_by = auth_user_id()
+     where id = p_job_id;
+  end if;
+
+  if nullif(btrim(coalesce(p_note, '')), '') is not null then
+    insert into job_comments (org_id, job_id, author_id, body)
+    values (v_job.org_id, p_job_id, auth_user_id(), btrim(p_note));
+  end if;
+
+  select * into v_job from jobs where id = p_job_id;
+  return v_job;
+end;
+$fn$;
+
+comment on function complete_job(uuid, settlement_method, text) is
+  'Marks a job done, with how it was settled and anything the crew want to '
+  'say, in one transaction. Delegates the status change to transition_job(), '
+  'which keeps the completion gate and the permission check.';
+
+-- ---------------------------------------------------------------------------
+-- And onto the view the clients actually read
+-- ---------------------------------------------------------------------------
+--
+-- jobs_safe lists its columns one by one, so a column added to `jobs` does
+-- not appear on it. Nothing errors: the app asks for a column the view has
+-- never heard of, PostgREST refuses the whole query, and the page decides the
+-- job does not exist. A 404 on a job that is right there.
+--
+-- Re-stated in full rather than patched, because a view cannot have a column
+-- appended — `create or replace` has to agree with the existing column order.
+
+create or replace view jobs_safe as
+select
+  j.id, j.org_id, j.job_number, j.customer_id, j.site_id, j.template_id,
+  j.title, j.description, j.status, j.priority,
+  j.scheduled_start, j.scheduled_end, j.actual_start, j.actual_end,
+  case when has_permission('price.view') then j.quoted_price end as quoted_price,
+  case when has_permission('price.view') then job_contract_price(j.id) end as contract_price,
+  case when has_permission('price.view') then job_change_order_total(j.id) end as change_order_total,
+  j.insurance_claim_no, j.adjuster_contact, j.recurrence_rule, j.parent_job_id,
+  j.blocked_reason, j.cancelled_reason, j.created_by, j.created_at, j.updated_at,
+  -- Not behind price.view: how somebody paid at the door is not the price,
+  -- and the crew who were handed the cash are the ones who reported it.
+  j.settlement_method, j.settled_at, j.settled_by
+from jobs j
+where j.deleted_at is null
+  and j.org_id = auth_org_id()
+  and can_see_job(j.id);
+
+comment on view jobs_safe is
+  'Jobs as a field user may read them: price masked unless price.view. Definer '
+  'rights, org filter applied explicitly. Adding a column to jobs means adding '
+  'it here too — the list is explicit and a missing column reads as a 404.';
