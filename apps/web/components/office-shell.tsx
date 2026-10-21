@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { SignOut } from './sign-out';
 import { NavLink, ModeLink } from './nav-link';
+import { OfficeMenu } from './office-menu';
 import { supabaseServer } from '@/lib/supabase-server';
 import type { Session } from '@/lib/session';
 
@@ -111,6 +112,16 @@ export async function OfficeShell({
     { href: '/admin/roles', label: 'Roles', when: true },
   ];
   const tabs = (mode === 'admin' ? admin : office).filter((t) => t.when);
+  /*
+   * What stays on the bar on a phone, and what goes behind the menu button.
+   *
+   * Two, because that is what fits beside the button at 390px without the row
+   * scrolling. Taken off the front of the list rather than named, so it does
+   * the right thing for a bookkeeper — who has no calendar and no board, and
+   * whose first two are Jobs and Waiting on you.
+   */
+  const PRIMARY_ON_PHONE = 2;
+  const overflow = tabs.slice(PRIMARY_ON_PHONE);
 
   return (
     <div className="office">
@@ -121,7 +132,16 @@ export async function OfficeShell({
             <span>{mode === 'admin' ? 'Records and history' : 'The office'}</span>
           </div>
 
-          <div className="row" style={{ gap: 14 }}>
+          <OfficeMenu
+            tabs={overflow.map((t) => ({ href: t.href, label: t.label, badge: t.badge }))}
+            mode={mode}
+            canAdmin={canAdmin}
+            who={session.fullName}
+            role={session.roleName}
+            showCrewView={mode === 'office'}
+          />
+
+          <div className="row masthead-wide" style={{ gap: 14 }}>
             {canAdmin ? (
               <nav className="modes" aria-label="Mode">
                 <ModeLink href="/calendar" mode="office" active={mode === 'office'}>
@@ -140,14 +160,16 @@ export async function OfficeShell({
         </div>
 
         <nav className="nav" aria-label={mode === 'admin' ? 'Admin' : 'Office'}>
-          {tabs.map((t) => (
-            <NavLink key={t.href} href={t.href} badge={t.badge}>
-              {t.label}
-            </NavLink>
+          {tabs.map((t, i) => (
+            <span key={t.href} className={i < PRIMARY_ON_PHONE ? undefined : 'nav-wide'}>
+              <NavLink href={t.href} badge={t.badge}>
+                {t.label}
+              </NavLink>
+            </span>
           ))}
           {mode === 'office' ? (
             <Link
-              className="nav-field"
+              className="nav-field nav-wide"
               // The crew's half of the same app, not a second deployment.
               href="/my/jobs"
               style={{

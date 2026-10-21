@@ -164,7 +164,11 @@ export function OfficeCalendar({
                   href={`/jobs/${j.id}`}
                   title={`${j.job_number} · ${j.title}${siteOf(j.site_id) ? ` · ${siteOf(j.site_id)}` : ''}`}
                 >
-                  {clock(j.scheduled_start)} {j.title}
+                  {/* The time is dropped on a phone: a column is about 50px
+                      wide there, and "08:00…" identifies nothing while
+                      "Basement…" identifies the job. Both on a desk. */}
+                  <span className="chip-time">{clock(j.scheduled_start)} </span>
+                  {j.title}
                 </Link>
               ))}
               {list.length > MAX_CHIPS ? (

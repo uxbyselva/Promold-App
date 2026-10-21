@@ -52,8 +52,14 @@
 .tile a{font-size:12.5px}
 
 /* office month grid */
-.omonth{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--line);
-  border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+/* minmax(0,1fr), not 1fr. A grid column is min-content wide by default, so a
+   job title with white-space:nowrap in one day made that column as wide as
+   the title and pushed Friday to Sunday past the edge — where overflow:hidden
+   cut them off entirely, unreachable rather than merely cramped. The zero
+   minimum lets the chip's own ellipsis do the shortening instead. */
+.omonth{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:1px;
+  background:var(--line);border:1px solid var(--line);border-radius:var(--radius);
+  overflow:hidden}
 .omonth > .dow{display:block;background:var(--surface-2);padding:6px 8px;
   font-family:var(--font-cond);font-size:11px;font-weight:600;text-transform:uppercase;
   letter-spacing:.07em;color:var(--faint);text-align:center}
@@ -108,6 +114,77 @@
   font-size:11px;font-weight:700;border-radius:999px;padding:1px 6px;line-height:1.4;
   font-variant-numeric:tabular-nums}
 .nav a[aria-current="page"] .nav-badge{background:var(--crit)}
+
+/* ---------------------------------------------------------------------
+ * The office on a phone
+ *
+ * Above 860px nothing here applies and the header is the desk one: the mode
+ * switch, who you are and sign-out along the top, every tab in the row below.
+ *
+ * Below it the row would scroll sideways, which hid half the app behind a
+ * swipe nobody knew to make. So the first two tabs stay, the rest move into
+ * the menu, and the whole right-hand group goes with them.
+ * ------------------------------------------------------------------- */
+
+.om { display: none; }
+
+.om-button {
+  display: inline-flex; align-items: center; gap: 7px;
+  background: var(--surface-2); color: var(--ink);
+  border: 1px solid var(--line-strong); border-radius: 10px;
+  padding: 8px 12px; font: inherit; font-size: 14px; font-weight: 600;
+  cursor: pointer;
+}
+.om-button-label { font-size: 13.5px; }
+
+/* A real button rather than a div, so Escape and a tap both close it and the
+   thing is reachable from a keyboard. */
+.om-scrim {
+  position: fixed; inset: 0; z-index: 40;
+  background: rgba(0, 0, 0, 0.42);
+  border: 0; padding: 0; cursor: pointer;
+}
+
+.om-sheet {
+  position: fixed; z-index: 41; top: 0; right: 0; bottom: 0;
+  width: min(86vw, 330px);
+  background: var(--surface); border-left: 1px solid var(--line-strong);
+  padding: 18px 16px calc(18px + env(safe-area-inset-bottom));
+  display: flex; flex-direction: column; gap: 16px;
+  overflow-y: auto;
+}
+
+.om-who { display: flex; flex-direction: column; gap: 2px; }
+.om-who b { font-size: 16px; }
+.om-who span { font-size: 13px; color: var(--muted); }
+
+.om-modes { align-self: flex-start; }
+
+.om-links { display: flex; flex-direction: column; }
+.om-links a {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 13px 2px; font-size: 15.5px; font-weight: 500;
+  color: var(--ink); text-decoration: none;
+  border-bottom: 1px solid var(--line);
+}
+.om-links a[aria-current='page'] { color: var(--accent-ink); font-weight: 600; }
+
+.om-foot { margin-top: auto; padding-top: 10px; }
+
+@media (max-width: 860px) {
+  .om { display: block; }
+  /* Seven columns on a phone leaves about 50px each, so the month gives up
+     some height and the chips get smaller rather than the days getting
+     narrower still. */
+  .oday { min-height: 62px; padding: 4px; }
+  .oday .n { font-size: 11px; }
+  .chip { font-size: 10px; padding: 2px 3px; border-left-width: 2px; }
+  .omonth > .dow { padding: 5px 2px; font-size: 10px; letter-spacing: .04em; }
+  .chip-time { display: none; }
+  .masthead-wide, .nav-wide { display: none; }
+  .masthead-row { align-items: center; }
+  .nav { padding-top: 8px; }
+}
 
 /* =====================================================================
  * The crew's screens
