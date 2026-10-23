@@ -1,0 +1,986 @@
+<title>Promold Field</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+:root{
+  --ground:#EFF3F2; --surface:#FFFFFF; --surface-2:#F7FAF9;
+  --ink:#16211F; --muted:#5E6E6C; --faint:#8A9997;
+  --line:#DBE3E1; --line-strong:#C3CFCD;
+  --accent:#0F6B62; --accent-soft:#DDEDEA; --accent-ink:#0B4F48;
+  --ok:#2F7D4F; --ok-soft:#DFEFE4;
+  --warn:#A8690F; --warn-soft:#FAEBD3;
+  --crit:#A93524; --crit-soft:#F8E2DE;
+  --idle:#5E6E6C; --idle-soft:#E6EBEA;
+  --shadow:0 1px 2px rgba(22,33,31,.06), 0 4px 14px rgba(22,33,31,.05);
+  --radius:12px;
+
+  /* One superfamily, three roles. Plex Mono carries anything that is read
+     back character by character — asset tags, meter readings, money — where
+     its slashed zero and fixed widths stop AS-001 being read as AS-OO1. */
+  --font-ui:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --font-cond:'IBM Plex Sans Condensed','IBM Plex Sans',system-ui,sans-serif;
+  --font-mono:'IBM Plex Mono',ui-monospace,'SFMono-Regular',Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0E1514; --surface:#18211F; --surface-2:#1E2826;
+    --ink:#E7EDEB; --muted:#9AAAA7; --faint:#7A8987;
+    --line:#2B3735; --line-strong:#3A4846;
+    --accent:#45B3A5; --accent-soft:#16332F; --accent-ink:#8FD8CD;
+    --ok:#5FC087; --ok-soft:#14301F;
+    --warn:#E0A44A; --warn-soft:#332614;
+    --crit:#E8796A; --crit-soft:#331A16;
+    --idle:#9AAAA7; --idle-soft:#242F2D;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 4px 14px rgba(0,0,0,.3);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0E1514; --surface:#18211F; --surface-2:#1E2826;
+  --ink:#E7EDEB; --muted:#9AAAA7; --faint:#7A8987;
+  --line:#2B3735; --line-strong:#3A4846;
+  --accent:#45B3A5; --accent-soft:#16332F; --accent-ink:#8FD8CD;
+  --ok:#5FC087; --ok-soft:#14301F;
+  --warn:#E0A44A; --warn-soft:#332614;
+  --crit:#E8796A; --crit-soft:#331A16;
+  --idle:#9AAAA7; --idle-soft:#242F2D;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 4px 14px rgba(0,0,0,.3);
+}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0; background:var(--ground); color:var(--ink);
+  font-family:var(--font-ui);
+  font-size:15px; line-height:1.45; -webkit-font-smoothing:antialiased;
+}
+p{margin:0}
+button{font:inherit;color:inherit;cursor:pointer;border:none;background:none}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+
+.cond{font-family:var(--font-cond)}
+.mono{font-family:var(--font-mono)}
+.lbl{font-family:var(--font-cond);font-weight:600;
+  text-transform:uppercase;letter-spacing:.09em;font-size:12px;color:var(--faint)}
+.num{font-variant-numeric:tabular-nums}
+
+.shell{max-width:480px;margin:0 auto;min-height:100%;background:var(--ground);
+  display:flex;flex-direction:column;padding-bottom:78px}
+.proto-note{background:var(--warn-soft);color:var(--warn);padding:7px 16px;
+  font-size:12.5px;font-weight:500;text-align:center;border-bottom:1px solid var(--line)}
+.topbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;
+  background:var(--surface);border-bottom:1px solid var(--line);padding:12px 16px}
+.topbar-row{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.topbar h1{margin:0;font-size:21px;font-weight:600;letter-spacing:-.01em}
+.whoami{font-size:12.5px;color:var(--muted);border:1px dashed var(--line-strong);
+  border-radius:999px;padding:3px 9px}
+.whoami b{color:var(--ink);font-weight:600}
+
+.seg{display:flex;gap:2px;margin:12px -4px -2px;padding:0 4px}
+.seg button{flex:1;padding:7px 4px;border-radius:8px;font-size:13.5px;font-weight:500;
+  color:var(--muted);background:var(--surface-2);border:1px solid transparent}
+.seg button[aria-selected="true"]{background:var(--accent-soft);color:var(--accent-ink);
+  border-color:var(--accent);font-weight:600}
+
+main{flex:1;padding:14px 16px 20px;display:flex;flex-direction:column;gap:12px}
+.section-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-top:4px}
+
+/* ---------- month calendar ---------- */
+.cal{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+  padding:11px 10px 12px;box-shadow:var(--shadow)}
+.cal-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:9px}
+.cal-head h2{margin:0;font-size:16px;font-weight:600}
+.cal-nav{display:flex;gap:4px}
+.cal-nav button{width:32px;height:32px;border-radius:8px;background:var(--surface-2);
+  border:1px solid var(--line);display:grid;place-items:center;font-size:15px;color:var(--muted)}
+.dow{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:4px}
+.dow span{text-align:center;font-family:var(--font-cond);font-size:11px;
+  font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--faint)}
+.grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.cell{aspect-ratio:1/1;border-radius:9px;border:1px solid transparent;background:transparent;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  font-family:var(--font-mono);font-variant-numeric:tabular-nums;font-size:13.5px;
+  color:var(--ink);padding:0;min-width:0}
+.cell.out{color:var(--faint);opacity:.45}
+.cell.today{border-color:var(--accent);font-weight:700;color:var(--accent-ink)}
+.cell[aria-pressed="true"]{background:var(--accent);color:#fff;border-color:var(--accent)}
+.cell[aria-pressed="true"] .d i{background:#fff!important}
+.cell .d{display:flex;gap:2.5px;height:5px;align-items:center}
+.cell .d i{width:5px;height:5px;border-radius:50%;display:block;background:var(--accent)}
+.cell .d i.done{background:var(--ok)}
+.cell .d i.ask{background:var(--warn)}
+
+/* ---------- job card ---------- */
+.job{display:grid;grid-template-columns:4px 1fr;background:var(--surface);
+  border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;
+  box-shadow:var(--shadow);width:100%;text-align:left}
+.stripe{background:var(--idle)}
+.stripe[data-s="in_progress"],.stripe[data-s="on_site"]{background:var(--ok)}
+.stripe[data-s="en_route"]{background:var(--accent)}
+.stripe[data-s="blocked"]{background:var(--crit)}
+.stripe[data-s="assigned"]{background:var(--warn)}
+.job-body{padding:12px 13px 13px;display:flex;flex-direction:column;gap:7px;min-width:0}
+.job-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.job-no{font-family:var(--font-mono);font-size:12px;letter-spacing:0;font-weight:500;color:var(--faint)}
+.job-title{font-size:16px;font-weight:600;margin:0;line-height:1.25;text-wrap:balance}
+.job-meta{display:flex;flex-direction:column;gap:3px;font-size:13.5px;color:var(--muted)}
+.job-meta .addr{color:var(--ink)}
+.job-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding-top:8px;border-top:1px solid var(--line)}
+.crew{font-size:12.5px;color:var(--muted);min-width:0;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.time{font-weight:600;font-size:14px}
+
+.pill{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;
+  font-family:var(--font-cond);font-weight:600;font-size:12.5px;
+  text-transform:uppercase;letter-spacing:.06em;white-space:nowrap;
+  background:var(--idle-soft);color:var(--idle)}
+.pill[data-t="ok"]{background:var(--ok-soft);color:var(--ok)}
+.pill[data-t="warn"]{background:var(--warn-soft);color:var(--warn)}
+.pill[data-t="crit"]{background:var(--crit-soft);color:var(--crit)}
+.pill[data-t="accent"]{background:var(--accent-soft);color:var(--accent-ink)}
+.dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex:none}
+
+/* ---------- board ---------- */
+.board{display:flex;gap:10px;overflow-x:auto;padding-bottom:6px;margin:0 -16px;padding-inline:16px}
+.col{flex:0 0 250px;display:flex;flex-direction:column;gap:9px}
+.col-head{display:flex;align-items:center;justify-content:space-between;padding:0 2px}
+.count{font-family:var(--font-mono);font-size:12px;font-weight:500;color:var(--faint);background:var(--surface-2);
+  border-radius:999px;padding:1px 8px}
+.col .job{box-shadow:none}
+.col-empty{font-size:13px;color:var(--faint);padding:14px 10px;text-align:center;
+  border:1px dashed var(--line-strong);border-radius:var(--radius)}
+
+/* ---------- rows ---------- */
+.unit{display:flex;align-items:center;gap:11px;width:100%;text-align:left;
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:11px 12px}
+.tag{font-family:var(--font-mono);font-weight:500;font-size:14px;letter-spacing:0;
+  background:var(--surface-2);border:1px solid var(--line-strong);border-radius:6px;
+  padding:4px 7px;flex:none;min-width:58px;text-align:center}
+.unit-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.unit-name{font-weight:600;font-size:14.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.unit-where{font-size:13px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.unit-right{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex:none}
+.days{font-family:var(--font-cond);font-weight:600;font-size:13px;
+  color:var(--muted);font-variant-numeric:tabular-nums}
+
+.stockrow{display:flex;align-items:center;gap:11px;width:100%;text-align:left;
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:11px 12px}
+.stockrow.low{border-color:var(--warn)}
+.qty{font-family:var(--font-mono);font-weight:600;font-size:17px;
+  font-variant-numeric:tabular-nums;min-width:44px;text-align:right}
+.qty small{font-size:11px;font-weight:600;color:var(--faint);display:block;line-height:1;
+  text-transform:uppercase;letter-spacing:.05em}
+
+/* ---------- sheet ---------- */
+.scrim{position:fixed;inset:0;background:rgba(10,18,17,.5);z-index:40;opacity:0;
+  pointer-events:none;transition:opacity .18s ease}
+.scrim.open{opacity:1;pointer-events:auto}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:50;background:var(--ground);
+  border-radius:18px 18px 0 0;max-height:92%;display:flex;flex-direction:column;
+  transform:translateY(102%);transition:transform .22s cubic-bezier(.32,.72,0,1);
+  max-width:480px;margin:0 auto;box-shadow:0 -6px 30px rgba(10,18,17,.22)}
+.sheet.open{transform:translateY(0)}
+.sheet-head{padding:10px 16px 12px;border-bottom:1px solid var(--line);
+  background:var(--surface);border-radius:18px 18px 0 0}
+.grab{width:34px;height:4px;border-radius:2px;background:var(--line-strong);margin:0 auto 10px}
+.sheet-body{overflow-y:auto;padding:14px 16px calc(18px + env(safe-area-inset-bottom,0px));
+  display:flex;flex-direction:column;gap:13px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+  padding:12px 13px;display:flex;flex-direction:column;gap:9px}
+.panel.flag{border-color:var(--warn);background:var(--warn-soft)}
+.kv{display:flex;justify-content:space-between;gap:12px;font-size:14px}
+.kv dt{color:var(--muted)}
+.kv dd{margin:0;font-weight:500;text-align:right}
+dl.kv-list{margin:0;display:flex;flex-direction:column;gap:6px}
+
+.track{display:flex;align-items:center;margin:2px 0 4px}
+.track .step{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;position:relative}
+.track .step::before{content:"";position:absolute;top:6px;left:-50%;width:100%;height:2px;
+  background:var(--line-strong)}
+.track .step:first-child::before{display:none}
+.track .step[data-on="1"]::before{background:var(--accent)}
+.track .bead{width:13px;height:13px;border-radius:50%;background:var(--line-strong);
+  border:2px solid var(--surface);position:relative;z-index:1}
+.track .step[data-on="1"] .bead{background:var(--accent)}
+.track .step[data-now="1"] .bead{box-shadow:0 0 0 4px var(--accent-soft)}
+.track .step span{font-family:var(--font-cond);font-size:10.5px;font-weight:600;
+  text-transform:uppercase;letter-spacing:.02em;color:var(--faint);text-align:center;
+  line-height:1.15;padding:0 4px}
+.track .step[data-on="1"] span{color:var(--ink)}
+
+.btn{display:flex;align-items:center;justify-content:center;gap:7px;width:100%;padding:12px;
+  border-radius:10px;font-weight:600;font-size:15px;background:var(--accent);color:#fff;
+  border:1px solid var(--accent)}
+.btn.ghost{background:var(--surface);color:var(--ink);border-color:var(--line-strong)}
+.btn.warn{background:var(--surface);color:var(--warn);border-color:var(--warn)}
+.btn.danger{background:var(--surface);color:var(--crit);border-color:var(--crit)}
+.btn.sm{padding:8px 12px;font-size:13.5px;width:auto;flex:none}
+.btn-row{display:flex;gap:8px}
+.btn-row .btn{flex:1}
+
+.blockers{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:7px}
+.blockers li{display:flex;align-items:center;gap:9px;font-size:13.5px}
+.blockers .x{width:17px;height:17px;border-radius:50%;background:var(--warn);
+  color:var(--warn-soft);display:grid;place-items:center;font-size:12px;font-weight:700;flex:none}
+.blockers .fix{margin-left:auto;font-size:12.5px;font-weight:600;color:var(--warn);
+  text-decoration:underline;text-underline-offset:2px;white-space:nowrap}
+
+.phase{display:flex;flex-direction:column;gap:6px}
+.phase-head{display:flex;align-items:baseline;gap:8px}
+.phase-name{font-family:var(--font-cond);font-weight:600;font-size:13px;
+  text-transform:uppercase;letter-spacing:.06em}
+.phase-n{font-family:var(--font-mono);font-size:12px;font-weight:500;color:var(--faint);background:var(--surface-2);
+  border-radius:999px;padding:1px 8px;font-variant-numeric:tabular-nums}
+.phase-n[data-empty="1"]{background:var(--warn-soft);color:var(--warn)}
+.notes{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.notes li{display:flex;align-items:center;gap:9px;font-size:13.5px;color:var(--muted)}
+.notes .tick{width:17px;height:17px;border-radius:50%;background:var(--accent-soft);
+  color:var(--accent-ink);display:grid;place-items:center;font-size:10px;font-weight:700;flex:none}
+.photos{display:flex;gap:7px;overflow-x:auto;padding-bottom:2px}
+.ph{flex:0 0 74px;height:74px;border-radius:9px;border:1px solid var(--line);display:grid;
+  place-items:center;text-align:center;line-height:1.15;background:var(--surface-2);
+  color:var(--faint);font-size:11px}
+.ph.add{border-style:dashed;color:var(--accent);border-color:var(--accent);font-size:12px}
+.ph-img{background:linear-gradient(135deg,var(--surface-2) 0%,var(--accent-soft) 100%);
+  position:relative;align-items:flex-end;justify-items:stretch;padding:0;overflow:hidden}
+.ph-room{position:absolute;left:0;right:0;bottom:0;background:rgba(10,18,17,.62);color:#fff;
+  font-size:9.5px;line-height:1.25;padding:3px 4px;text-align:left;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.money{display:flex;flex-direction:column;gap:5px}
+.money .row{display:flex;justify-content:space-between;font-size:14px}
+.money .row .num{font-family:var(--font-mono);font-size:13.5px}
+.money .row.total{border-top:1px solid var(--line);padding-top:6px;font-weight:600}
+
+/* ---------- form ---------- */
+.field{display:flex;flex-direction:column;gap:5px}
+.field label{font-family:var(--font-cond);font-weight:600;font-size:12px;
+  text-transform:uppercase;letter-spacing:.07em;color:var(--faint)}
+.field input,.field select,.field textarea{
+  font:inherit;color:var(--ink);background:var(--surface-2);border:1px solid var(--line-strong);
+  border-radius:9px;padding:10px 11px;width:100%}
+.field textarea{resize:vertical;min-height:64px}
+.field-row{display:flex;gap:8px}
+.field-row .field{flex:1}
+.choice{display:flex;gap:7px;flex-wrap:wrap}
+.choice button{padding:8px 12px;border-radius:9px;border:1px solid var(--line-strong);
+  background:var(--surface-2);font-size:13.5px;font-weight:500;color:var(--muted)}
+.choice button[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);
+  color:var(--accent-ink);font-weight:600}
+.hint{font-size:12.5px;color:var(--muted);line-height:1.4}
+
+/* ---------- tabbar ---------- */
+.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:30;display:flex;background:var(--surface);
+  border-top:1px solid var(--line);padding:0 0 env(safe-area-inset-bottom,0px);
+  max-width:480px;margin:0 auto}
+.tabbar button{position:relative;flex:1;padding:9px 4px 10px;display:flex;flex-direction:column;
+  align-items:center;gap:3px;color:var(--faint);font-size:11.5px;font-weight:600}
+.tabbar button[aria-selected="true"]{color:var(--accent)}
+.tabbar .ic{font-size:19px;line-height:1}
+.badge{position:absolute;transform:translate(14px,-4px);background:var(--crit);color:#fff;
+  font-size:10px;font-weight:700;border-radius:999px;padding:0 5px;line-height:15px}
+
+.toast{position:fixed;left:50%;bottom:92px;transform:translate(-50%,14px);z-index:60;
+  background:var(--ink);color:var(--ground);padding:9px 15px;border-radius:9px;font-size:13.5px;
+  font-weight:500;opacity:0;transition:all .2s ease;pointer-events:none;max-width:88%;text-align:center}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="shell">
+  <p class="proto-note">Prototype · sample data · nothing is saved</p>
+  <header class="topbar">
+    <div class="topbar-row">
+      <h1 id="screenTitle">Jobs</h1>
+      <button class="whoami" id="who" data-act="swap-role"></button>
+    </div>
+    <div class="seg" id="viewSeg" role="tablist" aria-label="Job view">
+      <button role="tab" data-view="cal" aria-selected="true">Calendar</button>
+      <button role="tab" data-view="list" aria-selected="false">List</button>
+    </div>
+  </header>
+  <main id="main"></main>
+</div>
+
+<nav class="tabbar" role="tablist" aria-label="Sections">
+  <button role="tab" data-tab="jobs" aria-selected="true"><span class="ic">▦</span>Jobs</button>
+  <button role="tab" data-tab="board" aria-selected="false"><span class="ic">▤</span>Board</button>
+  <button role="tab" data-tab="equip" aria-selected="false"><span class="ic">◈</span>Store<span class="badge" id="equipBadge">1</span></button>
+</nav>
+
+<div class="scrim" id="scrim"></div>
+<section class="sheet" id="sheet" aria-modal="true" role="dialog" aria-label="Detail">
+  <div class="sheet-head"><div class="grab"></div><div id="sheetHead"></div></div>
+  <div class="sheet-body" id="sheetBody"></div>
+</section>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+/* Sample data mirrors supabase/seed.sql so the screens carry the real
+   vernacular: real asset tags, real crew, the 42 Oak St job mid-remediation. */
+const TODAY = '2026-09-18';
+/* Three steps, from organizations.settings.job_steps. The longer flow still
+   exists in the database, switched off, so adding En route back later is an
+   UPDATE rather than a release. */
+const STEPS = ['accepted','in_progress','work_complete'];
+const STEP_LABEL = {accepted:'Accepted', in_progress:'On site / working',
+  work_complete:'Done'};
+const NEXT_LABEL = {accepted:'Start work', in_progress:'Mark complete'};
+
+/* Two galleries, from organizations.settings.photo_phases. 'during' is still
+   a valid photo_phase; it is simply not offered. */
+const PHASES = [['before','Before work'],['after','After work']];
+
+/* One row per photo, exactly as job_photos stores them: a phase, a room and a
+   timestamp. There is no cap on any phase — take as many as the job needs. */
+const shots = (phase, room, n) =>
+  Array.from({length:n}, () => ({phase, room}));
+
+let jobs = [
+  {no:'J00102', title:'Basement remediation — day 3 of 3', customer:'Helen Brooks',
+   site:'42 Oak St — basement', city:'Springfield MA',
+   access:'Side gate code 4471. Dog in the yard.',
+   days:['2026-09-16','2026-09-17','2026-09-18'], start:'08:00', end:'16:00',
+   status:'in_progress', acceptance:'accepted', template:'Remediation Day',
+   crew:['Marcus Bell','Tomas Reyes','Priya Nair'], base:8600,
+   changeOrders:[{title:'Rot behind north wall', amount:1250, status:'approved'}],
+   photos:[...shots('before','North wall',4), ...shots('before','Under stairs',3),
+           ...shots('before','Utility room',2), ...shots('before','Containment',5)],
+   signed:false, materialsLogged:true,
+   formsDone:['PPE and job hazard check'], formsNeeded:['PPE and job hazard check'],
+   openClocks:1, equipment:['AS-001','AS-002','DH-001','MM-001'], rentalOpen:true},
+
+  {no:'J00103', title:'Unit 3B containment setup', customer:'Cardinal Property Group',
+   site:'Larkspur Apts — unit 3B', city:'Springfield MA',
+   access:'Keys at the leasing office, 9–5.',
+   days:['2026-09-19'], start:'09:00', end:'15:00',
+   status:'assigned', acceptance:'pending', template:'Containment Setup',
+   crew:['Marcus Bell','Priya Nair'], base:2200, changeOrders:[],
+   photos:[], signed:false, materialsLogged:false,
+   formsDone:[], formsNeeded:['Containment verification','PPE and job hazard check'],
+   openClocks:0, equipment:[], rentalOpen:false},
+
+  {no:'J00105', title:'Crawlspace inspection', customer:'Dale Whitcomb',
+   site:'9 Tolland Rd — crawlspace', city:'Springfield MA', access:'',
+   days:['2026-09-22'], start:'10:00', end:'12:00',
+   status:'accepted', acceptance:'accepted', template:'Mold Inspection',
+   crew:['Marcus Bell'], base:450, changeOrders:[],
+   photos:[], signed:false, materialsLogged:false,
+   formsDone:[], formsNeeded:['Moisture readings'], openClocks:0,
+   equipment:[], rentalOpen:false},
+
+  {no:'J00104', title:'Post-remediation verification', customer:'Helen Brooks',
+   site:'42 Oak St — basement', city:'Springfield MA',
+   access:'Side gate code 4471. Dog in the yard.',
+   days:['2026-09-24'], start:'11:00', end:'14:00',
+   status:'accepted', acceptance:'accepted', template:'Post-Remediation Verification',
+   crew:['Marcus Bell'], base:600, changeOrders:[],
+   photos:[], signed:false, materialsLogged:false,
+   formsDone:[], formsNeeded:['Moisture readings','Sample chain of custody'],
+   openClocks:0, equipment:[], rentalOpen:false},
+
+  {no:'J00099', title:'Attic mould survey', customer:'Cardinal Property Group',
+   site:'Larkspur Apts — attic', city:'Springfield MA', access:'',
+   days:['2026-09-11'], start:'13:00', end:'15:00',
+   status:'work_complete', acceptance:'accepted', template:'Mold Inspection',
+   crew:['Marcus Bell'], base:450, changeOrders:[],
+   photos:[...shots('before','Attic',5), ...shots('after','Attic',3)],
+   signed:true, materialsLogged:true,
+   formsDone:['Moisture readings'], formsNeeded:['Moisture readings'],
+   openClocks:0, equipment:[], rentalOpen:false},
+
+  {no:'J00101', title:'Basement mold inspection', customer:'Helen Brooks',
+   site:'42 Oak St — basement', city:'Springfield MA', access:'',
+   days:['2026-08-27'], start:'10:00', end:'12:00',
+   status:'work_complete', acceptance:'accepted', template:'Mold Inspection',
+   crew:['Marcus Bell'], base:450, changeOrders:[],
+   photos:[...shots('before','Basement',8), ...shots('after','Basement',4)],
+   signed:true, materialsLogged:true,
+   formsDone:['Moisture readings'], formsNeeded:['Moisture readings'],
+   openClocks:0, equipment:[], rentalOpen:false}
+];
+
+/* Serialised assets: individually tagged, come back, have custody. */
+let units = [
+  {tag:'AS-001', name:'Air scrubber #1', cat:'Air scrubber', state:'staged',
+   where:'42 Oak St — basement', job:'J00102', days:2, due:'tomorrow', overdue:false, hours:1840},
+  {tag:'AS-002', name:'Air scrubber #2', cat:'Air scrubber', state:'staged',
+   where:'42 Oak St — basement', job:'J00102', days:2, due:'tomorrow', overdue:false, hours:1792},
+  {tag:'DH-001', name:'Dehumidifier #1', cat:'Dehumidifier', state:'staged',
+   where:'42 Oak St — basement', job:'J00102', days:2, due:'6 hours ago', overdue:true, hours:3106},
+  {tag:'MM-001', name:'Moisture meter', cat:'Meter', state:'checkout',
+   where:'With Marcus Bell', job:'J00102', days:2, due:null, overdue:false, hours:null},
+  {tag:'AS-003', name:'Air scrubber #3', cat:'Air scrubber', state:'available',
+   where:'Warehouse', job:null, days:0, due:null, overdue:false, hours:980},
+  {tag:'NA-001', name:'Negative air machine', cat:'Negative air', state:'available',
+   where:'Warehouse', job:null, days:0, due:null, overdue:false, hours:412}
+];
+
+const rentals = [{desc:'HEPA air scrubber ×2', vendor:'Northside Equipment Rental',
+  ref:'NER-88213', job:'J00102', site:'42 Oak St', rate:'$45/day', due:'tomorrow',
+  days:2, cost:270, overdue:false}];
+
+/* PROPOSAL — three ways a stocked thing behaves.
+   single_use : one job takes it and it is gone (mask, gloves, coverall)
+   bulk       : a pack serves many jobs until empty, then it is thrown out
+   returnable : goes out and comes back, counted not tagged (cords, buckets) */
+let stock = [
+  {sku:'PPE-SUIT', name:'Disposable coverall XL', mode:'single_use', unit:'each',
+   qty:{'Warehouse':51,'Van 1':12}, min:20, cost:9.75},
+  {sku:'PPE-N95', name:'N95 respirator', mode:'single_use', unit:'each',
+   qty:{'Warehouse':14,'Van 1':8}, min:24, cost:3.20},
+  {sku:'PPE-GLV', name:'Nitrile gloves', mode:'single_use', unit:'pair',
+   qty:{'Warehouse':180,'Van 1':40}, min:100, cost:0.45},
+  {sku:'CORD-50', name:'50 ft extension cord', mode:'returnable', unit:'each',
+   qty:{'Warehouse':4,'Van 1':2}, min:4, cost:42.00}
+];
+
+/* Open packs: the garbage-bag-box problem. One physical container, out on the
+   van, serving whatever job comes next, until someone says it is finished. */
+let packs = [
+  {id:'P1', name:'Contractor bags — box of 50', sku:'BAG-CON', loc:'Van 1',
+   opened:'12 Sep', jobs:['J00099','J00102'], cost:38.00},
+  {id:'P2', name:'6 mil poly sheeting 10×100', sku:'CONT-006', loc:'Van 1',
+   opened:'15 Sep', jobs:['J00102'], cost:62.00},
+  {id:'P3', name:'Antimicrobial concentrate — 5 gal', sku:'CHEM-001', loc:'Van 1',
+   opened:'16 Sep', jobs:['J00102'], cost:38.50}
+];
+
+let reorder = [];
+/* Personas carry the same flags has_permission() checks in the database. The
+   UI only hides what a user cannot see; jobs_safe is what actually withholds
+   it, and the price column is revoked on the base table. */
+const PEOPLE = [
+  {name:'Marcus Bell', role:'Crew Lead',
+   perms:{'job.accept':true,'job.complete':true,'changeorder.draft':true,
+          'equipment.place':true,'inventory.log_usage':true}},
+  {name:'Ray Alvarez', role:'Manager',
+   perms:{'job.accept':true,'job.complete':true,'job.edit':true,'job.assign':true,
+          'changeorder.draft':true,'changeorder.manage':true,'equipment.place':true,
+          'inventory.log_usage':true,'price.view':true,'costing.view':true}}
+];
+let me = 0;
+const can = f => PEOPLE[me].perms[f] === true;
+
+let tab='jobs', view='cal', openJob=null, openUnit=null, openPack=null;
+let calY=2026, calM=8, selected=TODAY;
+let buyKind='asset';
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const money = n => '$' + n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+const iso = d => d.toISOString().slice(0,10);
+const total = s => Object.values(s.qty).reduce((a,b)=>a+b,0);
+
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');
+  clearTimeout(t._id);t._id=setTimeout(()=>t.classList.remove('show'),2400);}
+
+function statusPill(j){
+  if (j.acceptance==='pending') return `<span class="pill" data-t="warn"><span class="dot"></span>Needs your answer</span>`;
+  if (j.acceptance==='reschedule_requested') return `<span class="pill" data-t="accent">Reschedule asked</span>`;
+  const m={in_progress:['ok','Working'],on_site:['ok','On site'],en_route:['accent','En route'],
+    accepted:['','Accepted'],assigned:['warn','Assigned'],blocked:['crit','Blocked'],
+    work_complete:['','Complete']};
+  const [t,l]=m[j.status]||['',j.status];
+  return `<span class="pill"${t?` data-t="${t}"`:''}>${l}</span>`;
+}
+
+/* Mirrors job_completion_blockers() in SQL — the gate that keeps the record
+   honest and stops scrubbers being left behind at a finished job. */
+const phaseCount = (j, phase) => j.photos.filter(p => p.phase === phase).length;
+
+/* Blocking: only what the crew alone can supply, and only what cannot be
+   reconstructed once they have driven away. */
+function blockers(j){
+  const out=[];
+  // At least one in each required phase. There is no upper bound.
+  if(phaseCount(j,'before')===0) out.push(['Before photos required','Add photos']);
+  if(phaseCount(j,'after')===0) out.push(['After photos required','Add photos']);
+  if(!j.signed) out.push(['Customer sign-off required','Get signature']);
+  if(!j.materialsLogged) out.push(['Log materials used','Log now']);
+  j.formsNeeded.forEach(f=>{if(!j.formsDone.includes(f)) out.push([`Not complete: ${f}`,'Fill in']);});
+  const stranded=j.equipment.filter(t=>{const u=units.find(x=>x.tag===t);return u&&u.state==='staged'&&!u.due;});
+  if(stranded.length) out.push([`${stranded.length} item at site, no pickup set`,'Set pickup']);
+  return out;
+}
+
+/* True, worth saying, not theirs to fix. Never refuses the transition. */
+function warnings(j){
+  const out=[];
+  if(j.openClocks>0) out.push(`${j.openClocks} ${j.openClocks===1?'person':'people'} will be clocked out now`);
+  if(j.rentalOpen) out.push('Rental still out — the office will be told');
+  return out;
+}
+
+function jobCard(j,compact){
+  const when = j.days.includes(TODAY) ? 'Today'
+    : j.days[0] > TODAY ? new Date(j.days[0]+'T00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})
+    : new Date(j.days[0]+'T00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+  return `<button class="job" data-job="${j.no}">
+    <span class="stripe" data-s="${j.acceptance==='pending'?'assigned':j.status}"></span>
+    <span class="job-body">
+      <span class="job-top"><span class="job-no cond">${j.no}</span>${statusPill(j)}</span>
+      <h3 class="job-title">${esc(j.title)}</h3>
+      ${compact?'':`<span class="job-meta"><span class="addr">${esc(j.site)}</span>
+        <span>${esc(j.customer)}</span></span>`}
+      <span class="job-foot"><span class="crew">${esc(j.crew.join(', '))}</span>
+        <span class="time num">${when} ${j.start}</span></span>
+    </span></button>`;
+}
+
+/* ---------- calendar ---------- */
+function renderCal(){
+  const first = new Date(calY, calM, 1);
+  const monthName = first.toLocaleDateString('en-GB',{month:'long',year:'numeric'});
+  // Monday-first grid, padded out to whole weeks.
+  const lead = (first.getDay() + 6) % 7;
+  const start = new Date(calY, calM, 1 - lead);
+  const cells = [];
+  for (let i=0; i<42; i++){
+    const d = new Date(start.getFullYear(), start.getMonth(), start.getDate()+i);
+    const key = iso(d);
+    const on = jobs.filter(j => j.days.includes(key));
+    if (i>=35 && on.length===0 && d.getMonth()!==calM) continue;
+    cells.push({key, n:d.getDate(), out:d.getMonth()!==calM, on});
+  }
+  const dayJobs = jobs.filter(j => j.days.includes(selected));
+  const sel = new Date(selected+'T00:00');
+
+  return `<div class="cal">
+    <div class="cal-head">
+      <h2>${monthName}</h2>
+      <div class="cal-nav">
+        <button data-mon="-1" aria-label="Previous month">‹</button>
+        <button data-mon="1" aria-label="Next month">›</button>
+      </div>
+    </div>
+    <div class="dow">${['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d=>`<span>${d}</span>`).join('')}</div>
+    <div class="grid">${cells.map(c=>`
+      <button class="cell${c.out?' out':''}${c.key===TODAY?' today':''}"
+        data-date="${c.key}" aria-pressed="${c.key===selected}">
+        ${c.n}
+        <span class="d">${c.on.slice(0,3).map(j=>`<i class="${
+          j.acceptance==='pending'?'ask':j.status==='work_complete'?'done':''}"></i>`).join('')}</span>
+      </button>`).join('')}</div>
+  </div>
+  <div class="section-head">
+    <p class="lbl">${sel.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'})}</p>
+    <span class="lbl num">${dayJobs.length} job${dayJobs.length===1?'':'s'}</span>
+  </div>
+  ${dayJobs.length ? dayJobs.map(j=>jobCard(j)).join('')
+    : '<p class="col-empty">Nothing scheduled this day</p>'}`;
+}
+
+function renderList(){
+  const needs = jobs.filter(j=>j.acceptance==='pending');
+  const today = jobs.filter(j=>j.days.includes(TODAY));
+  const soon  = jobs.filter(j=>j.days[0]>TODAY && j.acceptance!=='pending');
+  const past  = jobs.filter(j=>j.days[j.days.length-1]<TODAY);
+  return `
+  ${needs.length?`<div class="section-head"><p class="lbl">Waiting on you</p></div>
+    ${needs.map(j=>jobCard(j)).join('')}`:''}
+  <div class="section-head"><p class="lbl">Today</p><span class="lbl num">${today.length}</span></div>
+  ${today.map(j=>jobCard(j)).join('')||'<p class="col-empty">Nothing on today</p>'}
+  <div class="section-head"><p class="lbl">Coming up</p></div>
+  ${soon.map(j=>jobCard(j)).join('')||'<p class="col-empty">Nothing else scheduled</p>'}
+  <div class="section-head"><p class="lbl">Finished</p></div>
+  ${past.map(j=>jobCard(j)).join('')}`;
+}
+
+function renderBoard(){
+  const cols=[['To do',j=>j.status==='assigned'||j.status==='accepted'],
+    ['Working',j=>['en_route','on_site','in_progress'].includes(j.status)],
+    ['Blocked',j=>j.status==='blocked'],
+    ['Done',j=>['work_complete','approved','closed'].includes(j.status)]];
+  return `<div class="board">${cols.map(([n,f])=>{
+    const l=jobs.filter(f);
+    return `<div class="col">
+      <div class="col-head"><p class="lbl">${n}</p><span class="count num">${l.length}</span></div>
+      ${l.map(j=>jobCard(j,true)).join('')||'<p class="col-empty">Empty</p>'}
+    </div>`;}).join('')}</div>`;
+}
+
+/* ---------- store (assets + consumables) ---------- */
+function unitRow(u){
+  const chip = u.state==='staged'
+    ? `<span class="pill" data-t="${u.overdue?'crit':'ok'}"><span class="dot"></span>At site</span>`
+    : u.state==='checkout' ? `<span class="pill" data-t="accent">With crew</span>`
+    : `<span class="pill">Available</span>`;
+  return `<button class="unit" data-unit="${u.tag}">
+    <span class="tag">${u.tag}</span>
+    <span class="unit-main"><span class="unit-name">${esc(u.name)}</span>
+      <span class="unit-where">${esc(u.where)}</span></span>
+    <span class="unit-right">${chip}${u.days?`<span class="days num">${u.days}d out</span>`:''}</span>
+  </button>`;
+}
+
+const MODE_CHIP = {
+  single_use:'<span class="pill">Single use</span>',
+  bulk:'<span class="pill" data-t="accent">Bulk pack</span>',
+  returnable:'<span class="pill" data-t="ok">Returnable</span>'
+};
+
+function stockRow(s){
+  const t = total(s), low = t < s.min;
+  return `<div class="stockrow${low?' low':''}">
+    <span class="unit-main"><span class="unit-name">${esc(s.name)}</span>
+      <span class="unit-where">${Object.entries(s.qty).map(([k,v])=>`${k} ${v}`).join(' · ')}</span></span>
+    <span class="unit-right">${MODE_CHIP[s.mode]}
+      ${low?`<span class="days" style="color:var(--warn)">below ${s.min}</span>`:''}</span>
+    <span class="qty num">${t}<small>${esc(s.unit)}</small></span>
+  </div>`;
+}
+
+function renderStore(){
+  const out = units.filter(u=>u.state!=='available');
+  const free = units.filter(u=>u.state==='available');
+  const late = units.filter(u=>u.overdue);
+  return `
+  <div class="btn-row">
+    <button class="btn" data-act="take-open">Take equipment out</button>
+    <button class="btn ghost" data-act="scan" style="flex:0 0 auto;width:auto;padding-inline:17px">Scan</button>
+  </div>
+
+  ${late.length?`<div class="panel flag">
+    <p class="lbl" style="color:var(--warn)">Needs collecting</p>
+    ${late.map(u=>`<p style="font-size:13.5px">
+      <b>${u.tag}</b> ${esc(u.name)} — due ${esc(u.due)}, still at ${esc(u.where)}</p>`).join('')}
+  </div>`:''}
+
+  <div class="section-head"><p class="lbl">Out on jobs</p><span class="lbl num">${out.length}</span></div>
+  ${out.map(unitRow).join('')}
+  <div class="section-head"><p class="lbl">In the warehouse</p><span class="lbl num">${free.length}</span></div>
+  ${free.map(unitRow).join('')}
+
+  <div class="section-head"><p class="lbl">Rented in</p></div>
+  ${rentals.map(r=>`<div class="panel">
+    <div style="display:flex;justify-content:space-between;gap:10px;align-items:start">
+      <div><p style="font-weight:600">${esc(r.desc)}</p>
+        <p style="font-size:13px;color:var(--muted);margin-top:2px">${esc(r.vendor)} · ${r.ref}</p></div>
+      <span class="pill" data-t="${r.overdue?'crit':'warn'}">Due ${esc(r.due)}</span></div>
+    <dl class="kv-list">
+      <div class="kv"><dt>On job</dt><dd>${r.job} · ${esc(r.site)}</dd></div>
+      <div class="kv"><dt>Cost so far</dt><dd class="num">${money(r.cost)}</dd></div></dl>
+    <button class="btn ghost" data-act="return-rental">Record return</button>
+  </div>`).join('')}
+
+  <div class="section-head"><p class="lbl">Open packs</p><span class="lbl num">${packs.length}</span></div>
+  <p class="hint">A pack goes out on the van and serves whatever job comes next.
+    Nobody counts bags — you mark it finished when it runs out.</p>
+  ${packs.map(p=>`<button class="unit" data-pack="${p.id}">
+    <span class="unit-main"><span class="unit-name">${esc(p.name)}</span>
+      <span class="unit-where">${esc(p.loc)} · opened ${esc(p.opened)} · used on ${p.jobs.length} job${p.jobs.length===1?'':'s'}</span></span>
+    <span class="unit-right">${MODE_CHIP.bulk}</span></button>`).join('')
+    ||'<p class="col-empty">No packs open</p>'}
+
+  <div class="section-head"><p class="lbl">Counted stock</p></div>
+  ${stock.map(stockRow).join('')}
+
+  ${reorder.length?`<div class="panel flag">
+    <p class="lbl" style="color:var(--warn)">On the reorder list</p>
+    ${reorder.map(r=>`<p style="font-size:13.5px">${esc(r)}</p>`).join('')}
+  </div>`:''}
+
+  <button class="btn ghost" data-act="buy-open">Request a purchase</button>`;
+}
+
+/* ---------- sheets ---------- */
+function openSheet(){$('#sheet').classList.add('open');$('#scrim').classList.add('open');}
+function closeSheet(){$('#sheet').classList.remove('open');$('#scrim').classList.remove('open');
+  openJob=null;openUnit=null;openPack=null;}
+
+function jobSheet(j){
+  const bl=blockers(j), wn=warnings(j),
+        co=j.changeOrders.reduce((s,c)=>c.status==='approved'?s+c.amount:s,0);
+  const idx=STEPS.indexOf(j.status);
+  const canAdvance = j.acceptance==='accepted' && idx>=0 && idx<STEPS.length-1;
+  $('#sheetHead').innerHTML=`
+    <div class="job-top" style="margin-bottom:5px"><span class="job-no cond">${j.no}</span>${statusPill(j)}</div>
+    <h2 style="margin:0;font-size:18px;font-weight:600;line-height:1.25">${esc(j.title)}</h2>
+    <p style="margin-top:3px;font-size:13.5px;color:var(--muted)">${esc(j.site)} · ${esc(j.customer)}</p>`;
+  $('#sheetBody').innerHTML=`
+    ${j.acceptance==='pending'?`<div class="panel flag">
+      <p class="lbl" style="color:var(--warn)">This job needs an answer</p>
+      <p style="font-size:13.5px">${j.start}–${j.end} · ${esc(j.crew.join(', '))}</p>
+      <div class="btn-row"><button class="btn" data-act="accept">Accept</button>
+        <button class="btn warn" data-act="reschedule">Ask to move</button></div></div>`
+    :`<div class="panel"><div class="track">${STEPS.map((s,i)=>
+        `<div class="step" data-on="${i<=idx?1:0}" data-now="${i===idx?1:0}">
+          <div class="bead"></div><span>${STEP_LABEL[s]}</span></div>`).join('')}</div>
+      ${canAdvance?`<button class="btn" data-act="advance">${NEXT_LABEL[j.status]}</button>`:''}
+      ${j.status==='work_complete'?`<p style="font-size:13.5px;color:var(--ok);font-weight:500">Finished and sent for review.</p>`:''}
+      </div>`}
+
+    ${j.status==='in_progress'&&bl.length?`<div class="panel flag">
+      <p class="lbl" style="color:var(--warn)">${bl.length} thing${bl.length>1?'s':''} before you can finish</p>
+      <ul class="blockers">${bl.map(([t,a])=>`<li><span class="x">!</span><span>${esc(t)}</span>
+        <span class="fix">${esc(a)}</span></li>`).join('')}</ul></div>`:''}
+
+    ${j.status==='in_progress'&&wn.length?`<div class="panel">
+      <p class="lbl">When you finish</p>
+      <ul class="notes">${wn.map(w=>`<li><span class="tick">✓</span>${esc(w)}</li>`).join('')}</ul>
+    </div>`:''}
+
+    <div class="panel"><p class="lbl">Site</p>
+      <dl class="kv-list">
+        <div class="kv"><dt>Address</dt><dd>${esc(j.site)}<br>${esc(j.city)}</dd></div>
+        <div class="kv"><dt>Hours</dt><dd class="num">${j.start} – ${j.end}</dd></div>
+        <div class="kv"><dt>Crew</dt><dd>${esc(j.crew.join(', '))}</dd></div>
+        <div class="kv"><dt>Job type</dt><dd>${esc(j.template)}</dd></div>
+        ${j.days.length>1?`<div class="kv"><dt>Runs</dt><dd class="num">${j.days.length} days</dd></div>`:''}
+      </dl>
+      ${j.access?`<p style="padding:8px 10px;background:var(--accent-soft);color:var(--accent-ink);
+        border-radius:8px;font-size:13.5px"><b>Getting in:</b> ${esc(j.access)}</p>`:''}
+    </div>
+
+    <div class="panel"><p class="lbl">Photos · ${j.photos.length} on this job</p>
+      ${PHASES.map(([k,label])=>{
+        const ps = j.photos.filter(p=>p.phase===k);
+        const required = true;
+        return `<div class="phase">
+          <div class="phase-head"><span class="phase-name">${label}</span>
+            <span class="phase-n num"${required&&ps.length===0?' data-empty="1"':''}>${ps.length}</span></div>
+          <div class="photos">
+            <button class="ph add" data-add="${k}">+<br>Add</button>
+            ${ps.map(p=>`<div class="ph ph-img"><span class="ph-room">${esc(p.room)}</span></div>`).join('')}
+          </div></div>`;
+      }).join('')}
+      <p class="hint">As many as the job needs in each stage — there is no cap.</p>
+    </div>
+
+    ${j.equipment.length?`<div class="panel"><p class="lbl">Equipment on this job</p>
+      ${j.equipment.map(t=>{const u=units.find(x=>x.tag===t);return `<div class="kv">
+        <dt><b class="cond">${u.tag}</b> ${esc(u.name)}</dt>
+        <dd>${u.state==='staged'?(u.overdue?'<span style="color:var(--warn)">pickup overdue</span>':'at site'):'with you'}</dd>
+      </div>`;}).join('')}</div>`:''}
+
+    ${can('price.view')?`<div class="panel"><p class="lbl">Price agreed</p><div class="money">
+      <div class="row"><span>Quoted</span><span class="num">${money(j.base)}</span></div>
+      ${j.changeOrders.map(c=>`<div class="row"><span>${esc(c.title)}</span>
+        <span class="num">+${money(c.amount)}</span></div>`).join('')}
+      <div class="row total"><span>Contract price</span><span class="num">${money(j.base+co)}</span></div>
+    </div>
+    <button class="btn ghost" data-act="co">Found more work — raise a change order</button></div>`
+    :`<div class="panel">
+      <p class="lbl">Extra work</p>
+      ${j.changeOrders.length?`<p style="font-size:13.5px">${j.changeOrders.length} change order
+        agreed with the customer${j.changeOrders.length===1?'':'s'}.</p>`:''}
+      <p class="hint">Found something not in the scope? Write it up with photos and
+        Ray will price it.</p>
+      <button class="btn ghost" data-act="co">Found more work — write it up</button>
+    </div>`}
+`;
+  openSheet();
+}
+
+function unitSheet(u){
+  $('#sheetHead').innerHTML=`
+    <div class="job-top" style="margin-bottom:5px"><span class="tag">${u.tag}</span>
+      ${u.overdue?'<span class="pill" data-t="crit"><span class="dot"></span>Pickup overdue</span>':''}</div>
+    <h2 style="margin:0;font-size:18px;font-weight:600">${esc(u.name)}</h2>
+    <p style="margin-top:3px;font-size:13.5px;color:var(--muted)">${esc(u.cat)} · serialised asset</p>`;
+  $('#sheetBody').innerHTML=`
+    <div class="panel"><p class="lbl">Right now</p><dl class="kv-list">
+      <div class="kv"><dt>Where</dt><dd>${esc(u.where)}</dd></div>
+      ${u.job?`<div class="kv"><dt>On job</dt><dd>${u.job}</dd></div>`:''}
+      ${u.days?`<div class="kv"><dt>Days out</dt><dd class="num">${u.days}</dd></div>`:''}
+      ${u.due?`<div class="kv"><dt>Pickup due</dt><dd${u.overdue?' style="color:var(--warn);font-weight:600"':''}>${esc(u.due)}</dd></div>`:''}
+      ${u.hours!==null?`<div class="kv"><dt>Hour meter</dt><dd class="num">${u.hours} h</dd></div>`:''}
+    </dl></div>
+    ${u.state!=='available'
+      ? `<button class="btn" data-act="collect">Collect it</button>
+         <button class="btn ghost" data-act="move">Move to another site</button>`
+      : `<button class="btn" data-act="take-one">Take this out</button>`}
+    <button class="btn danger" data-act="retire">Retire — it is finished</button>`;
+  openSheet();
+}
+
+function packSheet(p){
+  $('#sheetHead').innerHTML=`
+    <div class="job-top" style="margin-bottom:5px">${MODE_CHIP.bulk}</div>
+    <h2 style="margin:0;font-size:18px;font-weight:600">${esc(p.name)}</h2>
+    <p style="margin-top:3px;font-size:13.5px;color:var(--muted)">${p.sku} · open pack</p>`;
+  $('#sheetBody').innerHTML=`
+    <div class="panel"><dl class="kv-list">
+      <div class="kv"><dt>Where</dt><dd>${esc(p.loc)}</dd></div>
+      <div class="kv"><dt>Opened</dt><dd>${esc(p.opened)}</dd></div>
+      <div class="kv"><dt>Used on</dt><dd>${p.jobs.join(', ')}</dd></div>
+      <div class="kv"><dt>Pack cost</dt><dd class="num">${money(p.cost)}</dd></div>
+    </dl></div>
+    <p class="hint">Marking it finished takes it off the van, splits its cost across
+      the jobs it served, and puts a replacement on the reorder list.</p>
+    <button class="btn danger" data-act="use-up">Finished — throw it out</button>
+    <button class="btn ghost" data-act="move-pack">Move to another van</button>`;
+  openSheet();
+}
+
+function takeSheet(){
+  const free = units.filter(u=>u.state==='available');
+  $('#sheetHead').innerHTML=`<h2 style="margin:0;font-size:18px;font-weight:600">Take equipment out</h2>
+    <p style="margin-top:3px;font-size:13.5px;color:var(--muted)">Tap what you are taking. Scanning is optional.</p>`;
+  $('#sheetBody').innerHTML=`
+    <button class="btn ghost" data-act="scan">Scan a tag instead</button>
+    <div class="section-head"><p class="lbl">Available now</p></div>
+    ${free.map(u=>`<div class="unit"><span class="tag">${u.tag}</span>
+      <span class="unit-main"><span class="unit-name">${esc(u.name)}</span>
+        <span class="unit-where">${esc(u.cat)}</span></span>
+      <button class="btn sm" data-take="${u.tag}">Take</button></div>`).join('')
+      ||'<p class="col-empty">Everything is already out</p>'}
+    <div class="section-head"><p class="lbl">Packs to load</p></div>
+    ${stock.filter(s=>s.mode!=='returnable').map(s=>`<div class="unit">
+      <span class="unit-main"><span class="unit-name">${esc(s.name)}</span>
+        <span class="unit-where">${total(s)} ${esc(s.unit)} on hand</span></span>
+      <button class="btn sm ghost" data-load="${s.sku}">Load van</button></div>`).join('')}`;
+  openSheet();
+}
+
+function buySheet(){
+  $('#sheetHead').innerHTML=`<h2 style="margin:0;font-size:18px;font-weight:600">Request a purchase</h2>
+    <p style="margin-top:3px;font-size:13.5px;color:var(--muted)">Goes to Ray for approval.</p>`;
+  $('#sheetBody').innerHTML=`
+    <div class="panel">
+      <div class="field"><label>What is it</label>
+        <div class="choice">
+          <button data-kind="asset" aria-pressed="${buyKind==='asset'}">New equipment</button>
+          <button data-kind="stock" aria-pressed="${buyKind==='stock'}">Restock supplies</button>
+        </div>
+        <p class="hint">${buyKind==='asset'
+          ? 'Gets its own asset tag on arrival and starts earning its day rate.'
+          : 'Lands in warehouse stock when it is received.'}</p>
+      </div>
+      <div class="field"><label>Item</label>
+        <input id="buyItem" placeholder="${buyKind==='asset'?'e.g. Phoenix Guardian R200':'e.g. N95 respirator'}"></div>
+      <div class="field"><label>Category</label>
+        <select id="buyCat">${(buyKind==='asset'
+          ? ['Air scrubber','Dehumidifier','Air mover','Negative air','Meter','HEPA vacuum','Tool','Other']
+          : ['PPE','Containment','Chemicals','Filters','Consumables','Other'])
+          .map(c=>`<option>${c}</option>`).join('')}</select></div>
+      <div class="field-row">
+        <div class="field"><label>Quantity</label><input id="buyQty" type="number" value="1" min="1"></div>
+        <div class="field"><label>Est. cost each</label><input id="buyCost" type="number" placeholder="0.00"></div>
+      </div>
+      <div class="field"><label>Supplier</label>
+        <select id="buySup"><option>Restoration Supply Co</option>
+          <option>Northside Equipment Rental</option><option>Not sure</option></select></div>
+      <div class="field"><label>Needed by</label><input id="buyBy" type="date" value="2026-09-25"></div>
+      <div class="field"><label>Why</label>
+        <textarea id="buyWhy" placeholder="${buyKind==='asset'
+          ? 'All three scrubbers were committed and we rented two in at $45/day.'
+          : 'Down to 22 masks across both vans.'}"></textarea></div>
+      <div class="field"><label>Send to</label>
+        <select id="buyTo"><option>Ray Alvarez · Manager</option>
+          <option>Dana Whitfield · Owner</option></select></div>
+    </div>
+    <button class="btn" data-act="buy-send">Send request</button>`;
+  openSheet();
+}
+
+/* ---------- plumbing ---------- */
+function render(){
+  $('#who').innerHTML = `<b>${PEOPLE[me].name}</b> · ${PEOPLE[me].role}`;
+  $('#viewSeg').hidden = tab!=='jobs';
+  $('#screenTitle').textContent = tab==='jobs'?'Jobs':tab==='board'?'Board':'Store';
+  $('#main').innerHTML = tab==='board' ? renderBoard()
+    : tab==='equip' ? renderStore()
+    : view==='list' ? renderList() : renderCal();
+  const late = units.filter(u=>u.overdue).length + rentals.filter(r=>r.overdue).length;
+  $('#equipBadge').hidden = late===0;
+  $('#equipBadge').textContent = late;
+}
+
+document.addEventListener('click', e => {
+  if (e.target.id==='scrim') return closeSheet();
+  const t = e.target.closest('[data-tab],[data-view],[data-job],[data-unit],[data-pack],[data-act],[data-date],[data-mon],[data-take],[data-load],[data-kind],[data-add]');
+  if (!t) return;
+
+  if (t.dataset.tab){
+    tab=t.dataset.tab;
+    document.querySelectorAll('[data-tab]').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===tab));
+    return render();
+  }
+  if (t.dataset.view){
+    view=t.dataset.view;
+    document.querySelectorAll('[data-view]').forEach(b=>b.setAttribute('aria-selected',b.dataset.view===view));
+    return render();
+  }
+  if (t.dataset.date){ selected=t.dataset.date; return render(); }
+  if (t.dataset.mon){
+    calM += Number(t.dataset.mon);
+    if (calM<0){calM=11;calY--;} if (calM>11){calM=0;calY++;}
+    return render();
+  }
+  if (t.dataset.job){ openJob=jobs.find(j=>j.no===t.dataset.job); return jobSheet(openJob); }
+  if (t.dataset.unit){ openUnit=units.find(u=>u.tag===t.dataset.unit); return unitSheet(openUnit); }
+  if (t.dataset.pack){ openPack=packs.find(p=>p.id===t.dataset.pack); return packSheet(openPack); }
+  if (t.dataset.kind){ buyKind=t.dataset.kind; return buySheet(); }
+  if (t.dataset.add){
+    const rooms=['North wall','Under stairs','Utility room','Stairwell','Crawlspace'];
+    const phase=t.dataset.add;
+    const room=rooms[openJob.photos.filter(p=>p.phase===phase).length % rooms.length];
+    openJob.photos.push(...shots(phase, room, 3));
+    toast(`3 ${phase} photos added · ${phaseCount(openJob,phase)} in this stage`);
+    jobSheet(openJob); render(); return;
+  }
+
+  if (t.dataset.take){
+    const u=units.find(x=>x.tag===t.dataset.take);
+    u.state='checkout'; u.where='With Marcus Bell'; u.days=0;
+    toast(`${u.tag} taken out`); closeSheet(); return render();
+  }
+  if (t.dataset.load){
+    const s=stock.find(x=>x.sku===t.dataset.load);
+    toast(`${s.name} loaded to Van 1`); return;
+  }
+
+  const j=openJob, u=openUnit, p=openPack;
+  switch(t.dataset.act){
+    case 'swap-role':
+      me = (me+1) % PEOPLE.length;
+      toast(`Now viewing as ${PEOPLE[me].name}, ${PEOPLE[me].role}`);
+      if (openJob) jobSheet(openJob);
+      render(); break;
+    case 'accept': j.acceptance='accepted'; j.status='accepted';
+      toast(`${j.no} accepted`); jobSheet(j); render(); break;
+    case 'reschedule': j.acceptance='reschedule_requested';
+      toast('Reschedule asked — Ray will see it now'); closeSheet(); render(); break;
+    case 'advance': {
+      const i=STEPS.indexOf(j.status);
+      if (j.status==='in_progress'){
+        const bl=blockers(j);
+        if (bl.length){ toast(`Not yet — ${bl.length} thing${bl.length>1?'s':''} outstanding`); break; }
+      }
+      j.status=STEPS[i+1];
+      if (j.status==='work_complete'){
+        // Finishing the job is the truthful clock-out moment.
+        const n=j.openClocks; j.openClocks=0;
+        toast(n?`Finished · ${n} clocked out automatically`:'Job finished — sent for review');
+      } else {
+        toast(j.status==='in_progress'?'Clocked in at 42 Oak St':STEP_LABEL[j.status]);
+      }
+      jobSheet(j); render(); break;
+    }
+    case 'take-open': takeSheet(); break;
+    case 'take-one': u.state='checkout'; u.where='With Marcus Bell';
+      toast(`${u.tag} taken out`); closeSheet(); render(); break;
+    case 'collect': u.state='available'; u.where='Warehouse'; u.days=0; u.due=null; u.overdue=false;
+      jobs.forEach(x=>{x.equipment=x.equipment.filter(tag=>tag!==u.tag);});
+      toast(`${u.tag} collected`); closeSheet(); render(); break;
+    case 'retire': units=units.filter(x=>x.tag!==u.tag);
+      toast(`${u.tag} retired from the register`); closeSheet(); render(); break;
+    case 'use-up': packs=packs.filter(x=>x.id!==p.id);
+      reorder.push(`${p.name} — ${money(p.cost)}`);
+      toast(`Finished. Cost split across ${p.jobs.length} job${p.jobs.length===1?'':'s'}, replacement on the list`);
+      closeSheet(); render(); break;
+    case 'buy-open': buySheet(); break;
+    case 'buy-send': toast('Sent to Ray for approval'); closeSheet(); break;
+    case 'return-rental': rentals[0].overdue=false; jobs[0].rentalOpen=false;
+      toast('Rental return recorded'); render(); break;
+    case 'move-pack': toast('Pick a van — not in this prototype'); break;
+    case 'co': toast('Change order — not in this prototype'); break;
+    case 'move': toast('Scan or pick the new site'); break;
+    case 'scan': toast('Camera — not in this prototype'); break;
+  }
+});
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeSheet(); });
+render();
+</script>

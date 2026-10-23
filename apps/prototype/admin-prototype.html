@@ -1,0 +1,566 @@
+<title>Promold Dispatch</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+:root{
+  --ground:#EFF3F2; --surface:#FFFFFF; --surface-2:#F7FAF9;
+  --ink:#16211F; --muted:#5E6E6C; --faint:#8A9997;
+  --line:#DBE3E1; --line-strong:#C3CFCD;
+  --accent:#0F6B62; --accent-soft:#DDEDEA; --accent-ink:#0B4F48;
+  --ok:#2F7D4F; --ok-soft:#DFEFE4;
+  --warn:#A8690F; --warn-soft:#FAEBD3;
+  --crit:#A93524; --crit-soft:#F8E2DE;
+  --idle:#5E6E6C; --idle-soft:#E6EBEA;
+  --shadow:0 1px 2px rgba(22,33,31,.06), 0 4px 14px rgba(22,33,31,.05);
+  --radius:10px;
+  --font-ui:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --font-cond:'IBM Plex Sans Condensed','IBM Plex Sans',system-ui,sans-serif;
+  --font-mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+  --hour:44px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --ground:#0E1514; --surface:#18211F; --surface-2:#1E2826;
+  --ink:#E7EDEB; --muted:#9AAAA7; --faint:#7A8987;
+  --line:#2B3735; --line-strong:#3A4846;
+  --accent:#45B3A5; --accent-soft:#16332F; --accent-ink:#8FD8CD;
+  --ok:#5FC087; --ok-soft:#14301F; --warn:#E0A44A; --warn-soft:#332614;
+  --crit:#E8796A; --crit-soft:#331A16; --idle:#9AAAA7; --idle-soft:#242F2D;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 4px 14px rgba(0,0,0,.3);
+}}
+:root[data-theme="dark"]{
+  --ground:#0E1514; --surface:#18211F; --surface-2:#1E2826;
+  --ink:#E7EDEB; --muted:#9AAAA7; --faint:#7A8987;
+  --line:#2B3735; --line-strong:#3A4846;
+  --accent:#45B3A5; --accent-soft:#16332F; --accent-ink:#8FD8CD;
+  --ok:#5FC087; --ok-soft:#14301F; --warn:#E0A44A; --warn-soft:#332614;
+  --crit:#E8796A; --crit-soft:#331A16; --idle:#9AAAA7; --idle-soft:#242F2D;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 4px 14px rgba(0,0,0,.3);
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--font-ui);
+  font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased}
+p{margin:0}
+button{font:inherit;color:inherit;cursor:pointer;border:none;background:none}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+.lbl{font-family:var(--font-cond);font-weight:600;text-transform:uppercase;
+  letter-spacing:.09em;font-size:11.5px;color:var(--faint)}
+.mono{font-family:var(--font-mono)}
+.num{font-variant-numeric:tabular-nums}
+
+.proto{background:var(--warn-soft);color:var(--warn);padding:6px 16px;font-size:12.5px;
+  font-weight:500;text-align:center;border-bottom:1px solid var(--line)}
+.top{display:flex;align-items:center;gap:14px;padding:11px 18px;background:var(--surface);
+  border-bottom:1px solid var(--line);flex-wrap:wrap}
+.brand{font-weight:600;font-size:16px;letter-spacing:-.01em;margin-right:4px}
+.daynav{display:flex;align-items:center;gap:6px}
+.daynav button{width:28px;height:28px;border-radius:7px;background:var(--surface-2);
+  border:1px solid var(--line);display:grid;place-items:center;color:var(--muted)}
+.daynav h1{margin:0;font-size:15px;font-weight:600;min-width:172px;text-align:center}
+.who{margin-left:auto;font-size:12.5px;color:var(--muted);border:1px dashed var(--line-strong);
+  border-radius:999px;padding:3px 10px}
+.who b{color:var(--ink)}
+
+.wrap{display:grid;grid-template-columns:288px 1fr;gap:14px;padding:14px 18px 22px;
+  align-items:start}
+@media (max-width:900px){.wrap{grid-template-columns:1fr}}
+
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+  box-shadow:var(--shadow)}
+.card-head{display:flex;align-items:center;justify-content:space-between;gap:8px;
+  padding:11px 13px;border-bottom:1px solid var(--line)}
+.count{font-family:var(--font-mono);font-size:11.5px;font-weight:500;color:var(--faint);
+  background:var(--surface-2);border-radius:999px;padding:1px 8px}
+.count[data-t="warn"]{background:var(--warn-soft);color:var(--warn)}
+.card-body{padding:11px 13px;display:flex;flex-direction:column;gap:9px}
+
+/* unassigned tray */
+.tray-job{border:1px solid var(--line-strong);border-radius:9px;padding:9px 10px;
+  background:var(--surface-2);cursor:grab;display:flex;flex-direction:column;gap:4px}
+.tray-job:active{cursor:grabbing}
+.tray-job.dragging{opacity:.4}
+.tj-top{display:flex;align-items:center;gap:7px}
+.tj-no{font-family:var(--font-mono);font-size:11.5px;color:var(--faint)}
+.tj-title{font-weight:600;font-size:13.5px;line-height:1.25}
+.tj-meta{font-size:12.5px;color:var(--muted)}
+.hint{font-size:12.5px;color:var(--muted);line-height:1.4}
+
+/* approvals */
+.appr{display:flex;gap:10px;align-items:flex-start;width:100%;text-align:left;
+  border:1px solid var(--line);border-radius:9px;padding:9px 10px;background:var(--surface)}
+.appr:hover{border-color:var(--line-strong)}
+.appr .kind{width:6px;align-self:stretch;border-radius:3px;background:var(--accent);flex:none}
+.appr .kind[data-k="reschedule"]{background:var(--warn)}
+.appr .kind[data-k="change"]{background:var(--accent)}
+.appr .kind[data-k="purchase"]{background:var(--ok)}
+.appr-main{min-width:0;display:flex;flex-direction:column;gap:2px}
+.appr-t{font-weight:600;font-size:13.5px}
+.appr-s{font-size:12.5px;color:var(--muted)}
+
+/* dispatch grid */
+.board{overflow-x:auto}
+.grid{display:grid;grid-template-columns:54px repeat(var(--cols),minmax(158px,1fr));
+  min-width:max-content}
+.colhead{position:sticky;top:0;z-index:3;background:var(--surface);
+  border-bottom:1px solid var(--line-strong);padding:9px 10px}
+.colhead.time{border-right:1px solid var(--line)}
+.person{font-weight:600;font-size:13.5px;line-height:1.2}
+.role{font-family:var(--font-cond);font-size:11px;text-transform:uppercase;
+  letter-spacing:.06em;color:var(--faint)}
+.hours{border-right:1px solid var(--line)}
+.hr{height:var(--hour);border-bottom:1px solid var(--line);font-family:var(--font-mono);
+  font-size:11px;color:var(--faint);padding:2px 6px 0;text-align:right}
+.lane{position:relative;border-right:1px solid var(--line)}
+.lane .slot{height:var(--hour);border-bottom:1px solid var(--line)}
+.lane.over{background:var(--accent-soft)}
+.lane.blocked{background:var(--crit-soft)}
+.blk{position:absolute;left:4px;right:4px;border-radius:8px;padding:6px 8px;overflow:hidden;
+  border:1px solid var(--accent);background:var(--accent-soft);color:var(--accent-ink);
+  cursor:pointer;display:flex;flex-direction:column;gap:2px}
+.blk[data-a="pending"]{border-color:var(--warn);background:var(--warn-soft);color:var(--warn)}
+.blk[data-a="reschedule_requested"]{border-style:dashed}
+.blk .bn{font-family:var(--font-mono);font-size:10.5px;opacity:.75}
+.blk .bt{font-weight:600;font-size:12.5px;line-height:1.2}
+.blk .bs{font-size:11.5px;opacity:.85;line-height:1.2}
+.off{position:absolute;left:4px;right:4px;border-radius:8px;
+  background:repeating-linear-gradient(45deg,var(--idle-soft),var(--idle-soft) 6px,transparent 6px,transparent 12px);
+  border:1px dashed var(--line-strong);display:grid;place-items:center;
+  font-family:var(--font-cond);font-size:11px;text-transform:uppercase;letter-spacing:.06em;
+  color:var(--muted)}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:9px 14px;
+  border-radius:9px;font-weight:600;font-size:13.5px;background:var(--accent);color:#fff;
+  border:1px solid var(--accent)}
+.btn.ghost{background:var(--surface);color:var(--ink);border-color:var(--line-strong)}
+.btn.warn{background:var(--surface);color:var(--warn);border-color:var(--warn)}
+.btn.full{width:100%}
+.btn.sm{padding:6px 11px;font-size:12.5px}
+.btn-row{display:flex;gap:8px}
+.btn-row .btn{flex:1}
+
+/* modal */
+.scrim{position:fixed;inset:0;background:rgba(10,18,17,.5);z-index:40;opacity:0;
+  pointer-events:none;transition:opacity .16s}
+.scrim.open{opacity:1;pointer-events:auto}
+.modal{position:fixed;z-index:50;left:50%;top:50%;transform:translate(-50%,-48%) scale(.98);
+  width:min(520px,calc(100% - 32px));max-height:86vh;background:var(--ground);
+  border-radius:14px;box-shadow:0 20px 60px rgba(10,18,17,.3);display:flex;flex-direction:column;
+  opacity:0;pointer-events:none;transition:all .18s}
+.modal.open{opacity:1;pointer-events:auto;transform:translate(-50%,-50%) scale(1)}
+.modal-head{padding:14px 16px;background:var(--surface);border-bottom:1px solid var(--line);
+  border-radius:14px 14px 0 0}
+.modal-head h2{margin:0;font-size:17px;font-weight:600}
+.modal-head p{font-size:13px;color:var(--muted);margin-top:2px}
+.modal-body{overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:12px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+  padding:11px 12px;display:flex;flex-direction:column;gap:8px}
+.panel.flag{border-color:var(--warn);background:var(--warn-soft)}
+dl.kv{margin:0;display:flex;flex-direction:column;gap:5px}
+.kv div{display:flex;justify-content:space-between;gap:12px;font-size:13.5px}
+.kv dt{color:var(--muted)}
+.kv dd{margin:0;font-weight:500;text-align:right}
+.field{display:flex;flex-direction:column;gap:4px}
+.field label{font-family:var(--font-cond);font-weight:600;font-size:11.5px;
+  text-transform:uppercase;letter-spacing:.07em;color:var(--faint)}
+.field input,.field select,.field textarea{font:inherit;color:var(--ink);
+  background:var(--surface-2);border:1px solid var(--line-strong);border-radius:8px;
+  padding:9px 10px;width:100%}
+.field textarea{resize:vertical;min-height:60px}
+.field-row{display:flex;gap:8px}.field-row .field{flex:1}
+.lines{display:flex;flex-direction:column;gap:6px}
+.line{display:flex;justify-content:space-between;gap:10px;font-size:13.5px;
+  padding:7px 9px;background:var(--surface-2);border-radius:7px}
+.line.rej{opacity:.5;text-decoration:line-through}
+.toast{position:fixed;left:50%;bottom:26px;transform:translate(-50%,12px);z-index:60;
+  background:var(--ink);color:var(--ground);padding:9px 15px;border-radius:9px;font-size:13.5px;
+  font-weight:500;opacity:0;transition:all .2s;pointer-events:none;max-width:90%;text-align:center}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<p class="proto">Prototype · sample data · nothing is saved</p>
+<header class="top">
+  <span class="brand">Promold</span>
+  <div class="daynav">
+    <button data-day="-1" aria-label="Previous day">‹</button>
+    <h1 id="dayTitle"></h1>
+    <button data-day="1" aria-label="Next day">›</button>
+  </div>
+  <button class="btn sm ghost" data-act="today">Today</button>
+  <button class="btn sm" data-act="new-job">New job</button>
+  <span class="who"><b>Ray Alvarez</b> · Manager</span>
+</header>
+
+<div class="wrap">
+  <div style="display:flex;flex-direction:column;gap:14px">
+    <section class="card">
+      <div class="card-head"><p class="lbl">Needs a decision</p>
+        <span class="count" id="apprCount" data-t="warn">0</span></div>
+      <div class="card-body" id="approvals"></div>
+    </section>
+    <section class="card">
+      <div class="card-head"><p class="lbl">Unassigned</p>
+        <span class="count" id="trayCount">0</span></div>
+      <div class="card-body" id="tray"></div>
+    </section>
+  </div>
+
+  <section class="card board">
+    <div class="grid" id="grid"></div>
+  </section>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<div class="modal" id="modal" role="dialog" aria-modal="true">
+  <div class="modal-head" id="modalHead"></div>
+  <div class="modal-body" id="modalBody"></div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+/* Sample data mirrors supabase/seed.sql. The manager's day: a board to fill,
+   and three things waiting on a decision. */
+const START_HOUR = 7, END_HOUR = 18;
+
+const crew = [
+  {id:'u3', name:'Marcus Bell',  role:'Crew Lead'},
+  {id:'u4', name:'Tomas Reyes',  role:'Technician'},
+  {id:'u5', name:'Priya Nair',   role:'Technician'},
+  {id:'u7', name:'Dan Okafor',   role:'Technician'},
+];
+
+let jobs = [
+  {no:'J00102', title:'Basement remediation — day 3 of 3', customer:'Helen Brooks',
+   site:'42 Oak St — basement', date:'2026-09-18', start:8, end:16,
+   assigned:['u3','u4'], acceptance:{u3:'accepted',u4:'accepted'},
+   template:'Remediation Day', base:8600},
+  {no:'J00103', title:'Unit 3B containment setup', customer:'Cardinal Property Group',
+   site:'Larkspur Apts — unit 3B', date:'2026-09-19', start:9, end:15,
+   assigned:['u3','u5'], acceptance:{u3:'accepted',u5:'reschedule_requested'},
+   template:'Containment Setup', base:2200},
+  {no:'J00106', title:'Moisture survey — kitchen', customer:'Dale Whitcomb',
+   site:'9 Tolland Rd', date:'2026-09-18', start:13, end:15,
+   assigned:[], acceptance:{}, template:'Mold Inspection', base:450},
+  {no:'J00107', title:'Clearance test', customer:'Helen Brooks',
+   site:'42 Oak St — basement', date:'2026-09-18', start:10, end:12,
+   assigned:[], acceptance:{}, template:'Post-Remediation Verification', base:600},
+];
+
+// Approved time off hard-blocks scheduling, same as the SQL conflict check.
+const timeOff = [{user:'u7', date:'2026-09-18', kind:'Vacation'}];
+
+let approvals = [
+  {id:'a1', kind:'reschedule', title:'Priya Nair asks to move J00103',
+   sub:'“Dentist at 9, can start at 11” · proposes 11:00–17:00',
+   job:'J00103', reason:'Dentist at 9, can start at 11', from:'09:00 – 15:00', to:'11:00 – 17:00'},
+  {id:'a2', kind:'change', title:'Change order to price — J00102',
+   sub:'Marcus Bell · rot behind north wall · 4 photos',
+   job:'J00102', co:'Rot behind north wall',
+   desc:'Framing behind the north wall is rotted through. Removal and replacement of 3 studs, plus extra containment.'},
+  {id:'a3', kind:'purchase', title:'PR00041 · $458.00',
+   sub:'Marcus Bell · 3 lines · needed Sunday',
+   lines:[{d:'6 mil poly sheeting 10×100', q:4, u:'roll', c:62.00},
+          {d:'Disposable coverall XL', q:24, u:'each', c:9.75},
+          {d:'Respirator cartridges P100', q:6, u:'pair', c:18.50}]},
+];
+
+let day = '2026-09-18';
+let dragging = null;
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const money = n => '$'+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+const hhmm = h => String(Math.floor(h)).padStart(2,'0')+':'+(h%1?'30':'00');
+const shift = (iso,n) => { const d=new Date(iso+'T00:00'); d.setDate(d.getDate()+n); return d.toISOString().slice(0,10); };
+const pretty = iso => new Date(iso+'T00:00').toLocaleDateString('en-GB',
+  {weekday:'long',day:'numeric',month:'long',year:'numeric'});
+
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');
+  clearTimeout(t._id);t._id=setTimeout(()=>t.classList.remove('show'),2600);}
+
+/* Mirrors scheduling_conflicts() in SQL. The server re-checks on write; this
+   is so the board can warn while the manager is still dragging. */
+function conflicts(userId, job){
+  const out = [];
+  if (timeOff.some(t => t.user===userId && t.date===job.date))
+    out.push('Approved time off');
+  jobs.forEach(j => {
+    if (j.no===job.no || j.date!==job.date || !j.assigned.includes(userId)) return;
+    if (job.start < j.end && j.start < job.end)
+      out.push(`Already on ${j.no} (${hhmm(j.start)}–${hhmm(j.end)})`);
+  });
+  return out;
+}
+
+/* ---------- board ---------- */
+function renderBoard(){
+  const g = $('#grid');
+  g.style.setProperty('--cols', crew.length);
+  const rows = END_HOUR - START_HOUR;
+
+  let html = `<div class="colhead time"></div>` +
+    crew.map(c=>`<div class="colhead"><div class="person">${esc(c.name)}</div>
+      <div class="role">${esc(c.role)}</div></div>`).join('');
+
+  html += `<div class="hours">` +
+    Array.from({length:rows},(_,i)=>`<div class="hr">${String(START_HOUR+i).padStart(2,'0')}</div>`).join('') +
+    `</div>`;
+
+  crew.forEach(c => {
+    const mine = jobs.filter(j => j.date===day && j.assigned.includes(c.id));
+    const off  = timeOff.find(t => t.user===c.id && t.date===day);
+    html += `<div class="lane" data-user="${c.id}">` +
+      Array.from({length:rows},()=>`<div class="slot"></div>`).join('') +
+      (off ? `<div class="off" style="top:0;height:${rows*44}px">${esc(off.kind)}</div>` : '') +
+      mine.map(j=>{
+        const top = (j.start-START_HOUR)*44, h = (j.end-j.start)*44-4;
+        const a = j.acceptance[c.id] || 'pending';
+        return `<div class="blk" data-a="${a}" data-job="${j.no}"
+          style="top:${top+2}px;height:${h}px">
+          <span class="bn">${j.no} · ${hhmm(j.start)}–${hhmm(j.end)}</span>
+          <span class="bt">${esc(j.title)}</span>
+          <span class="bs">${esc(j.site)}</span>
+          ${a!=='accepted'?`<span class="bs"><b>${a==='pending'?'Not accepted yet':'Asked to move'}</b></span>`:''}
+        </div>`;
+      }).join('') + `</div>`;
+  });
+
+  g.innerHTML = html;
+  g.querySelectorAll('.lane').forEach(lane=>{
+    lane.addEventListener('dragover', e=>{
+      if(!dragging) return;
+      e.preventDefault();
+      const c = conflicts(lane.dataset.user, dragging);
+      lane.classList.toggle('over', c.length===0);
+      lane.classList.toggle('blocked', c.length>0);
+    });
+    lane.addEventListener('dragleave', ()=>lane.classList.remove('over','blocked'));
+    lane.addEventListener('drop', e=>{
+      e.preventDefault();
+      lane.classList.remove('over','blocked');
+      if(!dragging) return;
+      const c = conflicts(lane.dataset.user, dragging);
+      if (c.length){ toast(`Cannot assign — ${c[0]}`); return; }
+      dragging.assigned.push(lane.dataset.user);
+      dragging.acceptance[lane.dataset.user] = 'pending';
+      const who = crew.find(x=>x.id===lane.dataset.user).name;
+      toast(`${dragging.no} assigned to ${who} — they will be asked to accept`);
+      dragging = null;
+      render();
+    });
+  });
+}
+
+function renderTray(){
+  const list = jobs.filter(j => j.date===day && j.assigned.length===0);
+  $('#trayCount').textContent = list.length;
+  $('#tray').innerHTML = list.length ? list.map(j=>`
+    <div class="tray-job" draggable="true" data-tray="${j.no}">
+      <span class="tj-top"><span class="tj-no">${j.no}</span>
+        <span class="tj-no num">${hhmm(j.start)}–${hhmm(j.end)}</span></span>
+      <span class="tj-title">${esc(j.title)}</span>
+      <span class="tj-meta">${esc(j.site)}</span>
+    </div>`).join('') + `<p class="hint">Drag onto a crew member. The board refuses
+      a drop that clashes with time off or another job.</p>`
+    : `<p class="hint">Everything today is assigned.</p>`;
+
+  $('#tray').querySelectorAll('[data-tray]').forEach(el=>{
+    el.addEventListener('dragstart', ()=>{ dragging = jobs.find(j=>j.no===el.dataset.tray);
+      el.classList.add('dragging'); });
+    el.addEventListener('dragend', ()=>{ el.classList.remove('dragging'); dragging=null;
+      document.querySelectorAll('.lane').forEach(l=>l.classList.remove('over','blocked')); });
+  });
+}
+
+function renderApprovals(){
+  $('#apprCount').textContent = approvals.length;
+  $('#approvals').innerHTML = approvals.length ? approvals.map(a=>`
+    <button class="appr" data-appr="${a.id}">
+      <span class="kind" data-k="${a.kind}"></span>
+      <span class="appr-main"><span class="appr-t">${esc(a.title)}</span>
+        <span class="appr-s">${esc(a.sub)}</span></span>
+    </button>`).join('')
+    : `<p class="hint">Nothing waiting on you.</p>`;
+}
+
+function render(){
+  $('#dayTitle').textContent = pretty(day);
+  renderBoard(); renderTray(); renderApprovals();
+}
+
+/* ---------- modals ---------- */
+function openModal(){ $('#modal').classList.add('open'); $('#scrim').classList.add('open'); }
+function closeModal(){ $('#modal').classList.remove('open'); $('#scrim').classList.remove('open'); }
+
+function apprModal(a){
+  if (a.kind==='reschedule'){
+    $('#modalHead').innerHTML = `<h2>Reschedule request</h2>
+      <p>${esc(a.job)} · Priya Nair</p>`;
+    $('#modalBody').innerHTML = `
+      <div class="panel flag"><p class="lbl" style="color:var(--warn)">Her reason</p>
+        <p style="font-size:14px">“${esc(a.reason)}”</p></div>
+      <div class="panel"><dl class="kv">
+        <div><dt>Currently</dt><dd class="num">${a.from}</dd></div>
+        <div><dt>She proposes</dt><dd class="num"><b>${a.to}</b></dd></div>
+        <div><dt>Clash check</dt><dd style="color:var(--ok)">No conflict at the new time</dd></div>
+      </dl>
+      <p class="hint">Approving moves the job and asks everyone on it to accept
+        again — the others agreed to a different time.</p></div>
+      <div class="btn-row">
+        <button class="btn" data-act="appr-yes" data-id="${a.id}">Approve the move</button>
+        <button class="btn warn" data-act="appr-no" data-id="${a.id}">Decline</button>
+      </div>`;
+  }
+  if (a.kind==='change'){
+    $('#modalHead').innerHTML = `<h2>Price this change order</h2>
+      <p>${esc(a.job)} · raised by Marcus Bell</p>`;
+    $('#modalBody').innerHTML = `
+      <div class="panel"><p class="lbl">${esc(a.co)}</p>
+        <p style="font-size:13.5px;color:var(--muted)">${esc(a.desc)}</p>
+        <div style="display:flex;gap:6px;margin-top:4px">
+          ${[1,2,3,4].map(()=>`<div style="width:54px;height:54px;border-radius:7px;
+            background:linear-gradient(135deg,var(--surface-2),var(--accent-soft));
+            border:1px solid var(--line)"></div>`).join('')}
+        </div></div>
+      <div class="panel">
+        <div class="field-row">
+          <div class="field"><label>Price</label><input id="coAmt" type="number" value="1250" step="10"></div>
+          <div class="field"><label>Extra hours</label><input id="coHrs" type="number" value="6"></div>
+        </div>
+        <p class="hint">Presenting it does not bill anything — it records that
+          the customer agreed a price. Someone still keys it into the books.</p>
+      </div>
+      <button class="btn full" data-act="co-present" data-id="${a.id}">Present to Helen Brooks</button>`;
+  }
+  if (a.kind==='purchase'){
+    const total = a.lines.reduce((s,l)=>s+l.q*l.c,0);
+    $('#modalHead').innerHTML = `<h2>Purchase request PR00041</h2>
+      <p>Marcus Bell · for J00102 · needed Sunday</p>`;
+    $('#modalBody').innerHTML = `
+      <div class="panel"><p class="lbl">Lines</p><div class="lines">
+        ${a.lines.map((l,i)=>`<label class="line"><span>
+          <input type="checkbox" checked data-line="${i}" style="margin-right:7px">
+          ${esc(l.d)}</span>
+          <span class="num mono">${l.q} ${esc(l.u)} · ${money(l.q*l.c)}</span></label>`).join('')}
+      </div>
+      <div class="line" style="background:transparent;font-weight:600">
+        <span>Total</span><span class="num mono" id="prTotal">${money(total)}</span></div></div>
+      <div class="panel"><dl class="kv">
+        <div><dt>Your limit</dt><dd class="num">$500.00</dd></div>
+        <div><dt>This request</dt><dd class="num" id="prVsLimit" style="color:var(--ok)">Within your limit</dd></div>
+      </dl>
+      <p class="hint">Untick a line to approve part of it. Anything above $500
+        routes to Dana instead.</p></div>
+      <div class="btn-row">
+        <button class="btn" data-act="pr-yes" data-id="${a.id}">Approve</button>
+        <button class="btn warn" data-act="pr-no" data-id="${a.id}">Reject</button>
+      </div>`;
+  }
+  openModal();
+}
+
+function newJobModal(){
+  $('#modalHead').innerHTML = `<h2>New job</h2><p>It lands in Unassigned until you put it on someone.</p>`;
+  $('#modalBody').innerHTML = `
+    <div class="panel">
+      <div class="field"><label>Customer</label>
+        <select id="njCust"><option>Helen Brooks</option><option>Cardinal Property Group</option>
+          <option>Dale Whitcomb</option><option>+ New customer…</option></select></div>
+      <div class="field"><label>Site</label>
+        <select id="njSite"><option>42 Oak St — basement</option>
+          <option>Larkspur Apts — unit 3B</option><option>9 Tolland Rd</option></select></div>
+      <div class="field"><label>Job type</label>
+        <select id="njType"><option>Mold Inspection</option><option>Containment Setup</option>
+          <option>Remediation Day</option><option>Post-Remediation Verification</option></select></div>
+      <div class="field"><label>Title</label>
+        <input id="njTitle" value="Basement inspection"></div>
+      <div class="field-row">
+        <div class="field"><label>Date</label><input id="njDate" type="date" value="${day}"></div>
+        <div class="field"><label>Start</label><input id="njStart" type="time" value="09:00"></div>
+        <div class="field"><label>Hours</label><input id="njHrs" type="number" value="2" min="1"></div>
+      </div>
+      <div class="field"><label>Quoted price</label><input id="njPrice" type="number" value="450"></div>
+    </div>
+    <button class="btn full" data-act="nj-save">Create job</button>`;
+  openModal();
+}
+
+/* ---------- events ---------- */
+document.addEventListener('click', e => {
+  if (e.target.id==='scrim') return closeModal();
+  const t = e.target.closest('[data-act],[data-appr],[data-day],[data-job]');
+  if (!t) return;
+
+  if (t.dataset.day){ day = shift(day, Number(t.dataset.day)); return render(); }
+  if (t.dataset.appr){ return apprModal(approvals.find(a=>a.id===t.dataset.appr)); }
+  if (t.dataset.job && !t.dataset.act){
+    const j = jobs.find(x=>x.no===t.dataset.job);
+    $('#modalHead').innerHTML = `<h2>${esc(j.title)}</h2><p>${j.no} · ${esc(j.customer)}</p>`;
+    $('#modalBody').innerHTML = `<div class="panel"><dl class="kv">
+      <div><dt>Site</dt><dd>${esc(j.site)}</dd></div>
+      <div><dt>When</dt><dd class="num">${hhmm(j.start)} – ${hhmm(j.end)}</dd></div>
+      <div><dt>Crew</dt><dd>${j.assigned.map(id=>crew.find(c=>c.id===id).name).join(', ')}</dd></div>
+      <div><dt>Job type</dt><dd>${esc(j.template)}</dd></div>
+      <div><dt>Quoted</dt><dd class="num mono">${money(j.base)}</dd></div>
+    </dl></div>
+    <p class="hint">Acceptance is tracked per person, so one silent crew member
+      is visible rather than averaged away.</p>`;
+    return openModal();
+  }
+
+  switch (t.dataset.act){
+    case 'today': day='2026-09-18'; render(); break;
+    case 'new-job': newJobModal(); break;
+    case 'nj-save': {
+      const start = Number($('#njStart').value.slice(0,2));
+      jobs.push({no:'J00'+(108+jobs.length), title:$('#njTitle').value,
+        customer:$('#njCust').value, site:$('#njSite').value, date:$('#njDate').value,
+        start, end:start+Number($('#njHrs').value), assigned:[], acceptance:{},
+        template:$('#njType').value, base:Number($('#njPrice').value)});
+      toast('Job created — it is in Unassigned'); closeModal(); render(); break;
+    }
+    case 'appr-yes': {
+      const j = jobs.find(x=>x.no==='J00103');
+      j.start = 11; j.end = 17;
+      Object.keys(j.acceptance).forEach(k => j.acceptance[k]='pending');
+      approvals = approvals.filter(a=>a.id!==t.dataset.id);
+      toast('Moved to 11:00 — both crew asked to accept again');
+      closeModal(); render(); break;
+    }
+    case 'appr-no':
+      approvals = approvals.filter(a=>a.id!==t.dataset.id);
+      toast('Declined — Priya will see your reason'); closeModal(); render(); break;
+    case 'co-present':
+      approvals = approvals.filter(a=>a.id!==t.dataset.id);
+      toast(`Presented at ${money(Number($('#coAmt').value))} — waiting on the customer`);
+      closeModal(); render(); break;
+    case 'pr-yes':
+      approvals = approvals.filter(a=>a.id!==t.dataset.id);
+      toast('Approved — Marcus can order it'); closeModal(); render(); break;
+    case 'pr-no':
+      approvals = approvals.filter(a=>a.id!==t.dataset.id);
+      toast('Rejected — a reason is required, and Marcus gets it');
+      closeModal(); render(); break;
+  }
+});
+
+// Partial approval: the total and the threshold follow the ticks.
+document.addEventListener('change', e => {
+  if (!e.target.dataset.line) return;
+  const a = approvals.find(x=>x.kind==='purchase'); if(!a) return;
+  let total = 0;
+  document.querySelectorAll('[data-line]').forEach(cb=>{
+    const l = a.lines[Number(cb.dataset.line)];
+    cb.closest('.line').classList.toggle('rej', !cb.checked);
+    if (cb.checked) total += l.q*l.c;
+  });
+  $('#prTotal').textContent = money(total);
+  const over = total > 500;
+  const el = $('#prVsLimit');
+  el.textContent = over ? 'Over your limit — goes to Dana' : 'Within your limit';
+  el.style.color = over ? 'var(--warn)' : 'var(--ok)';
+});
+
+document.addEventListener('keydown', e => { if (e.key==='Escape') closeModal(); });
+render();
+</script>

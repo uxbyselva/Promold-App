@@ -1,0 +1,1759 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Promold Flows</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+:root{
+  --ground:#EFF3F2; --surface:#FFFFFF; --surface-2:#F7FAF9;
+  --ink:#16211F; --muted:#5E6E6C; --faint:#8A9997;
+  --line:#DBE3E1; --line-strong:#C3CFCD;
+  --accent:#0F6B62; --accent-soft:#DDEDEA; --accent-ink:#0B4F48;
+  --ok:#2F7D4F; --ok-soft:#DFEFE4;
+  --warn:#A8690F; --warn-soft:#FAEBD3;
+  --crit:#A93524; --crit-soft:#F8E2DE;
+  --idle:#5E6E6C; --idle-soft:#E6EBEA;
+  --shadow:0 1px 2px rgba(22,33,31,.06), 0 4px 14px rgba(22,33,31,.05);
+  --radius:12px;
+  --font-ui:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --font-cond:'IBM Plex Sans Condensed','IBM Plex Sans',system-ui,sans-serif;
+  --font-mono:'IBM Plex Mono',ui-monospace,'SFMono-Regular',Menlo,monospace;
+
+  /* ---- data-viz slots -------------------------------------------------
+     The validated default categorical order, slots 1-5, held against this
+     app's own chart surface (#FFFFFF light / #18211F dark) rather than the
+     reference surfaces. Both modes clear the lightness band, the chroma
+     floor, adjacent CVD separation and the normal-vision floor. Light mode
+     returns a contrast WARN on aqua, yellow and magenta, which obliges the
+     relief rule: every chart here ships visible value labels and the full
+     costing table underneath. Dark is its own set of steps, not a flip. */
+  --s1:#2a78d6;  /* labour    */
+  --s2:#eb6834;  /* materials */
+  --s3:#1baf7a;  /* equipment */
+  --s4:#eda100;  /* mileage   */
+  --s5:#e87ba4;  /* rentals   */
+  --div-pos:#2a78d6; --div-neg:#e34948; --div-mid:#C3CFCD;
+  --grid:#E5EBE9; --axis:#C3CFCD;
+  --delta-up:#006300;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0E1514; --surface:#18211F; --surface-2:#1E2826;
+    --ink:#E7EDEB; --muted:#9AAAA7; --faint:#7A8987;
+    --line:#2B3735; --line-strong:#3A4846;
+    --accent:#45B3A5; --accent-soft:#16332F; --accent-ink:#8FD8CD;
+    --ok:#5FC087; --ok-soft:#14301F;
+    --warn:#E0A44A; --warn-soft:#332614;
+    --crit:#E8796A; --crit-soft:#331A16;
+    --idle:#9AAAA7; --idle-soft:#242F2D;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 4px 14px rgba(0,0,0,.3);
+    --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181;
+    --div-pos:#3987e5; --div-neg:#e66767; --div-mid:#3A4846;
+    --grid:#232E2C; --axis:#3A4846;
+    --delta-up:#0ca30c;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0E1514; --surface:#18211F; --surface-2:#1E2826;
+  --ink:#E7EDEB; --muted:#9AAAA7; --faint:#7A8987;
+  --line:#2B3735; --line-strong:#3A4846;
+  --accent:#45B3A5; --accent-soft:#16332F; --accent-ink:#8FD8CD;
+  --ok:#5FC087; --ok-soft:#14301F;
+  --warn:#E0A44A; --warn-soft:#332614;
+  --crit:#E8796A; --crit-soft:#331A16;
+  --idle:#9AAAA7; --idle-soft:#242F2D;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 4px 14px rgba(0,0,0,.3);
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181;
+  --div-pos:#3987e5; --div-neg:#e66767; --div-mid:#3A4846;
+  --grid:#232E2C; --axis:#3A4846;
+  --delta-up:#0ca30c;
+}
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--font-ui);
+  font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased}
+p{margin:0}
+button{font:inherit;color:inherit;cursor:pointer;border:none;background:none;text-align:left}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+.cond{font-family:var(--font-cond)}
+.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+.num{font-variant-numeric:tabular-nums}
+.lbl{font-family:var(--font-cond);font-weight:600;text-transform:uppercase;
+  letter-spacing:.09em;font-size:12px;color:var(--faint)}
+
+/* ---------- page chrome ---------- */
+.proto-note{background:var(--warn-soft);color:var(--warn);padding:7px 16px;
+  font-size:12.5px;font-weight:500;text-align:center;border-bottom:1px solid var(--line)}
+.appbar{background:var(--surface);border-bottom:1px solid var(--line);padding:14px 20px 0}
+.appbar-row{display:flex;align-items:baseline;justify-content:space-between;gap:16px;
+  flex-wrap:wrap;max-width:1180px;margin:0 auto}
+.appbar h1{margin:0;font-size:19px;font-weight:600;letter-spacing:-.01em}
+.appbar h1 small{display:block;font-size:12.5px;font-weight:400;color:var(--muted);
+  letter-spacing:0;margin-top:2px}
+.theme{border:1px solid var(--line-strong);border-radius:999px;padding:5px 12px;
+  font-size:12.5px;color:var(--muted);background:var(--surface-2)}
+
+.people{display:flex;gap:8px;overflow-x:auto;padding:12px 0 0;max-width:1180px;margin:0 auto}
+.person{flex:0 0 auto;display:flex;flex-direction:column;gap:1px;padding:8px 13px 9px;
+  border:1px solid var(--line-strong);border-bottom:none;border-radius:10px 10px 0 0;
+  background:var(--surface-2);color:var(--muted);min-width:0}
+.person b{font-weight:600;font-size:14px;color:var(--ink)}
+.person span{font-family:var(--font-cond);font-size:11.5px;font-weight:600;
+  text-transform:uppercase;letter-spacing:.07em}
+.person[aria-pressed="true"]{background:var(--ground);border-color:var(--line-strong);
+  color:var(--accent-ink);box-shadow:inset 0 3px 0 var(--accent)}
+.person[aria-pressed="true"] span{color:var(--accent)}
+
+.permstrip{max-width:1180px;margin:0 auto;padding:11px 0 14px;display:flex;gap:9px;
+  flex-wrap:wrap;align-items:center;font-size:12.5px;color:var(--muted)}
+.perm{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);
+  border-radius:999px;padding:3px 10px;background:var(--surface-2)}
+.perm[data-no="1"]{border-style:dashed;color:var(--faint)}
+.perm i{font-style:normal;font-weight:700;font-size:11px}
+.perm[data-no="1"] i{color:var(--crit)}
+.perm:not([data-no="1"]) i{color:var(--ok)}
+
+.stage{max-width:1180px;margin:0 auto;padding:20px}
+
+/* ---------- phone frame ---------- */
+.phonewrap{display:flex;gap:26px;align-items:flex-start;flex-wrap:wrap}
+.device{flex:0 0 auto;padding:9px;background:#1B2422;border-radius:44px;
+  box-shadow:0 10px 34px rgba(22,33,31,.22)}
+.phone{position:relative;width:378px;height:756px;border-radius:35px;overflow:hidden;
+  background:var(--ground);display:flex;flex-direction:column}
+.p-top{flex:none;background:var(--surface);border-bottom:1px solid var(--line);
+  padding:13px 15px 0}
+.p-top-row{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.p-top h2{margin:0;font-size:19px;font-weight:600}
+.p-who{font-size:12px;color:var(--muted)}
+.p-main{flex:1;overflow-y:auto;padding:13px 15px 18px;display:flex;
+  flex-direction:column;gap:11px}
+.p-tabs{flex:none;display:flex;background:var(--surface);border-top:1px solid var(--line)}
+.p-tabs button{flex:1;padding:9px 4px 11px;display:flex;flex-direction:column;
+  align-items:center;gap:3px;color:var(--faint);font-size:11.5px;font-weight:600;
+  text-align:center}
+.p-tabs button[aria-selected="true"]{color:var(--accent)}
+.p-tabs .ic{font-size:18px;line-height:1}
+
+.aside{flex:1 1 300px;min-width:280px;display:flex;flex-direction:column;gap:12px}
+.note{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+  padding:14px 15px;box-shadow:var(--shadow)}
+.note h3{margin:0 0 7px;font-size:15px;font-weight:600}
+.note p{font-size:13.5px;color:var(--muted);line-height:1.5}
+.note p + p{margin-top:8px}
+.note code{font-family:var(--font-mono);font-size:12.5px;background:var(--surface-2);
+  border:1px solid var(--line);border-radius:5px;padding:1px 5px}
+.note ul{margin:7px 0 0;padding-left:18px;font-size:13.5px;color:var(--muted);line-height:1.5}
+.note li + li{margin-top:5px}
+
+/* ---------- shared bits ---------- */
+.seg{display:flex;gap:2px;margin:12px -3px -1px;padding:0 3px}
+.seg button{flex:1;padding:7px 4px;border-radius:8px 8px 0 0;font-size:13.5px;
+  font-weight:500;color:var(--muted);background:var(--surface-2);
+  border:1px solid transparent;text-align:center}
+.seg button[aria-selected="true"]{background:var(--accent-soft);color:var(--accent-ink);
+  border-color:var(--accent);border-bottom-color:var(--accent-soft);font-weight:600}
+.pill{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;
+  font-family:var(--font-cond);font-weight:600;font-size:12.5px;text-transform:uppercase;
+  letter-spacing:.06em;white-space:nowrap;background:var(--idle-soft);color:var(--idle)}
+.pill[data-t="ok"]{background:var(--ok-soft);color:var(--ok)}
+.pill[data-t="warn"]{background:var(--warn-soft);color:var(--warn)}
+.pill[data-t="crit"]{background:var(--crit-soft);color:var(--crit)}
+.pill[data-t="accent"]{background:var(--accent-soft);color:var(--accent-ink)}
+.dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex:none}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+  padding:13px 14px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:9px}
+.card.flag{border-color:var(--warn)}
+.card.bad{border-color:var(--crit)}
+.card-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:space-between}
+.card h3{margin:0;font-size:15.5px;font-weight:600;line-height:1.25}
+.sub{font-size:13px;color:var(--muted)}
+.section-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-top:3px}
+.rowline{display:flex;justify-content:space-between;gap:12px;font-size:13.5px}
+.rowline dt,.rowline .k{color:var(--muted)}
+.rowline dd,.rowline .v{margin:0;font-weight:500;text-align:right}
+dl.kv{margin:0;display:flex;flex-direction:column;gap:6px}
+.empty{font-size:13px;color:var(--faint);padding:16px 12px;text-align:center;
+  border:1px dashed var(--line-strong);border-radius:var(--radius)}
+
+.btn{display:flex;align-items:center;justify-content:center;gap:7px;width:100%;padding:11px;
+  border-radius:10px;font-weight:600;font-size:14.5px;background:var(--accent);color:#fff;
+  border:1px solid var(--accent);text-align:center}
+.btn.ghost{background:var(--surface);color:var(--ink);border-color:var(--line-strong)}
+.btn.warn{background:var(--surface);color:var(--warn);border-color:var(--warn)}
+.btn.danger{background:var(--surface);color:var(--crit);border-color:var(--crit)}
+.btn.sm{padding:7px 12px;font-size:13px;width:auto;flex:none}
+.btn-row{display:flex;gap:8px}
+.btn-row .btn{flex:1}
+
+.field{display:flex;flex-direction:column;gap:5px}
+.field label{font-family:var(--font-cond);font-weight:600;font-size:12px;
+  text-transform:uppercase;letter-spacing:.07em;color:var(--faint)}
+.field input,.field select,.field textarea{font:inherit;color:var(--ink);
+  background:var(--surface-2);border:1px solid var(--line-strong);border-radius:9px;
+  padding:10px 11px;width:100%}
+.field input[readonly]{background:var(--accent-soft);border-color:var(--accent);
+  font-family:var(--font-mono);font-weight:600}
+.field textarea{resize:vertical;min-height:58px}
+.field-row{display:flex;gap:8px}
+.field-row .field{flex:1}
+.choice{display:flex;gap:6px;flex-wrap:wrap}
+.choice button{padding:7px 11px;border-radius:9px;border:1px solid var(--line-strong);
+  background:var(--surface-2);font-size:13px;font-weight:500;color:var(--muted)}
+.choice button[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);
+  color:var(--accent-ink);font-weight:600}
+.hint{font-size:12.5px;color:var(--muted);line-height:1.45}
+.warnbox{background:var(--warn-soft);border:1px solid var(--warn);border-radius:10px;
+  padding:10px 11px;font-size:13px;color:var(--warn);display:flex;gap:8px;align-items:flex-start}
+.warnbox b{display:block;color:var(--warn)}
+.warnbox .ic{font-weight:700;flex:none}
+
+/* ---------- desktop surfaces ---------- */
+.desk{display:flex;flex-direction:column;gap:16px}
+.desk-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.desk-head h2{margin:0;font-size:22px;font-weight:600;letter-spacing:-.01em}
+.desk-head p{font-size:13.5px;color:var(--muted);margin-top:3px;max-width:60ch}
+.dtabs{display:flex;gap:6px;border-bottom:1px solid var(--line)}
+.dtabs button{padding:9px 15px;border-radius:9px 9px 0 0;font-size:14px;font-weight:500;
+  color:var(--muted);border:1px solid transparent;border-bottom:none;margin-bottom:-1px}
+.dtabs button[aria-selected="true"]{background:var(--surface);color:var(--ink);
+  border-color:var(--line);font-weight:600}
+
+.cols{display:grid;gap:16px;align-items:start}
+.cols.two{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+.cols.list-detail{grid-template-columns:minmax(240px,320px) minmax(0,1fr)}
+@media (max-width:900px){.cols.two,.cols.list-detail{grid-template-columns:minmax(0,1fr)}}
+
+.panelbox{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+  box-shadow:var(--shadow);overflow:hidden}
+.panelbox > header{padding:12px 15px;border-bottom:1px solid var(--line);
+  display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.panelbox > header h3{margin:0;font-size:15px;font-weight:600}
+.panelbox > .body{padding:14px 15px;display:flex;flex-direction:column;gap:11px}
+
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th,td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+thead th{font-family:var(--font-cond);font-weight:600;text-transform:uppercase;
+  letter-spacing:.07em;font-size:11.5px;color:var(--faint);background:var(--surface-2);
+  border-bottom:1px solid var(--line-strong);white-space:nowrap}
+td.r,th.r{text-align:right}
+tbody tr:last-child td{border-bottom:none}
+tbody tr.flagrow td{background:var(--warn-soft)}
+tbody tr.badrow td{background:var(--crit-soft)}
+tfoot td{font-weight:600;border-top:1px solid var(--line-strong);background:var(--surface-2)}
+.tablewrap{overflow-x:auto}
+.who{display:flex;align-items:center;gap:8px}
+.av{width:26px;height:26px;border-radius:50%;background:var(--accent-soft);color:var(--accent-ink);
+  display:grid;place-items:center;font-size:11px;font-weight:700;flex:none;
+  font-family:var(--font-cond);letter-spacing:.02em}
+
+.pickrow{display:flex;align-items:center;gap:11px;width:100%;padding:10px 13px;
+  border-bottom:1px solid var(--line);background:var(--surface)}
+.pickrow[aria-pressed="true"]{background:var(--accent-soft)}
+.pickrow .who-main{flex:1;min-width:0}
+.pickrow .who-main b{display:block;font-weight:600;font-size:14px;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.pickrow .who-main span{font-size:12.5px;color:var(--muted)}
+
+/* ---------- stat tiles ---------- */
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(178px,1fr));gap:12px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+  padding:13px 15px 14px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:3px}
+.tile .lbl{margin-bottom:2px}
+.tile .fig{font-size:27px;font-weight:600;letter-spacing:-.02em;line-height:1.1;
+  font-variant-numeric:tabular-nums}
+.tile .fig.mono{font-family:var(--font-mono);font-size:24px;font-weight:600}
+.tile .foot{font-size:12.5px;color:var(--muted)}
+.delta{font-weight:600;font-size:13px;display:inline-flex;align-items:center;gap:4px}
+.delta[data-d="up"]{color:var(--delta-up)}
+.delta[data-d="down"]{color:var(--crit)}
+
+/* ---------- charts ---------- */
+.chart{display:flex;flex-direction:column;gap:12px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center}
+.legend span{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted)}
+.legend i{width:11px;height:11px;border-radius:3px;display:block;flex:none}
+.plot{display:flex;flex-direction:column;gap:9px}
+.crow{display:grid;grid-template-columns:minmax(120px,190px) minmax(0,1fr) 96px;
+  gap:12px;align-items:center}
+@media (max-width:720px){.crow{grid-template-columns:minmax(0,1fr);gap:4px}}
+.clabel{min-width:0;display:flex;flex-direction:column;gap:0}
+.clabel b{font-weight:500;font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.clabel span{font-family:var(--font-mono);font-size:11.5px;color:var(--faint)}
+.ctrack{position:relative;height:26px}
+.cgrid{position:absolute;inset:0;pointer-events:none}
+.cgrid i{position:absolute;top:0;bottom:-3px;width:1px;background:var(--grid)}
+.cbar{position:absolute;left:0;top:3px;height:20px;display:flex;border-radius:0 4px 4px 0;
+  overflow:hidden;background:transparent}
+.cbar i{display:block;height:100%;border-right:2px solid var(--surface);box-sizing:border-box}
+.cbar i:last-child{border-right:none}
+.cbar i[data-k="labour"]{background:var(--s1)}
+.cbar i[data-k="materials"]{background:var(--s2)}
+.cbar i[data-k="equipment"]{background:var(--s3)}
+.cbar i[data-k="mileage"]{background:var(--s4)}
+.cbar i[data-k="rentals"]{background:var(--s5)}
+.cmark{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--ink);
+  border-radius:1px;box-shadow:0 0 0 2px var(--surface)}
+.cmarklbl{position:absolute;top:2px;font-size:11px;font-weight:600;color:var(--ink);
+  white-space:nowrap;font-family:var(--font-mono);margin-left:6px}
+.cval{text-align:right;font-family:var(--font-mono);font-size:13px;font-weight:600;
+  font-variant-numeric:tabular-nums}
+.cval small{display:block;font-family:var(--font-ui);font-size:11px;font-weight:500;color:var(--muted)}
+.caxis{display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:11px;
+  color:var(--faint);border-top:1px solid var(--axis);padding-top:4px}
+.crow .ctrack:hover .cbar{filter:brightness(1.06)}
+
+.drow{display:grid;grid-template-columns:minmax(120px,190px) minmax(0,1fr) 84px;
+  gap:12px;align-items:center}
+@media (max-width:720px){.drow{grid-template-columns:minmax(0,1fr);gap:4px}}
+.dtrack{position:relative;height:24px}
+.dmid{position:absolute;left:50%;top:-4px;bottom:-4px;width:2px;background:var(--div-mid);
+  transform:translateX(-1px)}
+.dbar{position:absolute;top:4px;height:16px}
+.dbar[data-p="1"]{left:50%;background:var(--div-pos);border-radius:0 4px 4px 0}
+.dbar[data-p="0"]{right:50%;background:var(--div-neg);border-radius:4px 0 0 4px}
+.dval{text-align:right;font-family:var(--font-mono);font-size:13px;font-weight:600}
+.daxis{display:flex;justify-content:space-between;font-size:11px;color:var(--faint);
+  border-top:1px solid var(--axis);padding-top:4px}
+
+.tip{position:fixed;z-index:80;pointer-events:none;opacity:0;transition:opacity .12s ease;
+  background:var(--surface);border:1px solid var(--line-strong);border-radius:9px;
+  box-shadow:0 6px 22px rgba(22,33,31,.18);padding:9px 11px;font-size:12.5px;
+  min-width:184px;max-width:280px}
+.tip.show{opacity:1}
+.tip h4{margin:0 0 6px;font-size:13px;font-weight:600}
+.tip .trow{display:flex;justify-content:space-between;gap:12px;padding:1.5px 0}
+.tip .trow span{color:var(--muted);display:inline-flex;align-items:center;gap:6px}
+.tip .trow i{width:9px;height:9px;border-radius:2px;display:block;flex:none}
+.tip .trow b{font-family:var(--font-mono);font-weight:600;font-variant-numeric:tabular-nums}
+.tip .tfoot{margin-top:6px;padding-top:6px;border-top:1px solid var(--line);
+  display:flex;justify-content:space-between;gap:12px;font-weight:600}
+
+/* ---------- overlays ---------- */
+.scrim{position:fixed;inset:0;background:rgba(10,18,17,.5);z-index:40;opacity:0;
+  pointer-events:none;transition:opacity .18s ease}
+.scrim.open{opacity:1;pointer-events:auto}
+.psheet{position:absolute;left:0;right:0;bottom:0;z-index:12;background:var(--ground);
+  border-radius:18px 18px 0 0;max-height:93%;display:flex;flex-direction:column;
+  transform:translateY(102%);transition:transform .22s cubic-bezier(.32,.72,0,1);
+  box-shadow:0 -6px 30px rgba(10,18,17,.22)}
+.psheet.open{transform:translateY(0)}
+.pscrim{position:absolute;inset:0;z-index:11;background:rgba(10,18,17,.42);opacity:0;
+  pointer-events:none;transition:opacity .18s ease}
+.pscrim.open{opacity:1;pointer-events:auto}
+.sheet-head{padding:10px 15px 12px;border-bottom:1px solid var(--line);background:var(--surface);
+  border-radius:18px 18px 0 0}
+.grab{width:34px;height:4px;border-radius:2px;background:var(--line-strong);margin:0 auto 10px}
+.sheet-body{overflow-y:auto;padding:13px 15px 18px;display:flex;flex-direction:column;gap:12px}
+.modal{position:fixed;z-index:50;left:50%;top:50%;transform:translate(-50%,-48%) scale(.98);
+  width:min(560px,calc(100vw - 32px));max-height:86vh;background:var(--ground);
+  border:1px solid var(--line-strong);border-radius:16px;display:none;flex-direction:column;
+  box-shadow:0 20px 60px rgba(10,18,17,.3);overflow:hidden}
+.modal.open{display:flex;transform:translate(-50%,-50%) scale(1)}
+.modal .sheet-head{border-radius:0}
+.toast{position:fixed;left:50%;bottom:28px;transform:translate(-50%,14px);z-index:90;
+  background:var(--ink);color:var(--ground);padding:9px 15px;border-radius:9px;font-size:13.5px;
+  font-weight:500;opacity:0;transition:all .2s ease;pointer-events:none;max-width:88%;text-align:center}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<p class="proto-note">Prototype · sample data · nothing is saved · view only, pending approval</p>
+
+<header class="appbar">
+  <div class="appbar-row">
+    <h1>Promold — the other flows
+      <small>Mileage and vehicles · time off · customers and sites · job costing and exports</small></h1>
+    <button class="theme" id="themeBtn">Dark mode</button>
+  </div>
+  <div class="people" id="people" role="tablist" aria-label="Persona"></div>
+  <div class="permstrip" id="perms"></div>
+</header>
+
+<div class="stage" id="stage"></div>
+
+<div class="scrim" id="scrim"></div>
+<section class="modal" id="modal" aria-modal="true" role="dialog" aria-label="Detail">
+  <div class="sheet-head"><div id="modalHead"></div></div>
+  <div class="sheet-body" id="modalBody"></div>
+</section>
+<div class="tip" id="tip" role="status" aria-live="polite"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+/* ===========================================================================
+   Promold — the flows that had no prototype yet.
+
+   Four logins, four different apps. The phone personas are drawn inside a
+   phone so the web page shows what the crew will actually hold; the manager
+   and bookkeeper are desktop, because that is where those jobs get done.
+
+   The sample data mirrors supabase/seed.sql and the column names come from
+   the migrations — mileage_logs, time_off, customers, sites, job_costs — so
+   what is on screen can be checked against what the database already holds.
+   =========================================================================== */
+
+const TODAY = '2026-09-18';
+
+/* Permission flags are the ones provision_org_roles() actually writes. The UI
+   only hides; RLS and the *_safe views are what withhold. */
+const PERSONAS = [
+  {key:'tech', name:'Priya Nair', role:'Technician', surface:'phone',
+   perms:{'job.accept':1,'job.complete':1,'changeorder.draft':1,'inventory.log_usage':1,
+          'equipment.place':1},
+   can:['Log my own mileage','Request time off','Accept or ask to move a job'],
+   cant:['See any price or margin','Approve anything','See anyone else’s mileage']},
+
+  {key:'lead', name:'Marcus Bell', role:'Crew Lead', surface:'phone',
+   perms:{'job.accept':1,'job.complete':1,'changeorder.draft':1,'inventory.log_usage':1,
+          'inventory.transfer':1,'equipment.place':1,'time.log_others':1},
+   can:['Log my own mileage','Clock the crew in and out','Request time off',
+        'Write up a change order'],
+   cant:['See any price or margin','Approve time off','See the fleet register']},
+
+  {key:'mgr', name:'Ray Alvarez', role:'Manager', surface:'desk',
+   perms:{'job.assign':1,'job.edit':1,'vehicle.manage':1,'mileage.view_all':1,
+          'mileage.edit_all':1,'timeoff.manage':1,'customer.manage':1,'price.view':1,
+          'costing.view':1,'export.run':1,'purchase.approve':1},
+   can:['Run the fleet register','See and correct everyone’s mileage',
+        'Approve or decline time off','Add and edit customers and sites'],
+   cant:['Approve a purchase over his limit — that goes to the owner']},
+
+  {key:'book', name:'Helen Osei', role:'Bookkeeper', surface:'desk',
+   perms:{'job.view_all':1,'purchase.view_all':1,'purchase.view_history':1,
+          'mileage.view_all':1,'time.view_all':1,'audit.view':1,'price.view':1,
+          'costing.view':1,'export.run':1,'job.close':1},
+   can:['See what every job cost and what it was quoted at','Run every export',
+        'Close a job once the paperwork is in'],
+   cant:['Assign work','Approve a purchase or time off','Change any job record']}
+];
+
+/* ---------- vehicles (table: vehicles) ---------- */
+const VEHICLES = [
+  {id:'V1', name:'Van 1', plate:'MA 4XT-119', makeModel:'Ford Transit 250', year:2021,
+   odo:84213.4, driver:'Marcus Bell', serviceOdo:86000, serviceDate:'2026-11-02',
+   insurance:'2026-12-31', registration:'2026-10-05'},
+  {id:'V2', name:'Van 2', plate:'MA 7KP-884', makeModel:'Chevrolet Express 2500', year:2019,
+   odo:131802.0, driver:'Priya Nair', serviceOdo:132000, serviceDate:'2026-09-30',
+   insurance:'2026-11-14', registration:'2027-03-19'},
+  {id:'V3', name:'Pickup', plate:'MA 2RB-550', makeModel:'Ram 1500', year:2018,
+   odo:98442.6, driver:'Ray Alvarez', serviceOdo:101000, serviceDate:'2027-01-12',
+   insurance:'2026-09-24', registration:'2026-12-01'}
+];
+const MILEAGE_RATE = 0.67;   // organizations.settings.mileage_rate
+
+/* ---------- mileage (table: mileage_logs) ----------
+   Odometer start and end are what gets typed; distance is a generated column,
+   never entered. continuity_gap is set when the opening reading does not meet
+   the vehicle's last closing reading — a warning, never a rejection. */
+let trips = [
+  {id:'T2', user:'Priya Nair', v:'V2', date:'2026-09-17', start:131774.5, end:131802.0,
+   job:'J00102', purpose:'42 Oak St and back', business:true, gap:0},
+  {id:'T3', user:'Priya Nair', v:'V2', date:'2026-09-16', start:131751.2, end:131774.5,
+   job:'J00102', purpose:'42 Oak St, day 1 setup', business:true, gap:0},
+  {id:'T4', user:'Marcus Bell', v:'V1', date:'2026-09-18', start:84186.2, end:84213.4,
+   job:'J00102', purpose:'Site run plus supply pickup', business:true, gap:0},
+  {id:'T5', user:'Marcus Bell', v:'V1', date:'2026-09-16', start:84140.0, end:84158.9,
+   job:'J00099', purpose:'Larkspur attic survey', business:true, gap:3.5},
+  {id:'T6', user:'Marcus Bell', v:'V1', date:'2026-09-15', start:84112.0, end:84136.5,
+   job:'J00101', purpose:'42 Oak St inspection', business:true, gap:0},
+  {id:'T7', user:'Tomas Reyes', v:'V1', date:'2026-09-17', start:84158.9, end:84186.2,
+   job:'J00102', purpose:'Dump run, contractor bags', business:true, gap:0},
+  {id:'T8', user:'Ray Alvarez', v:'V3', date:'2026-09-17', start:98401.0, end:98442.6,
+   job:null, purpose:'Estimate visits, three addresses', business:true, gap:0},
+  {id:'T9', user:'Priya Nair', v:'V2', date:'2026-09-14', start:131740.0, end:131751.2,
+   job:null, purpose:'Personal errand', business:false, gap:0}
+];
+
+/* ---------- time off (table: time_off) ---------- */
+let timeoff = [
+  {id:'O1', user:'Priya Nair', kind:'vacation', from:'2026-10-06', to:'2026-10-10',
+   status:'requested', reason:'Family trip, booked in June', clash:['J00112 — 7 Oct, Larkspur unit 2A']},
+  {id:'O2', user:'Tomas Reyes', kind:'sick', from:'2026-09-19', to:'2026-09-19',
+   status:'requested', reason:'Flu', clash:['J00103 — 19 Sep, Larkspur unit 3B']},
+  {id:'O3', user:'Marcus Bell', kind:'vacation', from:'2026-09-28', to:'2026-09-30',
+   status:'approved', reason:'', clash:[], decided:'Ray Alvarez'},
+  {id:'O4', user:'Priya Nair', kind:'unavailable', from:'2026-09-12', to:'2026-09-12',
+   status:'declined', reason:'Car in the shop', clash:[], decided:'Ray Alvarez',
+   decision:'Van 1 had a seat that day — rode with Marcus'},
+  {id:'O5', user:'Priya Nair', kind:'vacation', from:'2026-08-21', to:'2026-08-22',
+   status:'approved', reason:'', clash:[], decided:'Ray Alvarez'}
+];
+const KIND_LABEL = {vacation:'Vacation', sick:'Sick', unavailable:'Unavailable', other:'Other'};
+
+/* ---------- customers and sites (tables: customers, sites) ---------- */
+const customers = [
+  {id:'C1', name:'Helen Brooks', kind:'residential', contact:'Helen Brooks',
+   phone:'(413) 555-0188', email:'h.brooks@example.com', since:'2025-04-12',
+   sites:[
+     {label:'42 Oak St — basement', addr:'42 Oak St', city:'Springfield MA 01103',
+      access:'Side gate code 4471. Dog in the yard.',
+      jobs:[['J00101','Basement mold inspection','27 Aug 2026','closed'],
+            ['J00102','Basement remediation','16–18 Sep 2026','in_progress'],
+            ['J00104','Post-remediation verification','24 Sep 2026','accepted']]}]},
+
+  {id:'C2', name:'Cardinal Property Group', kind:'property_manager', contact:'Dana Whitfield',
+   phone:'(413) 555-0142', email:'dana@cardinalpg.example', since:'2024-09-03',
+   sites:[
+     {label:'Larkspur Apts — unit 3B', addr:'118 Larkspur Ave', city:'Springfield MA 01109',
+      access:'Keys at the leasing office, 9–5.',
+      jobs:[['J00103','Unit 3B containment setup','19 Sep 2026','assigned']]},
+     {label:'Larkspur Apts — attic', addr:'118 Larkspur Ave', city:'Springfield MA 01109',
+      access:'Roof hatch, ask maintenance for the pole.',
+      jobs:[['J00099','Attic mould survey','11 Sep 2026','closed']]},
+     {label:'Beechwood Ct — common laundry', addr:'7 Beechwood Ct', city:'Chicopee MA 01020',
+      access:'Basement door, keypad 2290.',
+      jobs:[['J00093','Laundry room duct cleaning','3 Aug 2026','closed']]}]},
+
+  {id:'C3', name:'Dale Whitcomb', kind:'residential', contact:'Dale Whitcomb',
+   phone:'(413) 555-0107', email:'', since:'2026-09-08',
+   sites:[
+     {label:'9 Tolland Rd — crawlspace', addr:'9 Tolland Rd', city:'Springfield MA 01118',
+      access:'',
+      jobs:[['J00105','Crawlspace inspection','22 Sep 2026','accepted']]}]},
+
+  {id:'C4', name:'Sycamore Dental', kind:'commercial', contact:'Dr. Anita Rao',
+   phone:'(413) 555-0164', email:'office@sycamoredental.example', since:'2025-11-20',
+   sites:[
+     {label:'Sycamore Dental — rear suite', addr:'220 Sycamore St', city:'Springfield MA 01105',
+      access:'After 4pm only. Alarm code from Dr. Rao.',
+      jobs:[['J00097','Kitchen water damage remediation','1–4 Sep 2026','closed'],
+            ['J00095','Crawlspace encapsulation','12–19 Aug 2026','closed']]}]}
+];
+const CUST_KIND = {residential:'Residential', commercial:'Commercial',
+  insurance:'Insurance', property_manager:'Property manager'};
+
+/* ---------- job costing (view: job_costs) ----------
+   contract = quoted price + approved change orders. Cost is the six rollups
+   the view already computes. Nothing here says anything about who has paid:
+   money owed lives in the other system, by design. */
+const COST_KEYS = [['labour','Labour'],['materials','Materials'],['equipment','Equipment'],
+                   ['mileage','Mileage'],['rentals','Rentals']];
+const TARGET_MARGIN = 35;   // the number the owner runs the business against
+
+const costing = [
+  {no:'J00102', title:'Basement remediation', customer:'Helen Brooks', status:'in_progress',
+   base:8600, co:1250, labour:3980.50, materials:1142.75, equipment:540, mileage:96.30, rentals:270},
+  {no:'J00099', title:'Attic mould survey', customer:'Cardinal Property Group', status:'closed',
+   base:450, co:0, labour:210, materials:18.40, equipment:0, mileage:14.20, rentals:0},
+  {no:'J00101', title:'Basement mold inspection', customer:'Helen Brooks', status:'closed',
+   base:450, co:0, labour:268, materials:22.10, equipment:45, mileage:19.80, rentals:0},
+  {no:'J00097', title:'Kitchen water damage', customer:'Sycamore Dental', status:'closed',
+   base:5400, co:0, labour:2910, materials:1480.25, equipment:420, mileage:88.50, rentals:810},
+  {no:'J00095', title:'Crawlspace encapsulation', customer:'Sycamore Dental', status:'closed',
+   base:11800, co:600, labour:4620, materials:2980.40, equipment:780, mileage:132.60, rentals:540},
+  {no:'J00093', title:'Laundry duct cleaning', customer:'Cardinal Property Group', status:'closed',
+   base:1850, co:0, labour:690, materials:96.80, equipment:120, mileage:27.40, rentals:0}
+];
+costing.forEach(r => {
+  r.contract = r.base + r.co;
+  r.total = COST_KEYS.reduce((a,[k]) => a + r[k], 0);
+  r.margin = r.contract - r.total;
+  r.pct = r.contract ? (r.margin / r.contract) * 100 : 0;
+});
+
+const EXPORTS = [
+  {id:'X1', name:'Job costing', file:'job-costing-2026-09.csv',
+   what:'One row per job: contract price, the six cost lines, margin.',
+   cols:'job_number, customer, contract_price, labour_cost, material_cost, purchase_cost, mileage_cost, equipment_cost, rental_cost, total_cost, margin',
+   source:'job_costs'},
+  {id:'X2', name:'Mileage reimbursement', file:'mileage-2026-09.csv',
+   what:'Business miles per person per month at the org rate.',
+   cols:'person, vehicle, trip_date, job_number, odometer_start, odometer_end, distance, rate, amount',
+   source:'mileage_logs'},
+  {id:'X3', name:'Hours for payroll', file:'hours-2026-09.csv',
+   what:'Clocked hours per person per job. Hours only — this app does not run payroll.',
+   cols:'person, job_number, started_at, ended_at, hours, auto_closed',
+   source:'time_entries'},
+  {id:'X4', name:'Approved change orders', file:'change-orders-2026-09.csv',
+   what:'Every scope change that was agreed, and what it was agreed at.',
+   cols:'job_number, title, amount, approved_by, approved_at',
+   source:'change_orders'},
+  {id:'X5', name:'Purchase approvals', file:'purchases-2026-09.csv',
+   what:'What was bought, by whom, approved by whom, against which job.',
+   cols:'request_number, job_number, vendor, line_item, quantity, unit_cost, approved_by, approved_at',
+   source:'purchase_requests, purchase_request_lines'}
+];
+
+/* ---------- helpers ---------- */
+let P = 0, tab = null, pickedCustomer = 'C1', pickedSite = 0, period = 'Sep 2026';
+let form = {};
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const money = n => (n<0?'−$':'$') + Math.abs(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+const money0 = n => (n<0?'−$':'$') + Math.abs(n).toLocaleString('en-US',{maximumFractionDigits:0});
+const miles = n => n.toLocaleString('en-US',{minimumFractionDigits:1,maximumFractionDigits:1});
+const day = d => new Date(d+'T00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+const dayLong = d => new Date(d+'T00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
+const initials = n => n.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+const vehicle = id => VEHICLES.find(v=>v.id===id);
+const me = () => PERSONAS[P];
+const can = f => me().perms[f] === 1;
+const daysTo = d => Math.round((new Date(d+'T00:00') - new Date(TODAY+'T00:00')) / 86400000);
+
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');
+  clearTimeout(t._id);t._id=setTimeout(()=>t.classList.remove('show'),2600);}
+
+/* The closing reading of this vehicle's most recent trip. It is what the
+   next opening reading is compared against, and what the form prefills. */
+function lastClose(vid, exceptId){
+  const rows = trips.filter(t => t.v===vid && t.id!==exceptId)
+    .sort((a,b) => a.date < b.date ? 1 : a.date > b.date ? -1 : (a.end < b.end ? 1 : -1));
+  return rows.length ? rows[0].end : vehicle(vid).odo;
+}
+
+/* ---------- jobs, only as much as these flows need ---------- */
+let JOBS = [
+  {no:'J00102', title:'Basement remediation — day 3 of 3', site:'42 Oak St — basement',
+   customer:'Helen Brooks', date:'2026-09-18', start:'08:00', end:'16:00',
+   status:'in_progress', acceptance:'accepted', crew:['Marcus Bell','Tomas Reyes','Priya Nair'],
+   access:'Side gate code 4471. Dog in the yard.'},
+  {no:'J00103', title:'Unit 3B containment setup', site:'Larkspur Apts — unit 3B',
+   customer:'Cardinal Property Group', date:'2026-09-19', start:'09:00', end:'15:00',
+   status:'assigned', acceptance:'pending', crew:['Marcus Bell','Priya Nair'],
+   access:'Keys at the leasing office, 9–5.'}
+];
+/* Clock state is the crew lead's to keep — time.log_others. */
+let clocks = [{who:'Marcus Bell', in:'07:52'}, {who:'Tomas Reyes', in:'08:04'},
+              {who:'Priya Nair', in:null}];
+
+let sheet = null;      // phone bottom sheet
+let modal = null;      // desktop modal
+
+/* =======================================================================
+   PHONE — technician and crew lead
+   ======================================================================= */
+const PHONE_TABS = [['day','▦','My day'],['miles','⇝','Mileage'],['off','⚑','Time off']];
+
+function statusPill(j){
+  if (j.acceptance==='pending') return '<span class="pill" data-t="warn"><span class="dot"></span>Needs your answer</span>';
+  if (j.acceptance==='reschedule_requested') return '<span class="pill" data-t="accent">Reschedule asked</span>';
+  if (j.status==='in_progress') return '<span class="pill" data-t="ok">Working</span>';
+  return '<span class="pill">Accepted</span>';
+}
+
+function dayScreen(){
+  const name = me().name;
+  const mine = JOBS.filter(j => j.crew.includes(name));
+  const today = mine.filter(j => j.date===TODAY);
+  const later = mine.filter(j => j.date > TODAY);
+  const loggedToday = trips.some(t => t.user===name && t.date===TODAY);
+
+  const jobCard = j => `
+    <button class="card" data-job="${j.no}">
+      <span class="card-top"><span class="mono" style="font-size:12px;color:var(--faint)">${j.no}</span>
+        ${statusPill(j)}</span>
+      <h3>${esc(j.title)}</h3>
+      <span class="sub">${esc(j.site)}<br>${esc(j.customer)}</span>
+      <span class="rowline" style="border-top:1px solid var(--line);padding-top:8px">
+        <span class="k">${j.date===TODAY?'Today':dayLong(j.date)}</span>
+        <span class="v mono">${j.start}–${j.end}</span></span>
+    </button>`;
+
+  let out = '';
+  out += '<div class="section-head"><span class="lbl">Today</span>'
+       + `<span class="sub">${dayLong(TODAY)}</span></div>`;
+  out += today.length ? today.map(jobCard).join('') : '<p class="empty">Nothing on today.</p>';
+
+  /* Mileage and the day's work are the same trip. Asking for it here, on the
+     screen they already have open, is the only way it gets logged truthfully. */
+  if (today.length && !loggedToday){
+    out += `<div class="card flag">
+      <div class="card-top"><h3>No trip logged today</h3>
+        <span class="pill" data-t="warn">Open</span></div>
+      <p class="sub">${esc(vehicle(myVan()).name)} reads
+        <span class="mono">${miles(lastClose(myVan()))}</span> from the last trip.</p>
+      <button class="btn" data-act="trip-new">Log today’s trip</button>
+    </div>`;
+  }
+
+  if (can('time.log_others')){
+    out += '<div class="section-head"><span class="lbl">Crew on this job</span>'
+         + '<span class="sub">You clock them in</span></div>';
+    out += '<div class="card">' + clocks.map(c => `
+      <div class="rowline" style="align-items:center">
+        <span class="k" style="display:flex;align-items:center;gap:8px">
+          <span class="av">${initials(c.who)}</span>${esc(c.who)}</span>
+        <span class="v">${c.in
+          ? `<span class="mono" style="color:var(--ok)">in ${c.in}</span>`
+          : `<button class="btn sm ghost" data-clock="${esc(c.who)}">Clock in</button>`}</span>
+      </div>`).join('') + '</div>';
+  }
+
+  out += '<div class="section-head"><span class="lbl">Coming up</span></div>';
+  out += later.length ? later.map(jobCard).join('') : '<p class="empty">Nothing else booked.</p>';
+  return out;
+}
+
+const myVan = () => me().key==='tech' ? 'V2' : 'V1';
+
+function milesScreen(){
+  const name = me().name;
+  const mine = trips.filter(t => t.user===name)
+    .sort((a,b) => a.date < b.date ? 1 : -1);
+  const biz = mine.filter(t => t.business);
+  const dist = biz.reduce((a,t) => a + (t.end - t.start), 0);
+  const v = vehicle(myVan());
+
+  let out = `<div class="card">
+    <div class="card-top"><span class="lbl">Your business miles, this month</span></div>
+    <div style="display:flex;align-items:baseline;gap:12px">
+      <span class="mono" style="font-size:30px;font-weight:600">${miles(dist)}</span>
+      <span class="sub">miles · ${money(dist*MILEAGE_RATE)} at ${MILEAGE_RATE.toFixed(2)}/mi</span>
+    </div>
+    <p class="hint">The rate comes from the office. Personal trips are logged
+      but never counted here.</p>
+    <button class="btn" data-act="trip-new">Log a trip</button>
+  </div>`;
+
+  out += `<div class="card">
+    <div class="card-top"><h3>${esc(v.name)}</h3><span class="pill" data-t="accent">Your van</span></div>
+    <dl class="kv">
+      <div class="rowline"><dt>Plate</dt><dd class="mono">${esc(v.plate)}</dd></div>
+      <div class="rowline"><dt>Odometer now</dt><dd class="mono">${miles(lastClose(v.id))}</dd></div>
+    </dl></div>`;
+
+  out += '<div class="section-head"><span class="lbl">Your trips</span>'
+       + `<span class="sub">${mine.length} logged</span></div>`;
+  out += mine.length ? mine.map(t => {
+    const d = t.end - t.start;
+    return `<button class="card${t.gap?' flag':''}" data-trip="${t.id}">
+      <span class="card-top">
+        <span class="sub">${dayLong(t.date)} · ${esc(vehicle(t.v).name)}</span>
+        <span class="mono" style="font-size:16px;font-weight:600">${miles(d)} mi</span></span>
+      <span class="sub">${esc(t.purpose)}</span>
+      <span class="rowline" style="border-top:1px solid var(--line);padding-top:8px">
+        <span class="k mono">${miles(t.start)} → ${miles(t.end)}</span>
+        <span class="v">${t.job ? `<span class="mono">${t.job}</span>`
+          : '<span class="pill">No job</span>'}</span></span>
+      ${t.gap ? `<span class="warnbox"><span class="ic">!</span>
+        <span>Gap of ${miles(t.gap)} mi before this trip — the office can see it.</span></span>` : ''}
+    </button>`;
+  }).join('') : '<p class="empty">No trips logged yet.</p>';
+  return out;
+}
+
+function offScreen(){
+  const name = me().name;
+  const mine = timeoff.filter(o => o.user===name)
+    .sort((a,b) => a.from < b.from ? 1 : -1);
+  const approvedDays = mine.filter(o => o.status==='approved')
+    .reduce((a,o) => a + (daysBetween(o.from,o.to)), 0);
+
+  const pillFor = s => s==='approved' ? '<span class="pill" data-t="ok">Approved</span>'
+    : s==='declined' ? '<span class="pill" data-t="crit">Declined</span>'
+    : s==='cancelled' ? '<span class="pill">Cancelled</span>'
+    : '<span class="pill" data-t="warn"><span class="dot"></span>Waiting on Ray</span>';
+
+  let out = `<div class="card">
+    <div class="card-top"><span class="lbl">Approved so far this year</span></div>
+    <div style="display:flex;align-items:baseline;gap:12px">
+      <span class="mono" style="font-size:30px;font-weight:600">${approvedDays}</span>
+      <span class="sub">days off</span></div>
+    <p class="hint">Approved time off is what stops you being booked onto a job.
+      A request on its own does not block anything.</p>
+    <button class="btn" data-act="off-new">Request time off</button>
+  </div>`;
+
+  out += '<div class="section-head"><span class="lbl">Your requests</span></div>';
+  out += mine.length ? mine.map(o => `
+    <div class="card${o.status==='requested'?' flag':''}">
+      <div class="card-top"><h3>${KIND_LABEL[o.kind]}</h3>${pillFor(o.status)}</div>
+      <p class="sub mono">${day(o.from)}${o.from===o.to?'':' → '+day(o.to)}
+        · ${daysBetween(o.from,o.to)} day${daysBetween(o.from,o.to)===1?'':'s'}</p>
+      ${o.reason ? `<p class="sub">“${esc(o.reason)}”</p>` : ''}
+      ${o.decision ? `<p class="hint"><b>${esc(o.decided)}:</b> ${esc(o.decision)}</p>` : ''}
+      ${o.status==='requested' ? '<button class="btn sm ghost" data-act="off-cancel" data-id="'+o.id+'">Cancel this request</button>' : ''}
+    </div>`).join('') : '<p class="empty">You have not asked for any time off.</p>';
+  return out;
+}
+
+const daysBetween = (a,b) => Math.round((new Date(b+'T00:00') - new Date(a+'T00:00'))/86400000) + 1;
+
+/* ---------- phone sheets ---------- */
+function tripSheet(){
+  const f = form;
+  const v = vehicle(f.v);
+  const close = lastClose(f.v, f.id);
+  const dist = (f.end !== '' && f.start !== '' && Number(f.end) >= Number(f.start))
+    ? Number(f.end) - Number(f.start) : null;
+  const gap = (f.start !== '' && Math.abs(Number(f.start) - close) > 0.05)
+    ? Number(f.start) - close : 0;
+
+  return {head:`<h2 style="margin:0;font-size:18px;font-weight:600">Log a trip</h2>
+      <p class="sub">Odometer in, distance out. You never type the miles.</p>`,
+    body:`
+    <div class="field"><label for="fv">Vehicle</label>
+      <select id="fv" data-f="v">${VEHICLES.map(x =>
+        `<option value="${x.id}"${x.id===f.v?' selected':''}>${esc(x.name)} · ${esc(x.plate)}</option>`).join('')}</select>
+      <p class="hint">Last closing reading on ${esc(v.name)}:
+        <b class="mono">${miles(close)}</b></p></div>
+
+    <div class="field"><label for="fd">Date</label>
+      <input id="fd" type="date" value="${f.date}" data-f="date"></div>
+
+    <div class="field-row">
+      <div class="field"><label for="fs">Odometer start</label>
+        <input id="fs" type="number" step="0.1" inputmode="decimal" value="${f.start}" data-f="start"></div>
+      <div class="field"><label for="fe">Odometer end</label>
+        <input id="fe" type="number" step="0.1" inputmode="decimal" value="${f.end}" data-f="end"></div>
+    </div>
+
+    <div class="field"><label for="fdist">Distance</label>
+      <input id="fdist" readonly value="${dist===null?'—':miles(dist)+' mi'}">
+      <p class="hint" id="fmoney">${dist===null ? 'Fill both readings.'
+        : `${money(dist*MILEAGE_RATE)} at ${MILEAGE_RATE.toFixed(2)}/mi, if it is a business trip.`}</p></div>
+
+    <div id="fgap">${gap ? `<div class="warnbox"><span class="ic">!</span><span>
+      <b>${gap>0?'Gap':'Overlap'} of ${miles(Math.abs(gap))} mi</b>
+      ${esc(v.name)} last closed at ${miles(close)}. This is saved as a note on the
+      trip, not a refusal — vans get moved without anyone logging it.</span></div>` : ''}</div>
+
+    <div class="field"><label for="fj">Job</label>
+      <select id="fj" data-f="job">
+        <option value=""${f.job?'':' selected'}>No job — general running</option>
+        ${JOBS.map(j => `<option value="${j.no}"${f.job===j.no?' selected':''}>${j.no} · ${esc(j.site)}</option>`).join('')}
+      </select>
+      <p class="hint">A trip tied to a job lands on that job’s cost. One with no job does not.</p></div>
+
+    <div class="field"><label>Business or personal</label>
+      <div class="choice">
+        <button data-set="business" data-val="1" aria-pressed="${f.business?'true':'false'}">Business</button>
+        <button data-set="business" data-val="0" aria-pressed="${f.business?'false':'true'}">Personal</button>
+      </div></div>
+
+    <div class="field"><label for="fp">Purpose</label>
+      <input id="fp" value="${esc(f.purpose)}" placeholder="Warehouse → site, dump run…" data-f="purpose"></div>
+
+    <div class="btn-row">
+      <button class="btn ghost" data-act="close">Cancel</button>
+      <button class="btn" data-act="trip-save">Save trip</button>
+    </div>`};
+}
+
+function offSheet(){
+  const f = form;
+  const clash = JOBS.filter(j => j.crew.includes(me().name)
+    && j.date >= f.from && j.date <= f.to);
+  return {head:`<h2 style="margin:0;font-size:18px;font-weight:600">Request time off</h2>
+      <p class="sub">Ray decides. Nothing is blocked until he approves it.</p>`,
+    body:`
+    <div class="field"><label>Kind</label>
+      <div class="choice">${Object.entries(KIND_LABEL).map(([k,l]) =>
+        `<button data-set="kind" data-val="${k}" aria-pressed="${f.kind===k?'true':'false'}">${l}</button>`).join('')}
+      </div></div>
+
+    <div class="field-row">
+      <div class="field"><label for="ff">From</label>
+        <input id="ff" type="date" value="${f.from}" data-f="from"></div>
+      <div class="field"><label for="ft">To</label>
+        <input id="ft" type="date" value="${f.to}" data-f="to"></div>
+    </div>
+    <p class="hint">${daysBetween(f.from,f.to)} day${daysBetween(f.from,f.to)===1?'':'s'}.</p>
+
+    <div id="fclash">${clash.length ? `<div class="warnbox"><span class="ic">!</span><span>
+      <b>You are booked on ${clash.length} job${clash.length===1?'':'s'} in that window</b>
+      ${clash.map(j => esc(j.no+' — '+day(j.date)+', '+j.site)).join('<br>')}<br>
+      Ray will see this too. He has to move the work before he can approve.
+      </span></div>` : ''}</div>
+
+    <div class="field"><label for="fr">Reason</label>
+      <textarea id="fr" data-f="reason" placeholder="Optional, but it helps Ray decide">${esc(f.reason)}</textarea></div>
+
+    <div class="btn-row">
+      <button class="btn ghost" data-act="close">Cancel</button>
+      <button class="btn" data-act="off-save">Send to Ray</button>
+    </div>`};
+}
+
+function tripDetailSheet(t){
+  const d = t.end - t.start;
+  const own = t.user === me().name;
+  const sameDay = t.date === TODAY;
+  return {head:`<h2 style="margin:0;font-size:18px;font-weight:600">${miles(d)} miles</h2>
+      <p class="sub">${dayLong(t.date)} · ${esc(vehicle(t.v).name)}</p>`,
+    body:`
+    <div class="card"><dl class="kv">
+      <div class="rowline"><dt>Odometer</dt><dd class="mono">${miles(t.start)} → ${miles(t.end)}</dd></div>
+      <div class="rowline"><dt>Distance</dt><dd class="mono">${miles(d)} mi</dd></div>
+      <div class="rowline"><dt>Job</dt><dd>${t.job ? '<span class="mono">'+t.job+'</span>' : 'None'}</dd></div>
+      <div class="rowline"><dt>Counts for</dt><dd>${t.business?'Business':'Personal — not reimbursed'}</dd></div>
+      <div class="rowline"><dt>Purpose</dt><dd>${esc(t.purpose)}</dd></div>
+    </dl></div>
+    ${t.gap ? `<div class="warnbox"><span class="ic">!</span><span>
+      <b>Continuity gap of ${miles(t.gap)} mi</b>
+      Logged on the row as <code>continuity_gap</code>. Ray sees it in the register.
+      </span></div>` : ''}
+    ${own && sameDay
+      ? '<button class="btn ghost" data-act="not-in-proto">Edit this trip</button>'
+      : `<p class="hint">Your own trips can be corrected on the day. After that it is
+         Ray’s to change, and the edit is kept on the record.</p>`}
+    <button class="btn ghost" data-act="close">Close</button>`};
+}
+
+function jobSheet(j){
+  return {head:`<h2 style="margin:0;font-size:18px;font-weight:600">${esc(j.title)}</h2>
+      <p class="sub mono">${j.no}</p>`,
+    body:`
+    <div class="card"><dl class="kv">
+      <div class="rowline"><dt>Site</dt><dd>${esc(j.site)}</dd></div>
+      <div class="rowline"><dt>Customer</dt><dd>${esc(j.customer)}</dd></div>
+      <div class="rowline"><dt>When</dt><dd class="mono">${day(j.date)} ${j.start}–${j.end}</dd></div>
+      <div class="rowline"><dt>Crew</dt><dd>${esc(j.crew.join(', '))}</dd></div>
+    </dl></div>
+    ${j.access ? `<div class="card"><span class="lbl">Getting in</span>
+      <p class="sub">${esc(j.access)}</p></div>` : ''}
+    <p class="hint">No price on this screen. <code>jobs.quoted_price</code> is revoked
+      from the signed-in role and read through <code>jobs_safe</code>, so there is
+      nothing here to hide — the value never reaches the phone.</p>
+    ${j.acceptance==='pending' ? `<div class="btn-row">
+      <button class="btn ghost" data-act="ask-move" data-id="${j.no}">Ask to move</button>
+      <button class="btn" data-act="accept" data-id="${j.no}">Accept</button></div>`
+      : '<button class="btn ghost" data-act="close">Close</button>'}`};
+}
+
+function sheetView(){
+  if (!sheet) return null;
+  if (sheet.kind==='trip') return tripSheet();
+  if (sheet.kind==='off') return offSheet();
+  if (sheet.kind==='tripDetail') return tripDetailSheet(trips.find(t=>t.id===sheet.id));
+  if (sheet.kind==='job') return jobSheet(JOBS.find(j=>j.no===sheet.id));
+  return null;
+}
+
+const PHONE_NOTES = {
+  day: [['What this screen is for',
+    `Both phone logins open here. The technician sees her own work; the crew lead
+     sees the same job plus the crew, because <code>time.log_others</code> is his
+     flag and hers is not. Switching the persona above swaps the screen, it does
+     not just relabel it.`],
+   ['Why mileage is nagged here',
+    `A trip logged three days later is a guess. The prompt sits on the screen the
+     crew already has open on site, and it is prefilled from the van’s last
+     closing reading, so logging it is two numbers and a tap.`]],
+  miles: [['Odometer in, distance out',
+    `<code>mileage_logs</code> stores <code>odometer_start</code> and
+     <code>odometer_end</code>; <code>distance</code> is a generated column. Nobody
+     types a mileage figure, so nobody can round one up, and the van’s odometer
+     stays current for the service interval at no extra effort.`],
+   ['The continuity gap',
+    `If the opening reading does not meet the last closing reading, the difference
+     is written to <code>continuity_gap</code> and shown to the office. It is never
+     a refusal — vans do get moved without a log, and a hard block just stops
+     people logging at all.`],
+   ['What the crew cannot see',
+    `Their own trips only. <code>mileage.view_all</code> belongs to the manager,
+     the owner and the bookkeeper.`]],
+  off: [['A request is not a block',
+    `Only <code>status = ‘approved’</code> time off blocks scheduling — that
+     is the partial gist index in <code>0002_identity.sql</code>, and it is what the
+     dispatch board already refuses drops against.`],
+   ['The clash is shown before it is sent',
+    `If the dates cover a job the person is already on, the form says so on the
+     phone. Ray sees the same clash on his side and has to move the work before he
+     can approve.`]]
+};
+
+function renderPhone(){
+  if (!PHONE_TABS.some(t => t[0]===tab)) tab = 'day';
+  const body = tab==='day' ? dayScreen() : tab==='miles' ? milesScreen() : offScreen();
+  const sv = sheetView();
+  const notes = (PHONE_NOTES[tab]||[]).map(([h,p]) =>
+    `<div class="note"><h3>${h}</h3><p>${p}</p></div>`).join('');
+
+  return `<div class="phonewrap">
+    <div class="device"><div class="phone">
+      <div class="p-top" style="padding-bottom:13px">
+        <div class="p-top-row">
+          <h2>${tab==='day'?'My day':tab==='miles'?'Mileage':'Time off'}</h2>
+          <span class="p-who">${esc(me().name.split(' ')[0])} · ${esc(me().role)}</span>
+        </div>
+      </div>
+      <div class="p-main">${body}</div>
+      <div class="p-tabs" role="tablist">${PHONE_TABS.map(([k,i,l]) =>
+        `<button role="tab" data-tab="${k}" aria-selected="${k===tab}">
+          <span class="ic">${i}</span>${l}</button>`).join('')}</div>
+      <div class="pscrim" id="pscrim"></div>
+      <section class="psheet" id="psheet" aria-modal="true" role="dialog">
+        <div class="sheet-head"><div class="grab"></div>${sv?sv.head:''}</div>
+        <div class="sheet-body">${sv?sv.body:''}</div>
+      </section>
+    </div></div>
+    <div class="aside">
+      <div class="note"><h3>Shown on a phone, on purpose</h3>
+        <p>This is the field app, drawn at phone size inside the web page so it can
+           be reviewed without installing anything. The real one will be an Expo
+           build on iOS and Android; the manager and bookkeeper views stay on the
+           web, where there is room for a table.</p></div>
+      ${notes}
+    </div></div>`;
+}
+
+/* =======================================================================
+   DESKTOP — manager
+   ======================================================================= */
+const MGR_TABS = [['fleet','Vehicles & mileage'],['off','Time off'],['cust','Customers & sites']];
+
+function fleetScreen(){
+  const rows = [...trips].sort((a,b) => a.date < b.date ? 1 : -1);
+
+  /* Per-person business miles, which is the only number payroll needs. */
+  const perPerson = {};
+  trips.filter(t => t.business).forEach(t => {
+    perPerson[t.user] = (perPerson[t.user]||0) + (t.end - t.start);
+  });
+  const people = Object.entries(perPerson).sort((a,b) => b[1]-a[1]);
+  const totalMiles = people.reduce((a,[,m]) => a+m, 0);
+  const gaps = trips.filter(t => t.gap).length;
+
+  const due = v => {
+    const toService = v.serviceOdo - lastClose(v.id);
+    const dDate = daysTo(v.serviceDate);
+    if (toService <= 250 || dDate <= 14) return ['warn', `${Math.round(toService)} mi to service`];
+    return ['', `${Math.round(toService).toLocaleString()} mi to service`];
+  };
+  const expiry = d => {
+    const n = daysTo(d);
+    if (n < 0) return `<span class="pill" data-t="crit">Expired</span>`;
+    if (n <= 30) return `<span class="pill" data-t="warn">${n} days</span>`;
+    return `<span class="mono">${day(d)}</span>`;
+  };
+
+  return `
+  <div class="tiles">
+    <div class="tile"><span class="lbl">Business miles, Sep</span>
+      <span class="fig mono">${miles(totalMiles)}</span>
+      <span class="foot">${money(totalMiles*MILEAGE_RATE)} to reimburse at ${MILEAGE_RATE.toFixed(2)}/mi</span></div>
+    <div class="tile"><span class="lbl">Trips logged</span>
+      <span class="fig">${trips.length}</span>
+      <span class="foot">${trips.filter(t=>!t.business).length} personal, not reimbursed</span></div>
+    <div class="tile"><span class="lbl">Continuity gaps</span>
+      <span class="fig">${gaps}</span>
+      <span class="foot">${gaps ? 'Miles driven with no trip behind them' : 'Every reading meets the last'}</span></div>
+    <div class="tile"><span class="lbl">Vehicles</span>
+      <span class="fig">${VEHICLES.length}</span>
+      <span class="foot">${VEHICLES.filter(v => daysTo(v.insurance)<=30 || daysTo(v.registration)<=30).length} with paperwork due</span></div>
+  </div>
+
+  <div class="panelbox">
+    <header><h3>The fleet</h3><span class="sub">Odometer follows the mileage log — it is never typed in here</span></header>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Vehicle</th><th>Plate</th><th>Usually driven by</th>
+        <th class="r">Odometer</th><th>Next service</th><th>Insurance</th><th>Registration</th></tr></thead>
+      <tbody>${VEHICLES.map(v => {
+        const [t,label] = due(v);
+        return `<tr${t==='warn'?' class="flagrow"':''}>
+          <td><b>${esc(v.name)}</b><br><span class="sub">${esc(v.makeModel)} ${v.year}</span></td>
+          <td class="mono">${esc(v.plate)}</td>
+          <td><span class="who"><span class="av">${initials(v.driver)}</span>${esc(v.driver)}</span></td>
+          <td class="r mono">${miles(lastClose(v.id))}</td>
+          <td>${t==='warn'?`<span class="pill" data-t="warn">${label}</span>`:`<span class="sub">${label}</span>`}
+            <br><span class="sub mono">by ${day(v.serviceDate)}</span></td>
+          <td>${expiry(v.insurance)}</td>
+          <td>${expiry(v.registration)}</td></tr>`;
+      }).join('')}</tbody>
+    </table></div>
+  </div>
+
+  <div class="cols list-detail">
+    <div class="panelbox">
+      <header><h3>Miles per person</h3></header>
+      <div>${people.map(([n,m]) => `
+        <div class="pickrow">
+          <span class="av">${initials(n)}</span>
+          <span class="who-main"><b>${esc(n)}</b><span>${money(m*MILEAGE_RATE)} at ${MILEAGE_RATE.toFixed(2)}/mi</span></span>
+          <span class="mono" style="font-weight:600">${miles(m)}</span>
+        </div>`).join('')}
+        <div class="pickrow" style="background:var(--surface-2);border-bottom:none">
+          <span class="who-main"><b>Total</b><span>September, business only</span></span>
+          <span class="mono" style="font-weight:600">${miles(totalMiles)}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="panelbox">
+      <header><h3>Every trip</h3>
+        <span class="sub">You can correct any of these — the edit stays on the row</span></header>
+      <div class="tablewrap"><table>
+        <thead><tr><th>Date</th><th>Person</th><th>Vehicle</th><th class="r">Start</th>
+          <th class="r">End</th><th class="r">Miles</th><th>Job</th><th>Purpose</th><th></th></tr></thead>
+        <tbody>${rows.map(t => `
+          <tr${t.gap?' class="flagrow"':''}>
+            <td class="mono">${day(t.date)}</td>
+            <td>${esc(t.user)}</td>
+            <td>${esc(vehicle(t.v).name)}</td>
+            <td class="r mono">${miles(t.start)}</td>
+            <td class="r mono">${miles(t.end)}</td>
+            <td class="r mono"><b>${miles(t.end-t.start)}</b></td>
+            <td>${t.job ? '<span class="mono">'+t.job+'</span>'
+              : (t.business ? '<span class="sub">—</span>' : '<span class="pill">Personal</span>')}</td>
+            <td><span class="sub">${esc(t.purpose)}</span>
+              ${t.gap ? `<br><span class="pill" data-t="warn">Gap ${miles(t.gap)} mi</span>` : ''}</td>
+            <td class="r"><button class="btn sm ghost" data-mtrip="${t.id}">Correct</button></td>
+          </tr>`).join('')}</tbody>
+      </table></div>
+    </div>
+  </div>`;
+}
+
+function mgrOffScreen(){
+  const pending = timeoff.filter(o => o.status==='requested')
+    .sort((a,b) => a.from < b.from ? -1 : 1);
+  const decided = timeoff.filter(o => o.status!=='requested')
+    .sort((a,b) => a.from < b.from ? 1 : -1);
+
+  const card = o => `
+    <div class="card${o.clash.length?' bad':' flag'}">
+      <div class="card-top">
+        <h3><span class="who"><span class="av">${initials(o.user)}</span>${esc(o.user)}</span></h3>
+        <span class="pill" data-t="accent">${KIND_LABEL[o.kind]}</span>
+      </div>
+      <p class="sub mono">${dayLong(o.from)}${o.from===o.to?'':' → '+dayLong(o.to)}
+        · ${daysBetween(o.from,o.to)} day${daysBetween(o.from,o.to)===1?'':'s'}</p>
+      ${o.reason ? `<p class="sub">“${esc(o.reason)}”</p>` : ''}
+      ${o.clash.length ? `<div class="warnbox"><span class="ic">!</span><span>
+        <b>Already booked on ${o.clash.length} job${o.clash.length===1?'':'s'}</b>
+        ${o.clash.map(esc).join('<br>')}<br>
+        Approving does not move the work. The dispatch board will start refusing
+        drops on ${esc(o.user.split(' ')[0])} for these dates.</span></div>` : ''}
+      <div class="btn-row">
+        <button class="btn danger" data-off="decline" data-id="${o.id}">Decline</button>
+        <button class="btn" data-off="approve" data-id="${o.id}">Approve</button>
+      </div>
+    </div>`;
+
+  return `
+  <div class="cols two">
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div class="section-head"><span class="lbl">Waiting on you</span>
+        <span class="sub">${pending.length} request${pending.length===1?'':'s'}</span></div>
+      ${pending.length ? pending.map(card).join('') : '<p class="empty">Nothing waiting.</p>'}
+      <div class="note"><h3>What approving does, and does not do</h3>
+        <p>Approving writes <code>status = ‘approved’</code>, which is the only
+          state the scheduling conflict check looks at. From that moment the dispatch
+          board refuses to drop a job on that person for those dates and names the
+          reason.</p>
+        <p>It does <em>not</em> move work that is already booked. That is deliberate:
+          reassigning someone else’s job is a decision, not a side effect.</p></div>
+    </div>
+
+    <div class="panelbox">
+      <header><h3>Already decided</h3><span class="sub">Approved absence blocks the calendar</span></header>
+      <div class="tablewrap"><table>
+        <thead><tr><th>Person</th><th>Kind</th><th>Dates</th><th class="r">Days</th>
+          <th>Outcome</th></tr></thead>
+        <tbody>${decided.map(o => `
+          <tr>
+            <td><span class="who"><span class="av">${initials(o.user)}</span>${esc(o.user)}</span></td>
+            <td>${KIND_LABEL[o.kind]}</td>
+            <td class="mono">${day(o.from)}${o.from===o.to?'':' → '+day(o.to)}</td>
+            <td class="r mono">${daysBetween(o.from,o.to)}</td>
+            <td>${o.status==='approved'
+              ? '<span class="pill" data-t="ok">Approved</span>'
+              : '<span class="pill" data-t="crit">Declined</span>'}
+              ${o.decision ? `<br><span class="sub">${esc(o.decision)}</span>` : ''}</td>
+          </tr>`).join('')}</tbody>
+      </table></div>
+    </div>
+  </div>`;
+}
+
+function custScreen(){
+  const c = customers.find(x => x.id===pickedCustomer) || customers[0];
+  const s = c.sites[Math.min(pickedSite, c.sites.length-1)];
+  const statusPillFor = st => st==='closed' ? '<span class="pill" data-t="ok">Closed</span>'
+    : st==='in_progress' ? '<span class="pill" data-t="ok">Working</span>'
+    : st==='assigned' ? '<span class="pill" data-t="warn">Assigned</span>'
+    : '<span class="pill">Accepted</span>';
+
+  return `
+  <div class="cols list-detail">
+    <div class="panelbox">
+      <header><h3>Customers</h3>
+        <button class="btn sm ghost" data-act="not-in-proto">New</button></header>
+      <div>${customers.map(x => `
+        <button class="pickrow" data-cust="${x.id}" aria-pressed="${x.id===c.id}">
+          <span class="av">${initials(x.name)}</span>
+          <span class="who-main"><b>${esc(x.name)}</b>
+            <span>${CUST_KIND[x.kind]} · ${x.sites.length} site${x.sites.length===1?'':'s'}</span></span>
+        </button>`).join('')}</div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div class="panelbox">
+        <header><h3>${esc(c.name)}</h3>
+          <span class="pill" data-t="accent">${CUST_KIND[c.kind]}</span></header>
+        <div class="body">
+          <div class="cols two">
+            <dl class="kv">
+              <div class="rowline"><dt>Contact</dt><dd>${esc(c.contact)}</dd></div>
+              <div class="rowline"><dt>Phone</dt><dd class="mono">${esc(c.phone)}</dd></div>
+            </dl>
+            <dl class="kv">
+              <div class="rowline"><dt>Email</dt><dd>${c.email?esc(c.email):'<span class="sub">None on file</span>'}</dd></div>
+              <div class="rowline"><dt>Customer since</dt><dd class="mono">${dayLong(c.since).replace(/^\w+, /,'')}</dd></div>
+            </dl>
+          </div>
+          <p class="hint">Nothing on this record says what is owed or what has been
+            paid. That is the other system’s job, and keeping it out of here is
+            what stops the two disagreeing.</p>
+        </div>
+      </div>
+
+      <div class="panelbox">
+        <header><h3>Sites</h3><button class="btn sm ghost" data-act="not-in-proto">Add a site</button></header>
+        <div>${c.sites.map((x,i) => `
+          <button class="pickrow" data-site="${i}" aria-pressed="${i===c.sites.indexOf(s)}">
+            <span class="who-main"><b>${esc(x.label)}</b>
+              <span>${esc(x.addr)}, ${esc(x.city)}</span></span>
+            <span class="pill">${x.jobs.length} job${x.jobs.length===1?'':'s'}</span>
+          </button>`).join('')}</div>
+      </div>
+
+      <div class="panelbox">
+        <header><h3>${esc(s.label)}</h3>
+          <span class="sub mono">${esc(s.addr)}, ${esc(s.city)}</span></header>
+        <div class="body">
+          ${s.access
+            ? `<div class="card" style="box-shadow:none"><span class="lbl">Getting in</span>
+                 <p class="sub">${esc(s.access)}</p>
+                 <p class="hint">This is the field on <code>sites</code>, not a job note —
+                   so the crew reads it in the driveway whatever job brought them there.</p></div>`
+            : `<p class="empty">No access notes. Worth adding before the next visit.</p>`}
+          <div class="section-head"><span class="lbl">What we have done here</span></div>
+          <table>
+            <thead><tr><th>Job</th><th>Work</th><th>When</th><th class="r">State</th></tr></thead>
+            <tbody>${s.jobs.map(([no,title,when,st]) => `
+              <tr><td class="mono">${no}</td><td>${esc(title)}</td>
+                <td class="sub">${esc(when)}</td><td class="r">${statusPillFor(st)}</td></tr>`).join('')}
+            </tbody>
+          </table>
+          <p class="hint">Site history is what answers “what did you do at this
+            address last year” on a callback, which is why it hangs off the site
+            and not off the customer.</p>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* =======================================================================
+   DESKTOP — bookkeeper
+   ======================================================================= */
+const BOOK_TABS = [['cost','Job costing'],['exp','Exports']];
+
+/* A nice axis: four or five ticks, ending on a round number. */
+function axisFor(v){
+  const raw = v/4;
+  const p = Math.pow(10, Math.floor(Math.log10(raw)));
+  const n = raw/p;
+  const step = (n<=1?1:n<=2?2:n<=2.5?2.5:n<=3?3:n<=5?5:10)*p;
+  return {step, max: Math.ceil(v/step)*step};
+}
+
+function costScreen(){
+  const rows = [...costing].sort((a,b) => b.contract - a.contract);
+  const contract = rows.reduce((a,r) => a+r.contract, 0);
+  const cost = rows.reduce((a,r) => a+r.total, 0);
+  const margin = contract - cost;
+  const pct = (margin/contract)*100;
+  const below = rows.filter(r => r.pct < TARGET_MARGIN).length;
+  const lossy = rows.filter(r => r.margin < 0);
+
+  /* ---- chart 1: composition against the contract price, one axis in dollars.
+     Cost is the bar; the contract price is a tick on the same scale. When the
+     bar runs past the tick, that job lost money, and you can see which line
+     did it without reading a number. ---- */
+  const ax = axisFor(Math.max(...rows.map(r => Math.max(r.contract, r.total))));
+  const ticks = []; for (let t=0; t<=ax.max+1; t+=ax.step) ticks.push(t);
+
+  const costChart = `
+  <div class="chart">
+    <div class="legend">${COST_KEYS.map(([k,l],i) =>
+      `<span><i style="background:var(--s${i+1})"></i>${l}</span>`).join('')}
+      <span><i style="background:var(--ink);width:2px;height:13px;border-radius:1px"></i>Contract price</span>
+    </div>
+    <div class="plot">
+      ${rows.map(r => `
+        <div class="crow">
+          <div class="clabel"><b>${esc(r.title)}</b><span>${r.no}</span></div>
+          <div class="ctrack" data-tiprow="${r.no}">
+            <div class="cgrid">${ticks.map(t =>
+              `<i style="left:${(t/ax.max)*100}%"></i>`).join('')}</div>
+            <div class="cbar" style="width:${(r.total/ax.max)*100}%">
+              ${COST_KEYS.map(([k]) => r[k] > 0
+                ? `<i data-k="${k}" data-tipseg="${k}" style="width:${(r[k]/r.total)*100}%"></i>` : '').join('')}
+            </div>
+            <div class="cmark" style="left:${(r.contract/ax.max)*100}%"></div>
+            <div class="cmarklbl" style="left:${(Math.max(r.contract,r.total)/ax.max)*100}%">${money0(r.contract)}</div>
+          </div>
+          <div class="cval">${money0(r.total)}<small>cost to us</small></div>
+        </div>`).join('')}
+      <div class="crow">
+        <div></div>
+        <div class="caxis">${ticks.map(t => `<span>${t===0?'0':money0(t)}</span>`).join('')}</div>
+        <div></div>
+      </div>
+    </div>
+  </div>`;
+
+  /* ---- chart 2: the same jobs against the target, as polarity. Two hues and
+     a neutral middle: above target on one side, below on the other. ---- */
+  const dev = rows.map(r => r.pct - TARGET_MARGIN);
+  const dmax = Math.max(10, Math.ceil(Math.max(...dev.map(Math.abs))/5)*5);
+  const marginChart = `
+  <div class="chart">
+    <div class="legend">
+      <span><i style="background:var(--div-pos)"></i>At or above the ${TARGET_MARGIN}% target</span>
+      <span><i style="background:var(--div-neg)"></i>Below it</span>
+    </div>
+    <div class="plot">
+      ${rows.map(r => {
+        const d = r.pct - TARGET_MARGIN, pos = d >= 0;
+        return `<div class="drow">
+          <div class="clabel"><b>${esc(r.title)}</b><span>${r.no}</span></div>
+          <div class="dtrack" data-tiprow="${r.no}">
+            <div class="dmid"></div>
+            <div class="dbar" data-p="${pos?1:0}" style="width:${(Math.abs(d)/dmax)*50}%"></div>
+          </div>
+          <div class="dval" style="color:${pos?'var(--delta-up)':'var(--crit)'}">
+            ${pos?'▲':'▼'} ${r.pct.toFixed(1)}%</div>
+        </div>`;
+      }).join('')}
+      <div class="drow">
+        <div></div>
+        <div class="daxis"><span>${dmax} pts under</span>
+          <span>target ${TARGET_MARGIN}%</span><span>${dmax} pts over</span></div>
+        <div></div>
+      </div>
+    </div>
+  </div>`;
+
+  return `
+  <div class="tiles">
+    <div class="tile"><span class="lbl">Contract value</span>
+      <span class="fig mono">${money0(contract)}</span>
+      <span class="foot">${rows.length} jobs · quoted price plus approved change orders</span></div>
+    <div class="tile"><span class="lbl">Cost to us</span>
+      <span class="fig mono">${money0(cost)}</span>
+      <span class="foot">Labour, materials, equipment, mileage, rentals</span></div>
+    <div class="tile"><span class="lbl">Margin</span>
+      <span class="fig mono">${money0(margin)}</span>
+      <span class="foot"><span class="delta" data-d="${pct>=TARGET_MARGIN?'up':'down'}">
+        ${pct>=TARGET_MARGIN?'▲':'▼'} ${pct.toFixed(1)}%</span>
+        against a ${TARGET_MARGIN}% target</span></div>
+    <div class="tile"><span class="lbl">Under target</span>
+      <span class="fig">${below}</span>
+      <span class="foot">${lossy.length
+        ? `<span class="delta" data-d="down">▼ ${lossy.length} below cost</span>`
+        : 'None below cost'}</span></div>
+  </div>
+
+  ${lossy.length ? `<div class="warnbox"><span class="ic">!</span><span>
+    <b>${esc(lossy[0].title)} (${lossy[0].no}) came in ${money(Math.abs(lossy[0].margin))} over its contract</b>
+    Rentals ran ${money(lossy[0].rentals)} and materials ${money(lossy[0].materials)} against a
+    ${money0(lossy[0].contract)} price with no change order behind it. Worth a look before the
+    next one is quoted.</span></div>` : ''}
+
+  <div class="panelbox">
+    <header><h3>Where the money went, job by job</h3>
+      <span class="sub">Bar is what it cost. Tick is the contract price. Same scale.<br>
+        Approved purchases sit inside Materials here; the export keeps them apart.</span></header>
+    <div class="body">${costChart}</div>
+  </div>
+
+  <div class="panelbox">
+    <header><h3>Margin against the ${TARGET_MARGIN}% target</h3>
+      <span class="sub">Distance from the target, in percentage points</span></header>
+    <div class="body">${marginChart}</div>
+  </div>
+
+  <div class="panelbox">
+    <header><h3>The same numbers as a table</h3>
+      <span class="sub">Exactly what the job costing export contains</span></header>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Job</th><th>Customer</th><th class="r">Contract</th>
+        ${COST_KEYS.map(([,l]) => `<th class="r">${l}</th>`).join('')}
+        <th class="r">Total cost</th><th class="r">Margin</th>
+        <th class="r">% vs ${TARGET_MARGIN}</th></tr></thead>
+      <tbody>${rows.map(r => `
+        <tr${r.margin<0?' class="badrow"':''}>
+          <td><span class="mono">${r.no}</span><br><span class="sub">${esc(r.title)}</span></td>
+          <td class="sub">${esc(r.customer)}</td>
+          <td class="r mono">${money(r.contract)}</td>
+          ${COST_KEYS.map(([k]) => `<td class="r mono">${money(r[k])}</td>`).join('')}
+          <td class="r mono"><b>${money(r.total)}</b></td>
+          <td class="r mono" style="color:${r.margin<0?'var(--crit)':'var(--delta-up)'}">${money(r.margin)}</td>
+          <td class="r mono" style="color:${r.pct<TARGET_MARGIN?'var(--crit)':'var(--delta-up)'}">${r.pct.toFixed(1)}</td>
+        </tr>`).join('')}</tbody>
+      <tfoot><tr><td>Total</td><td></td><td class="r mono">${money(contract)}</td>
+        ${COST_KEYS.map(([k]) => `<td class="r mono">${money(rows.reduce((a,r)=>a+r[k],0))}</td>`).join('')}
+        <td class="r mono">${money(cost)}</td>
+        <td class="r mono">${money(margin)}</td>
+        <td class="r mono">${pct.toFixed(1)}</td></tr></tfoot>
+    </table></div>
+  </div>
+
+  <div class="note"><h3>What is deliberately not here</h3>
+    <p>No invoice, no balance, no paid flag, nothing about what the customer owes.
+      This app tracks what a job <em>cost us</em> and the price margin is measured
+      against; money owed and money received live in the system that already holds
+      them. Two sources of financial truth is one too many.</p>
+    <p>Every figure above comes from <code>job_costs</code>, which is derived on
+      read — labour from clocked time at each person’s cost rate, materials
+      from the stock ledger, mileage from the odometer logs, equipment from days
+      on site. Nothing here is a number somebody typed into a summary.</p></div>`;
+}
+
+function expScreen(){
+  return `
+  <div class="desk-head">
+    <div><h2>Exports</h2>
+      <p>Files for whoever keeps the books. Every export reads the same derived
+        views the screens read, so an export and a screen can never disagree.</p></div>
+    <div class="field" style="min-width:180px"><label for="per">Period</label>
+      <select id="per" data-f="period">
+        ${['Sep 2026','Aug 2026','Jul 2026','Q3 2026','2026 to date'].map(p =>
+          `<option${p===period?' selected':''}>${p}</option>`).join('')}
+      </select></div>
+  </div>
+
+  <div class="cols two">${EXPORTS.map(x => `
+    <div class="panelbox">
+      <header><h3>${esc(x.name)}</h3><span class="pill" data-t="accent">CSV</span></header>
+      <div class="body">
+        <p class="sub">${esc(x.what)}</p>
+        <div><span class="lbl">Columns</span>
+          <p class="hint mono" style="margin-top:4px;word-break:break-word">${esc(x.cols)}</p></div>
+        <div class="rowline"><span class="k">Reads from</span>
+          <span class="v mono">${esc(x.source)}</span></div>
+        <button class="btn" data-export="${x.id}">Download ${esc(x.file)}</button>
+      </div>
+    </div>`).join('')}
+  </div>
+
+  <div class="note"><h3>Read-only, on purpose</h3>
+    <p>The bookkeeper login carries <code>export.run</code>, <code>costing.view</code>
+      and <code>price.view</code>, and can close a finished job. It carries no
+      <code>job.assign</code>, no <code>job.edit</code> and no approval flag at all,
+      so nothing here can change a record the field wrote.</p>
+    <p>Nothing is written back either. An export leaves this app and lands in the
+      accounting system; the accounting system never writes into this one.</p></div>`;
+}
+
+const DESK_HEAD = {
+  fleet:['Vehicles and mileage',
+    'The register and every trip behind it. Odometer readings come up from the phones; nothing on this page types a mileage figure in.'],
+  off:['Time off',
+    'Requests to decide, and the approved absence that the dispatch board schedules around.'],
+  cust:['Customers and sites',
+    'A job is never free-floating — it belongs to a customer at a property. Access notes live on the site, where the crew reads them.'],
+  cost:['Job costing',
+    'What each job was quoted at, what it cost us, and the difference. September 2026.'],
+  exp:['Exports','']
+};
+
+function renderDesk(){
+  const tabs = me().key==='mgr' ? MGR_TABS : BOOK_TABS;
+  if (!tabs.some(t => t[0]===tab)) tab = tabs[0][0];
+  const body = tab==='fleet' ? fleetScreen()
+    : tab==='off'  ? mgrOffScreen()
+    : tab==='cust' ? custScreen()
+    : tab==='cost' ? costScreen()
+    : expScreen();
+  const [h,p] = DESK_HEAD[tab] || ['',''];
+
+  return `<div class="desk">
+    <div class="dtabs" role="tablist">${tabs.map(([k,l]) =>
+      `<button role="tab" data-tab="${k}" aria-selected="${k===tab}">${l}</button>`).join('')}</div>
+    ${tab==='exp' ? '' : `<div class="desk-head"><div><h2>${h}</h2><p>${p}</p></div></div>`}
+    ${body}
+  </div>`;
+}
+
+/* ---------- desktop modals ---------- */
+function modalView(){
+  if (!modal) return null;
+
+  if (modal.kind==='mtrip'){
+    const t = trips.find(x => x.id===modal.id);
+    return {head:`<h2 style="margin:0;font-size:18px;font-weight:600">Correct a trip</h2>
+        <p class="sub">${esc(t.user)} · ${dayLong(t.date)} · ${esc(vehicle(t.v).name)}</p>`,
+      body:`
+      <div class="field-row">
+        <div class="field"><label>Odometer start</label>
+          <input type="number" step="0.1" value="${t.start}" data-f="start"></div>
+        <div class="field"><label>Odometer end</label>
+          <input type="number" step="0.1" value="${t.end}" data-f="end"></div>
+      </div>
+      <div class="field"><label>Distance</label>
+        <input readonly value="${miles(t.end-t.start)} mi"></div>
+      ${t.gap ? `<div class="warnbox"><span class="ic">!</span><span>
+        <b>Continuity gap of ${miles(t.gap)} mi</b>
+        The opening reading did not meet ${esc(vehicle(t.v).name)}’s last closing
+        reading. Either a trip was never logged, or one of the two readings is
+        wrong.</span></div>` : ''}
+      <div class="field"><label>Why you are changing it</label>
+        <textarea placeholder="Kept on the row with your name and the time"></textarea></div>
+      <p class="hint">A correction writes <code>edited_by</code> and
+        <code>edited_at</code>. The original reading is not overwritten silently.</p>
+      <div class="btn-row">
+        <button class="btn ghost" data-act="close">Cancel</button>
+        <button class="btn" data-act="not-in-proto">Save correction</button>
+      </div>`};
+  }
+
+  if (modal.kind==='decline'){
+    const o = timeoff.find(x => x.id===modal.id);
+    return {head:`<h2 style="margin:0;font-size:18px;font-weight:600">Decline this request</h2>
+        <p class="sub">${esc(o.user)} · ${KIND_LABEL[o.kind]} ·
+          ${day(o.from)}${o.from===o.to?'':' → '+day(o.to)}</p>`,
+      body:`
+      <div class="field"><label>Reason</label>
+        <textarea id="dreason" placeholder="They see this on their phone, so make it worth reading"></textarea>
+        <p class="hint">Written to <code>decision_reason</code> alongside your name
+          and the time. A decline with no reason is how people stop asking.</p></div>
+      <div class="btn-row">
+        <button class="btn ghost" data-act="close">Cancel</button>
+        <button class="btn danger" data-act="decline-save" data-id="${o.id}">Decline</button>
+      </div>`};
+  }
+  return null;
+}
+
+/* ---------- chart tooltip ---------- */
+function tipFor(no, seg){
+  const r = costing.find(x => x.no===no);
+  if (!r) return '';
+  return `<h4>${esc(r.title)} <span class="mono" style="color:var(--faint)">${r.no}</span></h4>
+    ${COST_KEYS.map(([k,l],i) => `<div class="trow"${k===seg?' style="font-weight:600"':''}>
+      <span><i style="background:var(--s${i+1})"></i>${l}</span><b>${money(r[k])}</b></div>`).join('')}
+    <div class="tfoot"><span>Cost to us</span><b class="mono">${money(r.total)}</b></div>
+    <div class="tfoot" style="border:none;margin-top:0;padding-top:2px">
+      <span>Contract price</span><b class="mono">${money(r.contract)}</b></div>
+    <div class="tfoot" style="border:none;margin-top:0;padding-top:2px;
+      color:${r.margin<0?'var(--crit)':'var(--delta-up)'}">
+      <span style="color:inherit">Margin</span>
+      <b class="mono">${money(r.margin)} · ${r.pct.toFixed(1)}%</b></div>`;
+}
+
+function moveTip(e, html){
+  const tip = $('#tip');
+  if (html !== undefined) tip.innerHTML = html;
+  tip.classList.add('show');
+  const w = tip.offsetWidth, h = tip.offsetHeight;
+  let x = e.clientX + 16, y = e.clientY + 16;
+  if (x + w > innerWidth - 8) x = e.clientX - w - 16;
+  if (y + h > innerHeight - 8) y = e.clientY - h - 16;
+  tip.style.left = Math.max(8,x) + 'px';
+  tip.style.top = Math.max(8,y) + 'px';
+}
+document.addEventListener('mousemove', e => {
+  const row = e.target.closest('[data-tiprow]');
+  if (!row) return $('#tip').classList.remove('show');
+  const seg = e.target.closest('[data-tipseg]');
+  moveTip(e, tipFor(row.dataset.tiprow, seg ? seg.dataset.tipseg : null));
+});
+
+/* ---------- CSV, for the two exports the prototype really has data for ---------- */
+function downloadCsv(name, header, lines){
+  const csv = [header, ...lines].join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'}));
+  a.download = name; a.click(); URL.revokeObjectURL(a.href);
+}
+
+/* ---------- render ---------- */
+function render(){
+  $('#people').innerHTML = PERSONAS.map((p,i) =>
+    `<button class="person" data-p="${i}" aria-pressed="${i===P}">
+      <b>${esc(p.name)}</b><span>${esc(p.role)} · ${p.surface==='phone'?'Phone':'Web'}</span>
+    </button>`).join('');
+
+  $('#perms').innerHTML =
+    me().can.map(c => `<span class="perm"><i>✓</i>${c}</span>`).join('')
+    + me().cant.map(c => `<span class="perm" data-no="1"><i>✕</i>${c}</span>`).join('');
+
+  $('#stage').innerHTML = me().surface==='phone' ? renderPhone() : renderDesk();
+
+  const mv = modalView();
+  $('#modalHead').innerHTML = mv ? mv.head : '';
+  $('#modalBody').innerHTML = mv ? mv.body : '';
+  $('#modal').classList.toggle('open', !!mv);
+  $('#scrim').classList.toggle('open', !!mv);
+
+  if (sheet) requestAnimationFrame(() => {
+    const s = $('#psheet'), c = $('#pscrim');
+    if (s) s.classList.add('open');
+    if (c) c.classList.add('open');
+  });
+}
+
+function closeAll(){ sheet = null; modal = null; render(); }
+
+/* ---------- events ---------- */
+document.addEventListener('click', e => {
+  if (e.target.id==='scrim' || e.target.id==='pscrim') return closeAll();
+
+  if (e.target.id==='themeBtn'){
+    const dark = document.documentElement.getAttribute('data-theme')==='dark';
+    document.documentElement.setAttribute('data-theme', dark ? 'light' : 'dark');
+    e.target.textContent = dark ? 'Dark mode' : 'Light mode';
+    return;
+  }
+
+  const t = e.target.closest('[data-p],[data-tab],[data-job],[data-trip],[data-mtrip],[data-cust],[data-site],[data-off],[data-export],[data-clock],[data-set],[data-act]');
+  if (!t) return;
+
+  if (t.dataset.p !== undefined){
+    P = Number(t.dataset.p); tab = null; sheet = null; modal = null;
+    toast(`Now signed in as ${me().name}, ${me().role}`);
+    return render();
+  }
+  if (t.dataset.tab){ tab = t.dataset.tab; sheet = null; return render(); }
+  if (t.dataset.job){ sheet = {kind:'job', id:t.dataset.job}; return render(); }
+  if (t.dataset.trip){ sheet = {kind:'tripDetail', id:t.dataset.trip}; return render(); }
+  if (t.dataset.mtrip){ modal = {kind:'mtrip', id:t.dataset.mtrip}; return render(); }
+  if (t.dataset.cust){ pickedCustomer = t.dataset.cust; pickedSite = 0; return render(); }
+  if (t.dataset.site){ pickedSite = Number(t.dataset.site); return render(); }
+  if (t.dataset.clock){
+    const c = clocks.find(x => x.who===t.dataset.clock);
+    c.in = '08:41'; toast(`${c.who} clocked in`); return render();
+  }
+  if (t.dataset.set){
+    form[t.dataset.set] = t.dataset.set==='business' ? t.dataset.val==='1' : t.dataset.val;
+    return render();
+  }
+  if (t.dataset.off){
+    const o = timeoff.find(x => x.id===t.dataset.id);
+    if (t.dataset.off==='approve'){
+      o.status='approved'; o.decided=me().name;
+      toast(o.clash.length
+        ? `Approved. ${o.clash.length} booked job${o.clash.length===1?'':'s'} still need moving.`
+        : 'Approved. The calendar is blocked for those dates.');
+      return render();
+    }
+    modal = {kind:'decline', id:o.id}; return render();
+  }
+  if (t.dataset.export){
+    const x = EXPORTS.find(v => v.id===t.dataset.export);
+    if (x.id==='X1'){
+      downloadCsv(x.file,
+        'job_number,customer,contract_price,' + COST_KEYS.map(([k])=>k+'_cost').join(',') + ',total_cost,margin',
+        costing.map(r => [r.no, '"'+r.customer+'"', r.contract.toFixed(2),
+          ...COST_KEYS.map(([k]) => r[k].toFixed(2)), r.total.toFixed(2), r.margin.toFixed(2)].join(',')));
+      return toast(`${x.file} downloaded — real numbers, from this page`);
+    }
+    if (x.id==='X2'){
+      downloadCsv(x.file,
+        'person,vehicle,trip_date,job_number,odometer_start,odometer_end,distance,rate,amount',
+        trips.filter(r => r.business).map(r => [ '"'+r.user+'"', vehicle(r.v).name, r.date,
+          r.job||'', r.start.toFixed(1), r.end.toFixed(1), (r.end-r.start).toFixed(1),
+          MILEAGE_RATE.toFixed(2), ((r.end-r.start)*MILEAGE_RATE).toFixed(2)].join(',')));
+      return toast(`${x.file} downloaded — real numbers, from this page`);
+    }
+    return toast('The shape is on the card. This one needs data the prototype does not carry.');
+  }
+
+  switch (t.dataset.act){
+    case 'close': return closeAll();
+    case 'not-in-proto': return toast('Not wired up in the prototype');
+
+    case 'trip-new':
+      form = {id:null, v:myVan(), date:TODAY, start:String(lastClose(myVan())), end:'',
+              job:JOBS.find(j => j.date===TODAY && j.crew.includes(me().name))?.no || '',
+              business:true, purpose:''};
+      sheet = {kind:'trip'}; return render();
+
+    case 'trip-save': {
+      const f = form;
+      if (f.start==='' || f.end===''){ return toast('Both odometer readings, please'); }
+      if (Number(f.end) < Number(f.start)){ return toast('The end reading is lower than the start'); }
+      const close = lastClose(f.v);
+      const gap = Math.abs(Number(f.start) - close) > 0.05 ? Number(f.start) - close : 0;
+      trips.push({id:'T'+(trips.length+1), user:me().name, v:f.v, date:f.date,
+        start:Number(f.start), end:Number(f.end), job:f.job||null,
+        purpose:f.purpose || 'Not stated', business:f.business, gap:Math.max(0,gap)});
+      const v = vehicle(f.v); if (Number(f.end) > v.odo) v.odo = Number(f.end);
+      const d = Number(f.end) - Number(f.start);
+      sheet = null; render();
+      return toast(gap ? `${miles(d)} mi logged · ${miles(Math.abs(gap))} mi gap noted`
+                       : `${miles(d)} mi logged`);
+    }
+
+    case 'off-new':
+      form = {kind:'vacation', from:'2026-10-06', to:'2026-10-10', reason:''};
+      sheet = {kind:'off'}; return render();
+
+    case 'off-save': {
+      const f = form;
+      if (f.to < f.from) return toast('The end date is before the start date');
+      const clash = JOBS.filter(j => j.crew.includes(me().name) && j.date >= f.from && j.date <= f.to);
+      timeoff.push({id:'O'+(timeoff.length+1), user:me().name, kind:f.kind, from:f.from,
+        to:f.to, status:'requested', reason:f.reason,
+        clash:clash.map(j => `${j.no} — ${day(j.date)}, ${j.site}`)});
+      sheet = null; render();
+      return toast('Sent to Ray. Nothing is blocked until he approves it.');
+    }
+
+    case 'off-cancel': {
+      const o = timeoff.find(x => x.id===t.dataset.id);
+      o.status = 'cancelled'; render(); return toast('Request withdrawn');
+    }
+
+    case 'decline-save': {
+      const o = timeoff.find(x => x.id===t.dataset.id);
+      const why = ($('#dreason')?.value || '').trim();
+      o.status='declined'; o.decided=me().name;
+      o.decision = why || 'No reason given';
+      modal = null; render();
+      return toast(`Declined. ${o.user.split(' ')[0]} sees the reason on their phone.`);
+    }
+
+    case 'accept': {
+      const j = JOBS.find(x => x.no===t.dataset.id);
+      j.acceptance='accepted'; j.status='accepted';
+      sheet = null; render(); return toast(`${j.no} accepted`);
+    }
+    case 'ask-move':
+      sheet = null; render();
+      return toast('Reschedule asked — Ray decides, and everyone re-accepts the new time');
+  }
+});
+
+/* Typed input: update the derived bits in place so the field keeps focus. */
+document.addEventListener('input', e => {
+  const f = e.target.dataset.f;
+  if (!f) return;
+  if (f==='period'){ period = e.target.value; return; }
+  form[f] = e.target.value;
+  if (sheet?.kind!=='trip') return;
+
+  const close = lastClose(form.v, form.id);
+  const ok = form.start!=='' && form.end!=='' && Number(form.end) >= Number(form.start);
+  const d = ok ? Number(form.end) - Number(form.start) : null;
+  const dist = $('#fdist'); if (dist) dist.value = d===null ? '—' : miles(d)+' mi';
+  const mon = $('#fmoney'); if (mon) mon.innerHTML = d===null ? 'Fill both readings.'
+    : `${money(d*MILEAGE_RATE)} at ${MILEAGE_RATE.toFixed(2)}/mi, if it is a business trip.`;
+  const gap = form.start!=='' && Math.abs(Number(form.start) - close) > 0.05
+    ? Number(form.start) - close : 0;
+  const box = $('#fgap');
+  if (box) box.innerHTML = gap ? `<div class="warnbox"><span class="ic">!</span><span>
+    <b>${gap>0?'Gap':'Overlap'} of ${miles(Math.abs(gap))} mi</b>
+    ${esc(vehicle(form.v).name)} last closed at ${miles(close)}. This is saved as a note
+    on the trip, not a refusal — vans get moved without anyone logging it.</span></div>` : '';
+});
+
+/* Selects and date pickers commit on change; a redraw there is harmless. */
+document.addEventListener('change', e => {
+  const f = e.target.dataset.f;
+  if (!f) return;
+  if (f==='period'){ period = e.target.value; return render(); }
+  if (e.target.tagName==='SELECT' || e.target.type==='date'){ form[f] = e.target.value; render(); }
+});
+
+document.addEventListener('keydown', e => { if (e.key==='Escape') closeAll(); });
+render();
+</script>
