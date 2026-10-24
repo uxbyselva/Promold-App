@@ -153,6 +153,39 @@
 .kb-flag.warn{background:var(--warn-soft);color:var(--warn);border-color:transparent}
 .kb-away{margin:0;padding:0 18px 4px;font-size:12.5px;color:var(--muted)}
 
+/* booking a job, five steps
+ *
+ * The numbers along the top are also the way back: a step already filled in
+ * is a button, a step ahead is disabled, and the button at the bottom owns
+ * going forwards so it can refuse while a step is incomplete. */
+.wiz{list-style:none;display:flex;margin:0 0 4px;padding:0;gap:2px;overflow-x:auto}
+.wiz li{flex:1 1 0;min-width:0}
+.wiz button{width:100%;display:flex;flex-direction:column;align-items:center;gap:4px;
+  background:none;border:none;padding:2px 2px 7px;cursor:pointer;
+  border-bottom:2px solid var(--line)}
+.wiz button:disabled{cursor:default}
+.wiz li[data-on="1"] button{border-bottom-color:var(--accent)}
+.wiz-bead{width:21px;height:21px;border-radius:50%;display:grid;place-items:center;
+  font-family:var(--font-mono);font-size:11px;font-weight:600;
+  background:var(--surface-2);color:var(--faint);border:1px solid var(--line)}
+.wiz li[data-on="1"] .wiz-bead{background:var(--accent-soft);color:var(--accent-ink);
+  border-color:var(--accent)}
+.wiz li[data-now="1"] .wiz-bead{background:var(--accent);color:#fff;border-color:var(--accent)}
+.wiz-name{font-family:var(--font-cond);font-size:10.5px;font-weight:600;text-transform:uppercase;
+  letter-spacing:.04em;color:var(--faint);white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis;max-width:100%}
+.wiz li[data-now="1"] .wiz-name{color:var(--ink)}
+/* Under about 360px five labels cannot fit however they are truncated, so
+   the beads carry the position on their own and the header says the rest. */
+@media (max-width:359px){.wiz-name{display:none}}
+
+.wiz-sum{margin:2px 0 0;padding:11px 12px;background:var(--surface-2);
+  border:1px solid var(--line);border-radius:9px;display:grid;gap:7px}
+.wiz-sum > div{display:grid;grid-template-columns:86px minmax(0,1fr);gap:10px;align-items:baseline}
+.wiz-sum dt{font-family:var(--font-cond);font-size:10.5px;font-weight:600;
+  text-transform:uppercase;letter-spacing:.05em;color:var(--faint)}
+.wiz-sum dd{margin:0;font-size:13.5px;line-height:1.35;word-break:break-word}
+
 /* audit trail */
 .trail{list-style:none;margin:0;padding:0}
 .trail li{display:grid;grid-template-columns:132px 1fr;gap:12px;padding:10px 0;
