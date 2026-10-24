@@ -2019,3 +2019,105 @@ end $$;
 reset role;
 select set_config('request.jwt.claim.sub', '', false);
 \echo 'ONTARIO AND CATEGORY ASSERTIONS PASSED'
+
+-- ===========================================================================
+-- The office administering itself (0036)
+-- ===========================================================================
+--
+-- Three flags the Owner held with nothing behind them. These assert the
+-- database half: the screens are checked by driving a browser.
+
+-- A login with no profile, for add_person() to attach.
+insert into auth.users (id, email)
+values ('00000000-0000-0000-0000-0000000000f9', 'newhire@promold.test')
+on conflict do nothing;
+
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000a001', false);
+set role authenticated;
+
+do $$
+declare
+  v_lead uuid := '00000000-0000-0000-0000-00000000a003';
+  v_org  organizations;
+  v_new  profiles;
+begin
+  -- Settings merge rather than replace: a screen must not be able to delete
+  -- a key it was never told about.
+  v_org := update_org_settings(p_approval_threshold := 750, p_mileage_rate := 0.73);
+  perform assert((v_org.settings ->> 'approval_threshold')::numeric = 750,
+    'the owner can move the spend threshold');
+  perform assert((v_org.settings ->> 'mileage_rate')::numeric = 0.73,
+    'and the mileage rate');
+  perform assert(v_org.settings ? 'geofence_radius_m',
+    'and a setting the screen never mentioned survives the save');
+
+  -- Read back through profiles_safe, never `profiles`: the column is revoked
+  -- from the client, so the base table raises "permission denied" here just
+  -- as it would on a screen. That it does is the point.
+  perform set_cost_rate(v_lead, 38.50);
+  perform assert((select cost_rate from profiles_safe where id = v_lead) = 38.50,
+    'the owner can set what somebody is paid, and read it back through the view');
+
+  v_new := add_person('newhire@promold.test', 'Dev Patel', 'technician', '613-555-0444');
+  perform assert(v_new.is_active, 'a new hire with a login becomes a member of staff');
+  perform assert(v_new.org_id = auth_org_id(),
+    'in the caller''s own organisation, never a new one');
+
+  -- Re-running is how a promotion is recorded, not an error.
+  v_new := add_person('newhire@promold.test', 'Dev Patel', 'crew_lead');
+  perform assert(
+    (select key from roles where id = v_new.role_id) = 'crew_lead',
+    'and running it again changes their role rather than failing');
+end $$;
+
+-- A timezone the database does not know would make every date wrong at once.
+do $$
+begin
+  begin
+    perform update_org_settings(p_timezone := 'Mars/Olympus');
+    perform assert(false, 'a made-up timezone is refused');
+  exception when others then
+    perform assert(sqlstate = '22023', 'a made-up timezone is refused');
+  end;
+end $$;
+
+-- A manager runs the work and does not administer the company.
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000a002', false);
+
+do $$
+begin
+  begin
+    perform update_org_settings(p_approval_threshold := 10);
+    perform assert(false, 'a manager cannot move the threshold they approve against');
+  exception when others then
+    perform assert(sqlstate = '42501',
+      'a manager cannot move the threshold they approve against');
+  end;
+
+  -- user.manage without user.view_cost_rates: may manage people, may not be
+  -- shown or set what they are paid.
+  begin
+    perform set_cost_rate('00000000-0000-0000-0000-00000000a003', 99);
+    perform assert(false, 'and cannot set a cost rate they are not allowed to see');
+  exception when others then
+    perform assert(sqlstate = '42501',
+      'and cannot set a cost rate they are not allowed to see');
+  end;
+end $$;
+
+-- A crew lead administers nothing at all.
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000a003', false);
+
+do $$
+begin
+  begin
+    perform add_person('newhire@promold.test', 'X', 'technician');
+    perform assert(false, 'a crew lead cannot add staff');
+  exception when others then
+    perform assert(sqlstate = '42501', 'a crew lead cannot add staff');
+  end;
+end $$;
+
+reset role;
+select set_config('request.jwt.claim.sub', '', false);
+\echo 'OFFICE ADMIN ASSERTIONS PASSED'

@@ -61,6 +61,9 @@ with probe as (
     -- jobs_safe or the clients cannot read it at all.
     (select count(*) from information_schema.columns
       where table_name = 'jobs_safe' and column_name = 'category') as m0035,
+    -- 0036 on add_person(), the one of the three that cannot be done any
+    -- other way: it reads auth.users, which no signed-in user can.
+    (select count(*) from pg_proc where proname = 'add_person') as m0036,
     (select case
        when to_regclass('public.roles') is null then -1
        else (xpath('/row/c/text()', query_to_xml(
@@ -102,7 +105,8 @@ select * from (
     -- The old version collapsed everything from 0022 to 0027 into one alarming
     -- verdict, which said "get help" to an owner whose database was fine and
     -- one file behind.
-    case when m0035 > 0 then 'Up to date (0001–0035)'
+    case when m0036 > 0 then 'Up to date (0001–0036)'
+         when m0035 > 0 then 'At 0035 — run supabase/update-from-0035.sql'
          when m0034 > 0 then 'At 0034 — run supabase/update-from-0034.sql'
          when m0033 > 0 then 'At 0033 — run supabase/update-from-0033.sql'
          when m0032 > 0 then 'At 0032 — run supabase/update-from-0032.sql'
@@ -164,6 +168,14 @@ select * from (
     case when m0026>0 then 'Present' else 'Missing' end,
     case when m0026>0 then 'Asking to buy, and approving it'
          else 'Purchase approvals will fail' end from probe
+
+  union all
+  select 7.95, 'Office admin (0036)',
+    case when m0036 > 0 then 'Present' else 'Missing' end,
+    case when m0036 > 0 then 'Staff, settings, roles, registers and checklists are editable in the app'
+         else 'Adding a person or moving the spend threshold still needs the SQL editor'
+         end
+  from probe
 
   union all
   select 7.94, 'Job kinds (0035)',

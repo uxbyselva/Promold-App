@@ -41,7 +41,12 @@ export default async function MileagePage() {
     : { data: [] };
 
   const settings = (org?.settings ?? {}) as Record<string, unknown>;
-  const rate = Number(settings.mileage_rate ?? 0.67);
+  // 0.72, not 0.67. The old fallback was the US per-MILE figure, left over
+  // from when this was built against a Massachusetts stand-in — a wrong
+  // number waiting for an organisation with no rate set. Settings → Mileage
+  // rate is where it is actually configured; this only applies if that is
+  // somehow blank.
+  const rate = Number(settings.mileage_rate ?? 0.72);
 
   return (
     <Shell

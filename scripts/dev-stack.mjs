@@ -218,6 +218,14 @@ const json = (res, code, body, headers = {}) => {
     'content-type': 'application/json',
     'access-control-allow-origin': '*',
     'access-control-allow-headers': '*',
+    // Without this the browser assumes GET, POST and HEAD and refuses the
+    // preflight for anything else — so every PATCH and DELETE the app makes
+    // failed here with a CORS error and never reached the handlers below,
+    // which have supported them all along. Editing a job, editing a customer,
+    // answering time off and changing a role are all PATCH: none of them
+    // could be checked against a running app, by the one tool built to check
+    // exactly that.
+    'access-control-allow-methods': 'GET,POST,PATCH,PUT,DELETE,OPTIONS',
     'access-control-expose-headers': 'content-range',
     ...headers,
   });

@@ -154,10 +154,10 @@ from (values
 insert into vehicles (id, org_id, name, plate, make_model, year, current_odometer,
                       assigned_user_id, insurance_expiry, next_service_odometer) values
   ('00000000-0000-0000-0000-00000000cc01', '00000000-0000-0000-0000-0000000000a1',
-   'Van 1', 'MA-4471', 'Ford Transit 250', 2021, 68420.0,
+   'Van 1', 'CBXK 429', 'Ford Transit 250', 2021, 68420.0,
    '00000000-0000-0000-0000-00000000a003', '2026-04-30', 72000.0),
   ('00000000-0000-0000-0000-00000000cc02', '00000000-0000-0000-0000-0000000000a1',
-   'Van 2', 'MA-9182', 'RAM ProMaster 2500', 2019, 104880.0,
+   'Van 2', 'AJVT 816', 'RAM ProMaster 2500', 2019, 104880.0,
    '00000000-0000-0000-0000-00000000a004', '2026-02-28', 108000.0);
 
 update stock_locations set vehicle_id = '00000000-0000-0000-0000-00000000cc01'

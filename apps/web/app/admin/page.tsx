@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { requireSession } from '@/lib/session';
 import { supabaseServer } from '@/lib/supabase-server';
 import { OfficeShell } from '@/components/office-shell';
+import { Exports } from '@/components/exports';
 import { stamp } from '@/lib/format';
 import { describeAuditEntry, tableLabel } from '@promold/shared';
 
@@ -101,6 +102,8 @@ export default async function AdminHome() {
           {entries.length === 0 ? <p className="empty">Nothing recorded yet.</p> : null}
         </div>
       </div>
+
+      {session.can('export.run') ? <Exports /> : null}
     </OfficeShell>
   );
 }
