@@ -16,7 +16,7 @@ export async function jobFormOptions() {
         .order('label'),
       supabase
         .from('job_templates')
-        .select('id, name, default_duration_hours')
+        .select('id, name, default_duration_hours, category')
         .eq('is_active', true)
         .order('name'),
       supabase

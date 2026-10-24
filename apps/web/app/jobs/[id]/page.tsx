@@ -24,7 +24,7 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
       // deleted_at — asking for it fails the whole query. A deleted job is
       // simply not found here; the recycle bin in admin mode is where it
       // lives and where it comes back from.
-      'id, job_number, title, description, status, priority, scheduled_start, scheduled_end, quoted_price, site_id, customer_id, template_id',
+      'id, job_number, title, description, status, priority, category, scheduled_start, scheduled_end, quoted_price, site_id, customer_id, template_id',
     )
     .eq('id', id)
     .maybeSingle();
@@ -108,7 +108,8 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
           <p style={{ marginTop: 2, fontSize: 15, color: 'var(--ink)' }}>{job.title}</p>
           <p className="mono" style={{ fontSize: 12.5 }}>
             {job.job_number} ·{' '}
-            {options.customers.find((c) => c.id === job.customer_id)?.name ?? 'Unknown customer'}
+            {options.customers.find((c) => c.id === job.customer_id)?.name ?? 'Unknown customer'} ·{' '}
+            {job.category[0]!.toUpperCase() + job.category.slice(1)}
           </p>
         </div>
         {session.can('audit.view') ? (

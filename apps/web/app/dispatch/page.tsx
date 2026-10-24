@@ -45,7 +45,9 @@ export default async function Dispatch() {
   // table, so `select *` there would fail by design.
   const { data: jobs } = await supabase
     .from('jobs_safe')
-    .select('id, job_number, title, status, scheduled_start, scheduled_end, quoted_price, site_id')
+    .select(
+      'id, job_number, title, status, category, scheduled_start, scheduled_end, quoted_price, site_id',
+    )
     .in('status', LIVE)
     .order('scheduled_start', { nullsFirst: true });
 

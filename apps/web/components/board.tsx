@@ -8,6 +8,7 @@ type Job = {
   job_number: string;
   title: string;
   status: string;
+  category: string;
   scheduled_start: string | null;
   scheduled_end: string | null;
   site_id: string | null;
@@ -54,6 +55,13 @@ const LANES = [
 type LaneKey = (typeof LANES)[number]['key'];
 
 const ON_SITE = ['en_route', 'on_site', 'in_progress', 'blocked'];
+
+/* Remediation is most of the work, so it goes unmarked — a badge on nine
+   cards in ten is a badge nobody reads. The two that are not get one. */
+const CATEGORY_FLAG: Record<string, string> = {
+  inspection: 'Inspection',
+  other: 'Other',
+};
 
 /** Which column a job belongs in: where it has got to, then who has it. */
 function laneOf(job: Job, mine: Assignment[]): LaneKey {
@@ -181,6 +189,9 @@ export function Board({
                       ) : null}
 
                       <p className="kb-flags">
+                        {CATEGORY_FLAG[job.category] ? (
+                          <span className="kb-flag">{CATEGORY_FLAG[job.category]}</span>
+                        ) : null}
                         {late ? <span className="kb-flag late">Overdue</span> : null}
                         {job.status === 'blocked' ? (
                           <span className="kb-flag late">Blocked</span>

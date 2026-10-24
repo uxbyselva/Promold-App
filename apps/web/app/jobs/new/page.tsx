@@ -42,6 +42,9 @@ export default async function NewJob({
           customer_id: customer ?? '',
           site_id: '',
           template_id: '',
+          // Most of the work is remediation, so that is where the picker
+          // starts. It is a choice on screen, not a hidden assumption.
+          category: 'remediation',
           title: '',
           description: '',
           priority: 'normal',

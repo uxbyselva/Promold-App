@@ -16,9 +16,9 @@
  */
 create function seed_at(days int, hour numeric) returns timestamptz
 language sql stable as $$
-  select (date_trunc('day', now() at time zone 'America/New_York')
+  select (date_trunc('day', now() at time zone 'America/Toronto')
           + make_interval(days => days, mins => (hour * 60)::int))
-         at time zone 'America/New_York';
+         at time zone 'America/Toronto';
 $$;
 
 insert into auth.users (id, email) values
@@ -31,19 +31,19 @@ insert into auth.users (id, email) values
 on conflict do nothing;
 
 insert into organizations (id, name, timezone) values
-  ('00000000-0000-0000-0000-0000000000a1', 'Promold Restoration', 'America/New_York');
+  ('00000000-0000-0000-0000-0000000000a1', 'Promold Restoration', 'America/Toronto');
 
 select provision_org('00000000-0000-0000-0000-0000000000a1');
 
 insert into profiles (id, org_id, role_id, full_name, email, phone, cost_rate)
 select u.id, '00000000-0000-0000-0000-0000000000a1', r.id, v.name, u.email, v.phone, v.rate
 from (values
-  ('00000000-0000-0000-0000-00000000a001'::uuid, 'owner',      'Dana Whitfield', '555-0101', 0),
-  ('00000000-0000-0000-0000-00000000a002'::uuid, 'manager',    'Ray Alvarez',    '555-0102', 42.00),
-  ('00000000-0000-0000-0000-00000000a003'::uuid, 'crew_lead',  'Marcus Bell',    '555-0103', 34.00),
-  ('00000000-0000-0000-0000-00000000a004'::uuid, 'technician', 'Tomas Reyes',    '555-0104', 27.50),
-  ('00000000-0000-0000-0000-00000000a005'::uuid, 'technician', 'Priya Nair',     '555-0105', 27.50),
-  ('00000000-0000-0000-0000-00000000a006'::uuid, 'bookkeeper', 'Helen Osei',     '555-0106', 0)
+  ('00000000-0000-0000-0000-00000000a001'::uuid, 'owner',      'Dana Whitfield', '613-555-0101', 0),
+  ('00000000-0000-0000-0000-00000000a002'::uuid, 'manager',    'Ray Alvarez',    '613-555-0102', 42.00),
+  ('00000000-0000-0000-0000-00000000a003'::uuid, 'crew_lead',  'Marcus Bell',    '613-555-0103', 34.00),
+  ('00000000-0000-0000-0000-00000000a004'::uuid, 'technician', 'Tomas Reyes',    '613-555-0104', 27.50),
+  ('00000000-0000-0000-0000-00000000a005'::uuid, 'technician', 'Priya Nair',     '613-555-0105', 27.50),
+  ('00000000-0000-0000-0000-00000000a006'::uuid, 'bookkeeper', 'Helen Osei',     '613-555-0106', 0)
 ) as v(uid, role_key, name, phone, rate)
 join auth.users u on u.id = v.uid
 join roles r on r.key = v.role_key and r.org_id = '00000000-0000-0000-0000-0000000000a1';
@@ -61,41 +61,44 @@ insert into crew_members (crew_id, user_id) values
 
 insert into customers (id, org_id, name, kind, primary_contact, phone, email) values
   ('00000000-0000-0000-0000-0000000000d1', '00000000-0000-0000-0000-0000000000a1',
-   'Helen Brooks', 'residential', 'Helen Brooks', '555-0201', 'hbrooks@example.test'),
+   'Helen Brooks', 'residential', 'Helen Brooks', '613-555-0201', 'hbrooks@example.test'),
   ('00000000-0000-0000-0000-0000000000d2', '00000000-0000-0000-0000-0000000000a1',
-   'Cardinal Property Group', 'property_manager', 'Nina Cross', '555-0202', 'nina@cardinal.test'),
+   'Cardinal Property Group', 'property_manager', 'Nina Cross', '613-555-0202', 'nina@cardinal.test'),
   ('00000000-0000-0000-0000-0000000000d3', '00000000-0000-0000-0000-0000000000a1',
-   'Statewide Mutual (claims)', 'insurance', 'Adjuster desk', '555-0203', 'claims@statewide.test');
+   'Dominion Mutual (claims)', 'insurance', 'Adjuster desk', '613-555-0203', 'claims@dominion.test');
 
 insert into sites (id, org_id, customer_id, label, address_line1, city, state, postal_code, lat, lng, access_notes) values
   ('00000000-0000-0000-0000-0000000000e1', '00000000-0000-0000-0000-0000000000a1',
    '00000000-0000-0000-0000-0000000000d1', '42 Oak St — basement', '42 Oak St',
-   'Springfield', 'MA', '01103', 42.101500, -72.589600, 'Side gate code 4471. Dog in the yard.'),
+   'Ottawa', 'ON', 'K1S 3G6', 45.400600, -75.690300, 'Side gate code 4471. Dog in the yard.'),
   ('00000000-0000-0000-0000-0000000000e2', '00000000-0000-0000-0000-0000000000a1',
    '00000000-0000-0000-0000-0000000000d2', 'Larkspur Apts — unit 3B', '118 Larkspur Ave',
-   'Springfield', 'MA', '01104', 42.118200, -72.571900, 'Keys at the leasing office, 9-5.');
+   'Ottawa', 'ON', 'K1Y 4E9', 45.397100, -75.726400, 'Keys at the leasing office, 9-5.');
 
 -- Job templates ------------------------------------------------------------
 
-insert into job_templates (id, org_id, name, default_duration_hours, default_crew_size,
+-- The category is given rather than left to default: the seed runs after the
+-- migrations, so 0035's backfill has already been and gone by the time these
+-- rows exist, and every one of them would come out as remediation.
+insert into job_templates (id, org_id, name, category, default_duration_hours, default_crew_size,
                            default_equipment_categories, completion_requirements) values
   ('00000000-0000-0000-0000-0000000000f1', '00000000-0000-0000-0000-0000000000a1',
-   'Mold Inspection', 2, 1, '{meter}',
+   'Mold Inspection', 'inspection', 2, 1, '{meter}',
    jsonb_build_object('photos_before', true, 'photos_after', false,
      'customer_signature', false, 'materials_logged', false,
      'forms', jsonb_build_array('moisture_readings'))),
   ('00000000-0000-0000-0000-0000000000f2', '00000000-0000-0000-0000-0000000000a1',
-   'Containment Setup', 6, 2, '{air_scrubber,negative_air}',
+   'Containment Setup', 'remediation', 6, 2, '{air_scrubber,negative_air}',
    jsonb_build_object('photos_before', true, 'photos_after', true,
      'customer_signature', false, 'materials_logged', true,
      'forms', jsonb_build_array('containment_check', 'ppe_safety'))),
   ('00000000-0000-0000-0000-0000000000f3', '00000000-0000-0000-0000-0000000000a1',
-   'Remediation Day', 8, 3, '{air_scrubber,dehumidifier,hepa_vacuum}',
+   'Remediation Day', 'remediation', 8, 3, '{air_scrubber,dehumidifier,hepa_vacuum}',
    jsonb_build_object('photos_before', true, 'photos_after', true,
      'customer_signature', true, 'materials_logged', true,
      'forms', jsonb_build_array('ppe_safety'))),
   ('00000000-0000-0000-0000-0000000000f4', '00000000-0000-0000-0000-0000000000a1',
-   'Post-Remediation Verification', 3, 1, '{meter}',
+   'Post-Remediation Verification', 'inspection', 3, 1, '{meter}',
    jsonb_build_object('photos_before', false, 'photos_after', true,
      'customer_signature', true, 'materials_logged', false,
      'forms', jsonb_build_array('moisture_readings', 'chain_of_custody')));
@@ -103,8 +106,8 @@ insert into job_templates (id, org_id, name, default_duration_hours, default_cre
 -- Inventory ----------------------------------------------------------------
 
 insert into suppliers (id, org_id, name, phone, is_rental_vendor) values
-  ('00000000-0000-0000-0000-000000000b01', '00000000-0000-0000-0000-0000000000a1', 'Restoration Supply Co', '555-0301', false),
-  ('00000000-0000-0000-0000-000000000b02', '00000000-0000-0000-0000-0000000000a1', 'Northside Equipment Rental', '555-0302', true);
+  ('00000000-0000-0000-0000-000000000b01', '00000000-0000-0000-0000-0000000000a1', 'Restoration Supply Co', '613-555-0301', false),
+  ('00000000-0000-0000-0000-000000000b02', '00000000-0000-0000-0000-0000000000a1', 'Northside Equipment Rental', '613-555-0302', true);
 
 insert into stock_locations (id, org_id, name, kind) values
   ('00000000-0000-0000-0000-000000000c01', '00000000-0000-0000-0000-0000000000a1', 'Warehouse', 'warehouse'),

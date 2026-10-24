@@ -771,7 +771,7 @@ select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000a002
 do $$
 declare
   v_d1 uuid := '00000000-0000-0000-0000-0000000000d1';  -- Helen Brooks, has a site
-  v_d3 uuid := '00000000-0000-0000-0000-0000000000d3';  -- Statewide Mutual, has none
+  v_d3 uuid := '00000000-0000-0000-0000-0000000000d3';  -- Dominion Mutual, has none
   v_n int;
 begin
   perform assert_raises(
@@ -1755,8 +1755,8 @@ begin
   select count(*) into v_customers_before from customers;
 
   v_job := create_job_with_site(
-    null, 'Marguerite Okonjo', '555-0199',
-    null, 'Back bedroom', '77 Pine Hollow Rd', 'Springfield', 'MA', '01105',
+    null, 'Marguerite Okonjo', '613-555-0199',
+    null, 'Back bedroom', '77 Pine Hollow Rd', 'Ottawa', 'ON', 'K2P 1L4',
     'Damp behind the wardrobe', assert_day(70), assert_day(70, 16));
 
   perform assert(v_job.id is not null, 'a stranger can be booked in one go');
@@ -1777,7 +1777,7 @@ begin
   begin
     v_job2 := create_job_with_site(
       v_job.customer_id, null, null,
-      null, 'Rental unit', '9 Alder Ct', 'Springfield', 'MA', '01106',
+      null, 'Rental unit', '9 Alder Ct', 'Ottawa', 'ON', 'K1N 7B7',
       'Second property', assert_day(71), assert_day(71, 16));
     perform assert(v_job2.customer_id = v_job.customer_id,
       'a second site goes under the customer who already exists');
@@ -1957,3 +1957,65 @@ end $$;
 reset role;
 select set_config('request.jwt.claim.sub', '', false);
 \echo 'JOB NUMBER ASSERTIONS PASSED'
+
+-- ===========================================================================
+-- Ontario (0034) and what kind of job it is (0035)
+-- ===========================================================================
+
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000a002', false);
+set role authenticated;
+
+do $$
+declare
+  v_cust uuid := '00000000-0000-0000-0000-0000000000d1';
+  v_site uuid := '00000000-0000-0000-0000-0000000000e1';
+  v_a jobs;
+  v_b jobs;
+begin
+  -- 0034: the company's own settings, not a US stand-in.
+  perform assert(
+    (select timezone from organizations where id = '00000000-0000-0000-0000-0000000000a1')
+      = 'America/Toronto',
+    'the company works on Toronto time');
+  perform assert(
+    not exists (select 1 from sites where state = 'MA'),
+    'and nothing is in Massachusetts any more');
+  perform assert(
+    (select count(*) from form_templates
+      where key = 'moisture_readings' and fields @> '[{"key": "temp_f"}]'::jsonb) = 0,
+    'moisture readings are not asked for in Fahrenheit');
+  perform assert(
+    (select count(*) from form_templates
+      where key = 'moisture_readings' and fields @> '[{"key": "temp_c"}]'::jsonb) > 0,
+    'they are asked for in Celsius');
+
+  -- 0035: a job always has a kind, chosen or defaulted.
+  v_a := create_job(v_cust, v_site, 'An inspection', assert_day(16, 9), assert_day(16, 11),
+                    null, null, 'normal', null, '{}'::uuid[], 'inspection');
+  v_b := create_job(v_cust, v_site, 'Whatever this is', assert_day(16, 13), assert_day(16, 15),
+                    null, null, 'normal', null, '{}'::uuid[]);
+
+  perform assert(v_a.category = 'inspection', 'a job can be booked as an inspection');
+  perform assert(v_b.category = 'remediation',
+    'and one booked without saying is remediation, which is most of them');
+
+  -- The category is the office's, not the crew lead's price flag: it reaches
+  -- the view every client reads, or the pages 404 on it.
+  perform assert(
+    exists (select 1 from information_schema.columns
+             where table_name = 'jobs_safe' and column_name = 'category'),
+    'and it reaches jobs_safe, where the clients can see it');
+
+  -- A checklist belongs to a kind, so the form can narrow the list.
+  perform assert(
+    (select count(*) from job_templates where category = 'inspection') > 0,
+    'the inspection checklists are marked as inspection checklists');
+  perform assert(
+    (select count(*) from job_templates where name ilike '%remediation day%'
+       and category = 'remediation') > 0,
+    'and the remediation ones as remediation');
+end $$;
+
+reset role;
+select set_config('request.jwt.claim.sub', '', false);
+\echo 'ONTARIO AND CATEGORY ASSERTIONS PASSED'

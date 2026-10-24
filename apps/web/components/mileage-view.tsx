@@ -4,7 +4,7 @@ import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { refusalMessage } from '@promold/app-kit';
 import { supabaseBrowser } from '@/lib/supabase-browser';
-import { longDate, miles, today } from '@/lib/format';
+import { longDate, distance as km, today } from '@/lib/format';
 
 type Vehicle = {
   id: string;
@@ -31,7 +31,7 @@ type Job = { id: string; job_number: string; title: string };
 // the browser, and a different thousands separator between the two is a
 // hydration mismatch.
 const money = (n: number) =>
-  n.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 });
+  n.toLocaleString('en-CA', { style: 'currency', currency: 'CAD', minimumFractionDigits: 2 });
 
 export function MileageView({
   vehicles,
@@ -74,7 +74,7 @@ export function MileageView({
   const lastClose = vehicle ? Number(vehicle.current_odometer) : null;
 
   const monthStart = today().slice(0, 8) + '01';
-  const businessMiles = useMemo(
+  const businessKm = useMemo(
     () =>
       trips
         .filter((t) => t.is_business && t.trip_date >= monthStart)
@@ -139,13 +139,13 @@ export function MileageView({
       {error && !open ? <p className="err">{error}</p> : null}
 
       <div className="panel">
-        <p className="lbl">Your business miles, this month</p>
+        <p className="lbl">Your business kilometres, this month</p>
         <div className="row" style={{ alignItems: 'baseline', gap: 12 }}>
           <span className="mono num" style={{ fontSize: 30, fontWeight: 600 }}>
-            {miles(businessMiles)}
+            {km(businessKm)}
           </span>
           <span className="sub">
-            miles · {money(businessMiles * rate)} at {rate.toFixed(2)}/mi
+            km · {money(businessKm * rate)} at {rate.toFixed(2)}/km
           </span>
         </div>
         <p className="hint">
@@ -172,7 +172,7 @@ export function MileageView({
                 {longDate(t.trip_date)} · {vehicles.find((v) => v.id === t.vehicle_id)?.name ?? '—'}
               </span>
               <span className="mono num" style={{ fontSize: 16, fontWeight: 600 }}>
-                {miles(Number(t.distance))} mi
+                {km(Number(t.distance))} km
               </span>
             </div>
             {t.purpose ? <p className="sub">{t.purpose}</p> : null}
@@ -181,7 +181,7 @@ export function MileageView({
               style={{ paddingTop: 8, borderTop: '1px solid var(--line)' }}
             >
               <span className="mono num sub">
-                {miles(Number(t.odometer_start))} → {miles(Number(t.odometer_end))}
+                {km(Number(t.odometer_start))} → {km(Number(t.odometer_end))}
               </span>
               {jobLabel(t.job_id) ? (
                 <span className="mono" style={{ fontSize: 13 }}>
@@ -194,8 +194,8 @@ export function MileageView({
             {t.continuity_gap ? (
               <p className="note">
                 {Number(t.continuity_gap) > 0 ? 'Gap' : 'Overlap'} of{' '}
-                {miles(Math.abs(Number(t.continuity_gap)))} mi before this trip. The office can see
-                it — nothing to fix here.
+                {km(Math.abs(Number(t.continuity_gap)))} km before this trip. The office can see it
+                — nothing to fix here.
               </p>
             ) : null}
           </div>
@@ -208,7 +208,7 @@ export function MileageView({
           <section className="sheet" role="dialog" aria-modal="true" aria-label="Log a trip">
             <div className="sheet-head">
               <h2>Log a trip</h2>
-              <p className="sub">Odometer in, distance out. You never type the miles.</p>
+              <p className="sub">Odometer in, distance out. You never type the distance.</p>
             </div>
             <div className="sheet-body">
               {error ? <p className="err">{error}</p> : null}
@@ -225,7 +225,7 @@ export function MileageView({
                 </select>
                 {lastClose !== null ? (
                   <p className="hint">
-                    Last reading on {vehicle?.name}: <b className="mono">{miles(lastClose)}</b>
+                    Last reading on {vehicle?.name}: <b className="mono">{km(lastClose)}</b>
                   </p>
                 ) : null}
               </div>
@@ -271,24 +271,20 @@ export function MileageView({
 
               <div className="field">
                 <label htmlFor="dist">Distance</label>
-                <input
-                  id="dist"
-                  readOnly
-                  value={distance === null ? '—' : `${miles(distance)} mi`}
-                />
+                <input id="dist" readOnly value={distance === null ? '—' : `${km(distance)} km`} />
                 <p className="hint">
                   {distance === null
                     ? 'Fill both readings.'
-                    : `${money(distance * rate)} at ${rate.toFixed(2)}/mi, if it is a business trip.`}
+                    : `${money(distance * rate)} at ${rate.toFixed(2)}/km, if it is a business trip.`}
                 </p>
               </div>
 
               {gap !== null ? (
                 <p className="note">
                   <b>
-                    {gap > 0 ? 'Gap' : 'Overlap'} of {miles(Math.abs(gap))} mi.
+                    {gap > 0 ? 'Gap' : 'Overlap'} of {km(Math.abs(gap))} km.
                   </b>{' '}
-                  {vehicle?.name} last read {miles(lastClose ?? 0)}. This is saved as a note on the
+                  {vehicle?.name} last read {km(lastClose ?? 0)}. This is saved as a note on the
                   trip, not a refusal — vans get moved without anyone logging it.
                 </p>
               ) : null}

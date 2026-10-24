@@ -15,6 +15,23 @@ export type { Customer, Site, Template, Person, JobDraft };
 const PRIORITIES = ['low', 'normal', 'high', 'emergency'];
 
 /*
+ * What kind of job this is — the parent category, above the checklist.
+ *
+ * `template_id` was the only classification a job had, and it is not one: it
+ * is the completion gate's checklist, it is optional, and most jobs are
+ * booked without it. The company does two distinct things and nothing on a
+ * job said which, so "how many inspections last month" had no answer.
+ *
+ * Picking one here also narrows the checklist below it, which is the point
+ * of calling it a parent.
+ */
+const CATEGORIES: [string, string][] = [
+  ['remediation', 'Remediation'],
+  ['inspection', 'Inspection'],
+  ['other', 'Other'],
+];
+
+/*
  * Where this company works. Ontario is the default on a new address because
  * every job so far has been in Ontario and the alternative is typing it a
  * few hundred times. It is a list rather than a free text box so "ON",
@@ -152,6 +169,12 @@ export function JobForm({
     setDraft((d) => ({ ...d, [key]: value }));
 
   const customerSites = sites.filter((s) => s.customer_id === draft.customer_id);
+  // Only the checklists belonging to the kind of job being booked. A job
+  // whose template was set before this existed keeps it visible, so editing
+  // an old job does not silently drop its gate.
+  const categoryTemplates = templates.filter(
+    (t) => t.category === draft.category || t.id === draft.template_id,
+  );
   const addingCustomer = draft.customer_id === NEW;
   // A brand-new customer has nowhere to put the work yet, so the site is new
   // too and there is nothing to choose between.
@@ -173,7 +196,7 @@ export function JobForm({
 
     // Read in the company's zone, the same zone the box was filled from.
     // `new Date(value)` would read it in the browser's, so a booking made
-    // from anywhere but Springfield landed at the wrong hour.
+    // from anywhere but Ontario landed at the wrong hour.
     const start = fromLocalInput(draft.scheduled_start);
     const end = fromLocalInput(draft.scheduled_end);
     const price = draft.quoted_price.trim() === '' ? null : Number(draft.quoted_price);
@@ -201,6 +224,7 @@ export function JobForm({
         p_description: draft.description || null,
         p_template_id: draft.template_id || null,
         p_priority: draft.priority,
+        p_category: draft.category,
         p_quoted_price: price,
         // Crew goes in a second call so a clash refuses the assignment, not
         // the whole job — the booking is usually right even when the person
@@ -248,6 +272,7 @@ export function JobForm({
         title: draft.title,
         description: draft.description || null,
         priority: draft.priority,
+        category: draft.category,
         customer_id: draft.customer_id,
         site_id: draft.site_id,
         template_id: draft.template_id || null,
@@ -550,6 +575,29 @@ export function JobForm({
 
         {on('what') ? (
           <div className="field">
+            <label id="category-label">Kind of job</label>
+            <div className="seg" role="group" aria-labelledby="category-label">
+              {CATEGORIES.map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  aria-pressed={draft.category === value}
+                  onClick={() => {
+                    // The checklist belongs to the old category, so it goes.
+                    // Leaving it set would quietly put a remediation gate on
+                    // an inspection and the crew could not finish the job.
+                    setDraft((d) => ({ ...d, category: value, template_id: '' }));
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        {on('what') ? (
+          <div className="field">
             <label htmlFor="title">What the job is</label>
             <input
               id="title"
@@ -605,13 +653,18 @@ export function JobForm({
               onChange={(e) => set('template_id', e.target.value)}
             >
               <option value="">None</option>
-              {templates.map((t) => (
+              {categoryTemplates.map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.name}
                 </option>
               ))}
             </select>
-            <p className="hint">Sets what has to be done before it can be marked complete.</p>
+            <p className="hint">
+              Sets what has to be done before it can be marked complete.
+              {categoryTemplates.length === 0
+                ? ' There are no checklists for this kind of job yet, which is fine — the gate simply asks for nothing.'
+                : ''}
+            </p>
           </div>
 
           <div className="field">
@@ -715,7 +768,11 @@ export function JobForm({
             </div>
             <div>
               <dt>The job</dt>
-              <dd>{draft.title || '—'}</dd>
+              <dd>
+                {draft.title || '—'}
+                {' · '}
+                {CATEGORIES.find(([v]) => v === draft.category)?.[1] ?? draft.category}
+              </dd>
             </div>
             <div>
               <dt>Starts</dt>

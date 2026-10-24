@@ -22,7 +22,9 @@
 --   0031_book_a_new_customer.sql
 --   0032_how_the_job_was_settled.sql
 --   0033_job_numbers_that_tell_nobody_anything.sql
--- Generated from 4eb1161
+--   0034_this_company_works_in_ontario.sql
+--   0035_what_kind_of_job_it_is.sql
+-- Generated from b7d2a64
 
 begin;
 
@@ -2938,6 +2940,413 @@ begin
   end loop;
 end $$;
 
+-- ===========================================================
+-- 0034_this_company_works_in_ontario.sql
+-- ===========================================================
+-- 0034 This company works in Ontario
+--
+-- The app was built against a Massachusetts stand-in — eastern US timezone,
+-- dollars formatted as USD, mileage at the IRS rate per mile, moisture
+-- readings in Fahrenheit. Ninety per cent of the work is in Ontario, so all
+-- of that was quietly wrong, in the way that only shows up when somebody
+-- reads a number off the screen and acts on it.
+--
+-- None of it is a schema change. The distance column was always called
+-- `distance` and always came off an odometer, which in Ontario reads
+-- kilometres; the money columns are plain numerics. What changes here is the
+-- organisation's own settings and the one form template that named a unit.
+
+-- ---------------------------------------------------------------------------
+-- Timezone
+-- ---------------------------------------------------------------------------
+--
+-- America/Toronto, not America/New_York. They have kept the same offset and
+-- the same daylight-saving dates for decades, so nothing moves today — but
+-- the two are separate entries in the database precisely because that is not
+-- promised, and a company in Ottawa should not have its working day defined
+-- by a rule New York might change.
+
+alter table organizations alter column timezone set default 'America/Toronto';
+
+update organizations
+   set timezone = 'America/Toronto'
+ where timezone = 'America/New_York';
+
+-- ---------------------------------------------------------------------------
+-- What a kilometre is worth
+-- ---------------------------------------------------------------------------
+--
+-- 0.67 was the IRS rate per MILE. The CRA publishes a per-kilometre
+-- allowance instead, and at the time of writing the published figure for the
+-- first 5,000 km is reported as either 72 or 73 cents depending on who you
+-- ask. 0.72 is set here as the conservative one.
+--
+-- CHECK IT AND CHANGE IT. It is a setting rather than a column for exactly
+-- this reason — the rate moves every year, and no migration should be needed:
+--
+--   update organizations
+--      set settings = jsonb_set(settings, '{mileage_rate}', '0.73');
+
+alter table organizations alter column settings set default jsonb_build_object(
+  'mileage_rate', 0.72,
+  'approval_threshold', 500,
+  'geofence_radius_m', 150,
+  'acceptance_escalation_hours', 12
+);
+
+update organizations
+   set settings = jsonb_set(settings, '{mileage_rate}', '0.72')
+ where (settings ->> 'mileage_rate')::numeric = 0.67;
+
+-- ---------------------------------------------------------------------------
+-- Degrees
+-- ---------------------------------------------------------------------------
+--
+-- The moisture readings form asked for a temperature in Fahrenheit. A crew
+-- in Ontario carries a meter that reads Celsius, and the mismatch is the
+-- dangerous kind: 20 is a plausible number in both scales and means two
+-- completely different rooms.
+--
+-- Readings already recorded keep their old `temp_f` key and are NOT
+-- converted — reinterpreting numbers somebody wrote down is worse than
+-- leaving them legible. There are none yet; if that changes, convert them
+-- deliberately rather than here.
+
+create or replace function provision_org_forms(p_org_id uuid)
+returns void
+language plpgsql
+as $$
+begin
+  insert into form_templates (org_id, key, name, description, is_per_room, fields) values
+  (p_org_id, 'moisture_readings', 'Moisture Readings', 'Per-room moisture and psychrometric readings', true,
+   '[
+     {"key":"material","label":"Material","type":"select","required":true,
+      "options":["Drywall","Wood framing","Subfloor","Concrete","Insulation","Other"]},
+     {"key":"moisture_pct","label":"Moisture content","type":"number","unit":"%","required":true},
+     {"key":"temp_c","label":"Temperature","type":"number","unit":"C","required":true},
+     {"key":"rh_pct","label":"Relative humidity","type":"number","unit":"%","required":true},
+     {"key":"gpp","label":"Grains per pound","type":"number","unit":"gpp","required":false},
+     {"key":"notes","label":"Notes","type":"text","required":false}
+   ]'::jsonb),
+
+  (p_org_id, 'containment_check', 'Containment Verification', 'Containment and negative pressure check', false,
+   '[
+     {"key":"barrier_intact","label":"Barrier intact","type":"boolean","required":true},
+     {"key":"negative_pressure","label":"Negative pressure confirmed","type":"boolean","required":true},
+     {"key":"pressure_reading","label":"Pressure differential","type":"number","unit":"inWC","required":false},
+     {"key":"scrubbers_running","label":"Air scrubbers running","type":"number","required":true},
+     {"key":"decon_setup","label":"Decontamination chamber set up","type":"boolean","required":true},
+     {"key":"notes","label":"Notes","type":"text","required":false}
+   ]'::jsonb),
+
+  (p_org_id, 'ppe_safety', 'PPE and Job Hazard Check', 'Pre-work safety check', false,
+   '[
+     {"key":"respirator","label":"Respirator worn and fit-tested","type":"boolean","required":true},
+     {"key":"suit","label":"Coveralls worn","type":"boolean","required":true},
+     {"key":"gloves","label":"Gloves worn","type":"boolean","required":true},
+     {"key":"eye","label":"Eye protection worn","type":"boolean","required":true},
+     {"key":"hazards","label":"Hazards noted on site","type":"text","required":false}
+   ]'::jsonb)
+  on conflict (org_id, key) do nothing;
+end;
+$$;
+
+-- And the organisations that already have the Fahrenheit version.
+update form_templates
+   set fields = (
+         select jsonb_agg(
+           case when f ->> 'key' = 'temp_f'
+                then jsonb_build_object('key', 'temp_c', 'label', 'Temperature',
+                                        'type', 'number', 'unit', 'C', 'required', true)
+                else f end
+           order by ord)
+           from jsonb_array_elements(fields) with ordinality as t(f, ord)
+       )
+ where key = 'moisture_readings'
+   and fields @> '[{"key": "temp_f"}]'::jsonb;
+
+-- ===========================================================
+-- 0035_what_kind_of_job_it_is.sql
+-- ===========================================================
+-- 0035 What kind of job it is
+--
+-- There was one classification on a job: `template_id`, the "kind of work",
+-- which exists to drive the completion gate — what has to be photographed
+-- and filled in before the crew may call it done. It is optional, and most
+-- jobs are booked without one.
+--
+-- That is a checklist, not a category. The business does two different
+-- things — it remediates and it inspects — and nothing on a job said which.
+-- A question as ordinary as "how many inspections did we do last month" had
+-- no answer, and the board could not tell a half-day inspection from a
+-- three-day strip-out.
+--
+-- So the category sits on the job itself and is never null. It is not
+-- derived from the template, because a job with no template still has a
+-- kind; and templates now carry one too, so choosing Inspection narrows the
+-- checklist list to the inspection checklists.
+--
+-- An enum rather than a table: three values that describe what the company
+-- does, which is the sort of thing that changes on the scale of years. A
+-- fourth is one line — `alter type job_category add value 'restoration'` —
+-- and does not need a table nobody will ever open a screen to manage.
+
+create type job_category as enum ('remediation', 'inspection', 'other');
+
+alter table jobs
+  add column if not exists category job_category not null default 'remediation';
+alter table job_templates
+  add column if not exists category job_category not null default 'remediation';
+
+comment on column jobs.category is
+  'What kind of work this is, for the office. Separate from template_id, '
+  'which is the completion checklist and may be null.';
+
+-- The checklists that already exist, sorted into the two kinds. Named rather
+-- than guessed at: "Mold Inspection" and "Post-Remediation Verification" are
+-- both someone going to look at something and write it down.
+update job_templates
+   set category = 'inspection'
+ where name ilike '%inspection%'
+    or name ilike '%verification%'
+    or name ilike '%assessment%';
+
+-- Adding a column to jobs means re-running BOTH grant helpers, or the new
+-- column is readable and writable by everyone while quoted_price quietly
+-- becomes so too: both rebuild the whole grant from the column list.
+select grant_columns_except('jobs', array['quoted_price']);
+select grant_writes_except('jobs', array['quoted_price']);
+
+-- ---------------------------------------------------------------------------
+-- And onto the view the clients read
+-- ---------------------------------------------------------------------------
+--
+-- jobs_safe lists its columns explicitly, so a column added to `jobs` does
+-- not appear on it. The app then asks for a column the view has never heard
+-- of, PostgREST refuses the whole query, and the page reports the job
+-- missing. That is how 0032 broke a live job page.
+--
+-- `category` goes on the END of the list, next to the 0032 columns, and not
+-- beside `priority` where it belongs by meaning. `create or replace view`
+-- matches the existing columns by position, so inserting one in the middle
+-- is read as renaming `scheduled_start` to `category` and refused. New
+-- columns append; the tidy order would need the view dropped, and dropping
+-- it takes everything built on it with it.
+
+create or replace view jobs_safe as
+select
+  j.id, j.org_id, j.job_number, j.customer_id, j.site_id, j.template_id,
+  j.title, j.description, j.status, j.priority,
+  j.scheduled_start, j.scheduled_end, j.actual_start, j.actual_end,
+  case when has_permission('price.view') then j.quoted_price end as quoted_price,
+  case when has_permission('price.view') then job_contract_price(j.id) end as contract_price,
+  case when has_permission('price.view') then job_change_order_total(j.id) end as change_order_total,
+  j.insurance_claim_no, j.adjuster_contact, j.recurrence_rule, j.parent_job_id,
+  j.blocked_reason, j.cancelled_reason, j.created_by, j.created_at, j.updated_at,
+  j.settlement_method, j.settled_at, j.settled_by,
+  j.category
+from jobs j
+where j.deleted_at is null
+  and j.org_id = auth_org_id()
+  and can_see_job(j.id);
+
+comment on view jobs_safe is
+  'Jobs as a field user may read them: price masked unless price.view. Definer '
+  'rights, org filter applied explicitly. Adding a column to jobs means adding '
+  'it here too — the list is explicit and a missing column reads as a 404.';
+
+-- ---------------------------------------------------------------------------
+-- Booking one
+-- ---------------------------------------------------------------------------
+--
+-- Dropped and recreated rather than `create or replace`, because a changed
+-- parameter list makes a second function rather than replacing the first,
+-- and two overloads differing by one defaulted argument are ambiguous to
+-- call — every booking would start failing at once.
+
+drop function if exists create_job_with_site(
+  uuid, text, text, uuid, text, text, text, text, text, text,
+  timestamptz, timestamptz, text, uuid, job_priority, numeric, uuid[]);
+drop function if exists create_job(
+  uuid, uuid, text, timestamptz, timestamptz, text, uuid, job_priority, numeric, uuid[]);
+
+create function create_job(
+  p_customer_id uuid,
+  p_site_id uuid,
+  p_title text,
+  p_scheduled_start timestamptz,
+  p_scheduled_end timestamptz default null,
+  p_description text default null,
+  p_template_id uuid default null,
+  p_priority job_priority default 'normal',
+  p_quoted_price numeric default null,
+  p_crew uuid[] default '{}',
+  p_category job_category default 'remediation'
+)
+returns jobs
+language plpgsql
+security definer
+set search_path = public
+as $fn$
+declare
+  v_org uuid := auth_org_id();
+  v_job jobs;
+  v_ok int;
+begin
+  if not has_permission('job.edit') then
+    raise exception 'Not permitted: creating a job needs job.edit'
+      using errcode = '42501';
+  end if;
+
+  if p_title is null or btrim(p_title) = '' then
+    raise exception 'A job needs a title' using errcode = '22023';
+  end if;
+  if p_scheduled_start is null then
+    raise exception 'A job needs a day' using errcode = '22023';
+  end if;
+  if p_scheduled_end is not null and p_scheduled_end < p_scheduled_start then
+    raise exception 'The job ends before it starts' using errcode = '22023';
+  end if;
+
+  -- A site under the wrong customer is the mistake that produces a job
+  -- history nobody can trust, so it is refused rather than tidied later.
+  select count(*) into v_ok from sites
+   where id = p_site_id and customer_id = p_customer_id and org_id = v_org
+     and deleted_at is null;
+  if v_ok = 0 then
+    raise exception 'That site does not belong to that customer'
+      using errcode = '23503';
+  end if;
+
+  insert into jobs (
+    org_id, customer_id, site_id, template_id, title, description,
+    priority, category, scheduled_start, scheduled_end, quoted_price, created_by
+  ) values (
+    v_org, p_customer_id, p_site_id, p_template_id, btrim(p_title),
+    nullif(btrim(coalesce(p_description, '')), ''),
+    coalesce(p_priority, 'normal'), coalesce(p_category, 'remediation'),
+    p_scheduled_start, p_scheduled_end,
+    p_quoted_price, auth_user_id()
+  )
+  returning * into v_job;
+
+  perform rebuild_job_visits(v_job.id);
+
+  -- A job created on the calendar is scheduled, not a draft: the draft state
+  -- is for work being quoted, and this screen is for work being booked.
+  perform transition_job(v_job.id, 'scheduled', 'Created on the calendar');
+
+  if array_length(p_crew, 1) > 0 then
+    perform set_job_crew(v_job.id, p_crew);
+  end if;
+
+  select * into v_job from jobs where id = v_job.id;
+  return v_job;
+end;
+$fn$;
+
+comment on function create_job(uuid, uuid, text, timestamptz, timestamptz, text, uuid, job_priority, numeric, uuid[], job_category) is
+  'Creates a job, cuts its work days, schedules it and optionally assigns a '
+  'crew — in one transaction, so a half-made job cannot be left behind.';
+
+create function create_job_with_site(
+  -- An existing customer, or the name and number to make one.
+  p_customer_id uuid,
+  p_customer_name text,
+  p_customer_phone text,
+  -- An existing site, or the label and address to make one.
+  p_site_id uuid,
+  p_site_label text,
+  p_site_address1 text,
+  p_site_city text,
+  p_site_state text,
+  p_site_postal text,
+  -- The job itself, passed straight through.
+  p_title text,
+  p_scheduled_start timestamptz,
+  p_scheduled_end timestamptz default null,
+  p_description text default null,
+  p_template_id uuid default null,
+  p_priority job_priority default 'normal',
+  p_quoted_price numeric default null,
+  p_crew uuid[] default '{}',
+  p_category job_category default 'remediation'
+)
+returns jobs
+language plpgsql
+security definer
+set search_path = public
+as $fn$
+declare
+  v_org uuid := auth_org_id();
+  v_customer uuid := p_customer_id;
+  v_site uuid := p_site_id;
+begin
+  -- Making a customer or a site is the office's job, and a separate one from
+  -- booking work. Someone who may book but not manage customers can still
+  -- book against the ones that exist.
+  if (p_customer_id is null or p_site_id is null)
+     and not has_permission('customer.manage') then
+    raise exception 'Not permitted: adding a customer or site needs customer.manage'
+      using errcode = '42501';
+  end if;
+
+  if v_customer is null then
+    if p_customer_name is null or btrim(p_customer_name) = '' then
+      raise exception 'A new customer needs a name' using errcode = '22023';
+    end if;
+    insert into customers (org_id, name, phone, created_by)
+    values (v_org, btrim(p_customer_name),
+            nullif(btrim(coalesce(p_customer_phone, '')), ''), auth_user_id())
+    returning id into v_customer;
+  else
+    -- An id from somewhere else is not a licence to read somebody else's
+    -- books: this runs with definer rights, so the org check is ours to make.
+    perform 1 from customers
+     where id = v_customer and org_id = v_org and deleted_at is null;
+    if not found then
+      raise exception 'No such customer' using errcode = '02000';
+    end if;
+  end if;
+
+  if v_site is null then
+    if p_site_label is null or btrim(p_site_label) = '' then
+      raise exception 'A new site needs a label — what the crew will call it'
+        using errcode = '22023';
+    end if;
+    if p_site_address1 is null or btrim(p_site_address1) = '' then
+      raise exception 'A new site needs a street address — the crew have to drive there'
+        using errcode = '22023';
+    end if;
+    insert into sites (org_id, customer_id, label, address_line1, city, state,
+                       postal_code, created_by)
+    values (v_org, v_customer, btrim(p_site_label), btrim(p_site_address1),
+            nullif(btrim(coalesce(p_site_city, '')), ''),
+            nullif(btrim(coalesce(p_site_state, '')), ''),
+            nullif(btrim(coalesce(p_site_postal, '')), ''),
+            auth_user_id())
+    returning id into v_site;
+  else
+    perform 1 from sites
+     where id = v_site and customer_id = v_customer and org_id = v_org
+       and deleted_at is null;
+    if not found then
+      raise exception 'That site does not belong to that customer'
+        using errcode = '22023';
+    end if;
+  end if;
+
+  return create_job(
+    v_customer, v_site, p_title, p_scheduled_start, p_scheduled_end,
+    p_description, p_template_id, p_priority, p_quoted_price, p_crew, p_category
+  );
+end;
+$fn$;
+
+comment on function create_job_with_site(uuid, text, text, uuid, text, text, text, text, text, text, timestamptz, timestamptz, text, uuid, job_priority, numeric, uuid[], job_category) is
+  'Books a job, making the customer and the site first if they are new — all '
+  'in one transaction, so a refused booking leaves nothing behind.';
+
 
 -- ===========================================================
 -- Did it land?
@@ -2958,6 +3367,8 @@ select 'Applied' as result,
   exists (select 1 from pg_proc where proname = 'create_job_with_site') as new_customer_booking_0031,
   exists (select 1 from information_schema.columns where table_name = 'jobs_safe' and column_name = 'settlement_method') as settlement_0032,
   exists (select 1 from pg_proc where proname = 'next_job_number') as job_numbers_0033,
+  exists (select 1 from organizations where timezone = 'America/Toronto') as ontario_0034,
+  exists (select 1 from information_schema.columns where table_name = 'jobs_safe' and column_name = 'category') as job_category_0035,
   (select count(*) from information_schema.tables
     where table_schema = 'public') as tables,
   (select count(*) from pg_policies where schemaname = 'public') as policies;

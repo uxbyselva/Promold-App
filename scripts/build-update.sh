@@ -41,6 +41,8 @@ probe_for() {
     0031) echo "exists (select 1 from pg_proc where proname = 'create_job_with_site')|new_customer_booking_0031" ;;
     0032) echo "exists (select 1 from information_schema.columns where table_name = 'jobs_safe' and column_name = 'settlement_method')|settlement_0032" ;;
     0033) echo "exists (select 1 from pg_proc where proname = 'next_job_number')|job_numbers_0033" ;;
+    0034) echo "exists (select 1 from organizations where timezone = 'America/Toronto')|ontario_0034" ;;
+    0035) echo "exists (select 1 from information_schema.columns where table_name = 'jobs_safe' and column_name = 'category')|job_category_0035" ;;
     *)    echo "" ;;
   esac
 }

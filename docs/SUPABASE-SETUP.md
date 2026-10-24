@@ -48,8 +48,8 @@ runs it on every push.
    - **Database password**: let it generate one, then **save it in your
      password manager**. You cannot see it again, and you need it to connect
      directly.
-   - **Region**: `East US (North Virginia)` — closest to Springfield, so the
-     app feels quicker.
+   - **Region**: `Canada (Central)` — the work is in Ontario, and keeping
+     the data in the country is one less question to answer later.
    - **Plan**: Free.
 3. Provisioning takes about two minutes.
 
@@ -86,7 +86,7 @@ declare
   v_user uuid;
 begin
   insert into organizations (name, timezone)
-  values ('Promold Restoration', 'America/New_York')
+  values ('Promold Restoration', 'America/Toronto')
   returning id into v_org;
 
   perform provision_org(v_org);
