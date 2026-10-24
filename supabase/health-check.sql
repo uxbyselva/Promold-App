@@ -48,6 +48,11 @@ with probe as (
     -- reach jobs_safe or the clients cannot read it at all.
     (select count(*) from information_schema.columns
       where table_name = 'jobs_safe' and column_name = 'settlement_method') as m0032,
+    -- 0033 is detected on the trigger, not the function. The function can sit
+    -- there unused; what actually stops a job coming out as J00004 is the
+    -- trigger being attached to the table.
+    (select count(*) from pg_trigger
+      where tgname = 'jobs_number' and not tgisinternal) as m0033,
     (select case
        when to_regclass('public.roles') is null then -1
        else (xpath('/row/c/text()', query_to_xml(
@@ -89,7 +94,8 @@ select * from (
     -- The old version collapsed everything from 0022 to 0027 into one alarming
     -- verdict, which said "get help" to an owner whose database was fine and
     -- one file behind.
-    case when m0032 > 0 then 'Up to date (0001–0032)'
+    case when m0033 > 0 then 'Up to date (0001–0033)'
+         when m0032 > 0 then 'At 0032 — run supabase/update-from-0032.sql'
          when m0031 > 0 then 'At 0031 — run supabase/update-from-0031.sql'
          when m0030 > 0 then 'At 0030 — run supabase/update-from-0030.sql'
          when m0029 > 0 then 'At 0029 — run supabase/update-from-0029.sql'
@@ -150,7 +156,17 @@ select * from (
          else 'Purchase approvals will fail' end from probe
 
   union all
-  select 8.0, 'Job finish (0032)',
+  select 7.92, 'Job numbers (0033)',
+    case when m0033 > 0 then 'Present' else 'Missing' end,
+    case when m0033 > 0 then 'New jobs are numbered YYMM-NNNN, which carries no running total'
+         else 'New jobs still count upwards from J00001, which tells anyone holding two of them how much work you have had'
+         end
+  from probe
+
+  union all
+  -- 7.91, not 8.0: the organisation row below is 8, and 8.0 ties with it,
+  -- so a migration numbered 8.0 sorted into the middle of the setup rows.
+  select 7.91, 'Job finish (0032)',
     case when m0032 > 0 then 'Present' else 'Missing' end,
     case when m0032 > 0 then 'The crew record how it was settled and a note when they finish'
          else 'Finishing a job records nothing about how it was settled' end

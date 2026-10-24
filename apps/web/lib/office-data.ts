@@ -9,7 +9,9 @@ export async function jobFormOptions() {
       supabase.from('customers').select('id, name').eq('is_active', true).order('name'),
       supabase
         .from('sites')
-        .select('id, customer_id, label, city')
+        // The address, not just the label: a job is a place before it is
+        // anything else, and the job page leads with it.
+        .select('id, customer_id, label, address_line1, address_line2, city, state, postal_code')
         .eq('is_active', true)
         .order('label'),
       supabase

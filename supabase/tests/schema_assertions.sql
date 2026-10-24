@@ -1891,3 +1891,69 @@ end $$;
 reset role;
 select set_config('request.jwt.claim.sub', '', false);
 \echo 'SETTLEMENT ASSERTIONS PASSED'
+
+-- ===========================================================================
+-- Job numbers (0033)
+-- ===========================================================================
+--
+-- The point of the format is what it does NOT say. A sequential number tells
+-- anybody holding two of them how much work came between, which is why these
+-- assertions care about unpredictability as much as about shape.
+
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000a002', false);
+set role authenticated;
+
+do $$
+declare
+  v_org  uuid := '00000000-0000-0000-0000-0000000000a1';
+  v_cust uuid := '00000000-0000-0000-0000-0000000000d1';
+  v_site uuid := '00000000-0000-0000-0000-0000000000e1';
+  v_a    jobs;
+  v_nums text[] := '{}';
+  v_run  int := 0;
+begin
+  -- Five in a row, because one pair proves nothing: two random draws land
+  -- next to each other once in five thousand tries, and a test that fails
+  -- that often teaches people to re-run it rather than read it.
+  for i in 1..5 loop
+    v_a := create_job(v_cust, v_site, 'Numbering ' || i,
+                      assert_day(14, 8 + i), assert_day(14, 9 + i),
+                      null, null, 'normal', null, '{}'::uuid[]);
+    v_nums := v_nums || v_a.job_number;
+  end loop;
+
+  perform assert(v_nums[1] ~ '^[0-9]{4}-[0-9]{4,5}$',
+    'a new job number is YYMM and some digits');
+  perform assert(
+    left(v_nums[1], 4) = to_char(assert_day(14, 9) at time zone
+      (select timezone from organizations where id = v_org), 'YYMM'),
+    'and the month is the month the work is booked for, in the company zone');
+  perform assert(
+    (select count(distinct n) from unnest(v_nums) n) = 5,
+    'five booked back to back, five different numbers');
+
+  -- The one that matters. A sequence hands out n, n+1, n+2 — so if every
+  -- step is +1, the count has leaked back in however the number is dressed
+  -- up. Five draws make a false alarm a one-in-a-trillion event.
+  for i in 2..5 loop
+    if split_part(v_nums[i], '-', 2)::int - split_part(v_nums[i - 1], '-', 2)::int = 1 then
+      v_run := v_run + 1;
+    end if;
+  end loop;
+  perform assert(v_run < 4,
+    'and they do not count upwards, which is the entire point');
+end $$;
+
+do $$
+begin
+  perform assert(
+    not exists (select 1 from pg_class where relname = 'job_number_seq' and relkind = 'S'),
+    'the old counting sequence is gone, not merely unused');
+  perform assert(
+    (select count(*) from jobs where job_number is null or btrim(job_number) = '') = 0,
+    'and every job has a number whoever wrote the insert');
+end $$;
+
+reset role;
+select set_config('request.jwt.claim.sub', '', false);
+\echo 'JOB NUMBER ASSERTIONS PASSED'

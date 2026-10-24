@@ -4,7 +4,7 @@ import { useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { refusalMessage } from '@promold/app-kit';
 import { supabaseBrowser } from '@/lib/supabase-browser';
-import { clock, longDate, dayOf, initials, money } from '@/lib/format';
+import { clock, longDate, dayOf, initials, money, siteAddress } from '@/lib/format';
 import { ChangeOrderSheet } from './change-order-sheet';
 
 type Job = {
@@ -215,11 +215,7 @@ export function JobDetail({
   const pending = myAssignment?.acceptance === 'pending';
   const stepIndex = STEPS.indexOf(job.status as (typeof STEPS)[number]);
   const next = NEXT[job.status];
-  const address = site
-    ? [site.address_line1, site.address_line2, site.city, site.state, site.postal_code]
-        .filter(Boolean)
-        .join(', ')
-    : '';
+  const address = siteAddress(site);
 
   return (
     <>

@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import { requireSession } from '@/lib/session';
 import { supabaseServer } from '@/lib/supabase-server';
+import { siteAddress } from '@/lib/format';
 import { Shell } from '@/components/shell';
 import { JobDetail } from '@/components/job-detail';
 
@@ -121,7 +122,14 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
   const mine = (crew ?? []).find((a) => a.user_id === session.userId);
 
   return (
-    <Shell backToOffice={session.can('job.assign')} title={job.job_number} who={job.title}>
+    // Same rule as the office job page: the place first, the job's own name
+    // under it. Somebody standing outside the van wants the street, not a
+    // reference number.
+    <Shell
+      backToOffice={session.can('job.assign')}
+      title={siteAddress(site, true) || site?.label || job.job_number}
+      who={job.title}
+    >
       <JobDetail
         job={job}
         site={site ?? null}

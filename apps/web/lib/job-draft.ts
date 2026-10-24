@@ -15,7 +15,16 @@
 import { localInput } from '@/lib/format';
 
 export type Customer = { id: string; name: string };
-export type Site = { id: string; customer_id: string; label: string; city: string | null };
+export type Site = {
+  id: string;
+  customer_id: string;
+  label: string;
+  address_line1: string | null;
+  address_line2: string | null;
+  city: string | null;
+  state: string | null;
+  postal_code: string | null;
+};
 export type Template = { id: string; name: string; default_duration_hours: number };
 export type Person = { id: string; full_name: string };
 

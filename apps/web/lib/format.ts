@@ -213,3 +213,38 @@ export const localInput = (iso: string | null | undefined) => {
   const get = (t: string) => parts.find((p) => p.type === t)?.value ?? '00';
   return `${get('year')}-${get('month')}-${get('day')}T${get('hour')}:${get('minute')}`;
 };
+
+/**
+ * What the crew put into the van's satnav.
+ *
+ * A job is a place before it is anything else — "14 Perry Street" says more
+ * to everyone in this company than its job number or its title do, and the
+ * screens lead with it. Every part is optional except the first line, which
+ * the database insists on, so this drops the blanks rather than leaving a
+ * trail of commas.
+ *
+ * `short` is the version for a heading: street and town, no state or
+ * postcode, because a heading that wraps onto three lines on a phone has
+ * stopped being a heading.
+ */
+export type Addressable = {
+  address_line1?: string | null;
+  address_line2?: string | null;
+  city?: string | null;
+  state?: string | null;
+  postal_code?: string | null;
+};
+
+export const siteAddress = (site: Addressable | null | undefined, short = false) =>
+  site
+    ? [
+        site.address_line1,
+        short ? null : site.address_line2,
+        site.city,
+        short ? null : site.state,
+        short ? null : site.postal_code,
+      ]
+        .map((part) => part?.trim())
+        .filter(Boolean)
+        .join(', ')
+    : '';
