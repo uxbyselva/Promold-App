@@ -645,10 +645,18 @@ export function JobForm({
               while taking down an address, and nine times in ten the answer
               is "None". It stays on the job page, where a manager can attach
               one afterwards, and the checklists themselves are managed in
-              admin. */}
+              admin.
+
+              It is called the checklist here and not "Kind of work", which
+              is what it said when it sat directly under "Kind of job". Two
+              near-identical phrases meaning two unrelated things, one above
+              the other: the first read as a duplicate of the second and the
+              second looked redundant, which is exactly how it was reported.
+              One names what the job IS, this one names what finishing it
+              REQUIRES. */}
           {wizard ? null : (
             <div className="field">
-              <label htmlFor="template">Kind of work</label>
+              <label htmlFor="template">Completion checklist</label>
               <select
                 id="template"
                 value={draft.template_id}
@@ -662,9 +670,10 @@ export function JobForm({
                 ))}
               </select>
               <p className="hint">
-                Sets what has to be done before it can be marked complete.
+                What the crew must have done before this job can be marked complete — photos,
+                materials, a signature. Optional, and usually left as None.
                 {categoryTemplates.length === 0
-                  ? ' There are no checklists for this kind of job yet, which is fine — the gate simply asks for nothing.'
+                  ? ' There are none for this kind of job yet, which is fine: the gate asks for nothing.'
                   : ''}
               </p>
             </div>
