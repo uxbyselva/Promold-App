@@ -53,10 +53,18 @@ with probe as (
     -- trigger being attached to the table.
     (select count(*) from pg_trigger
       where tgname = 'jobs_number' and not tgisinternal) as m0033,
-    -- 0034 is detected on the organisation row rather than the column
-    -- default: a default nobody has applied to the existing row is not the
-    -- same as the company actually working on Toronto time.
-    (select count(*) from organizations where timezone = 'America/Toronto') as m0034,
+    -- 0034 on the column DEFAULT, not on the organisation's own row.
+    --
+    -- It used to read the row, which is wrong in the one case that matters:
+    -- an organisation created from the current setup guide is on Toronto
+    -- time because the guide says to put it there, migration or no
+    -- migration. A database at 0032 then reported "At 0034", and whoever
+    -- believed it would run the 0034 catch-up — skipping 0033 and 0034
+    -- entirely and leaving the schema quietly half-applied. The default on
+    -- the column is set by the migration and by nothing else.
+    (select count(*) from information_schema.columns
+      where table_name = 'organizations' and column_name = 'timezone'
+        and column_default like '%America/Toronto%') as m0034,
     -- 0035 on the view, for the reason 0032 taught: the column has to reach
     -- jobs_safe or the clients cannot read it at all.
     (select count(*) from information_schema.columns

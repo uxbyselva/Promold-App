@@ -15,7 +15,7 @@
 --   0036_the_office_can_administer_itself.sql
 --   0037_kit_left_on_a_finished_job.sql
 --   0038_a_site_is_its_address.sql
--- Generated from 1cdb370
+-- Generated from d01b0ed
 
 begin;
 
@@ -880,7 +880,7 @@ comment on function create_job_with_site(uuid, text, text, uuid, text, text, tex
 -- second round trip to find out whether it worked. One column per
 -- migration in this bundle: every one of them must read true.
 select 'Applied' as result,
-  exists (select 1 from organizations where timezone = 'America/Toronto') as ontario_0034,
+  exists (select 1 from information_schema.columns where table_name = 'organizations' and column_name = 'timezone' and column_default like '%America/Toronto%') as ontario_0034,
   exists (select 1 from information_schema.columns where table_name = 'jobs_safe' and column_name = 'category') as job_category_0035,
   exists (select 1 from pg_proc where proname = 'add_person') as office_admin_0036,
   exists (select 1 from pg_proc where proname = 'job_equipment_on_site') as kit_on_site_0037,

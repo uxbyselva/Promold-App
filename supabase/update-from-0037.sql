@@ -9,7 +9,7 @@
 --
 -- Contains, in order:
 --   0038_a_site_is_its_address.sql
--- Generated from 1cdb370
+-- Generated from d01b0ed
 
 begin;
 
