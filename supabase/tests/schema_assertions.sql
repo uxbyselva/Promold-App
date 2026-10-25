@@ -2199,3 +2199,54 @@ end $$;
 reset role;
 select set_config('request.jwt.claim.sub', '', false);
 \echo 'EQUIPMENT ON SITE ASSERTIONS PASSED'
+
+-- ===========================================================================
+-- A site is its address (0038)
+-- ===========================================================================
+
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000a002', false);
+set role authenticated;
+
+do $$
+declare
+  v_job  jobs;
+  v_site sites;
+begin
+  -- No label given: the street address becomes the name.
+  v_job := create_job_with_site(
+    null, 'Markham caller', null,
+    null, null, '602 Cornell Centre Blvd', 'Markham', 'ON', 'L6B 1M1',
+    'Attic mold', assert_day(20, 8), assert_day(20, 16));
+  select * into v_site from sites where id = v_job.site_id;
+
+  perform assert(v_site.label = '602 Cornell Centre Blvd',
+    'a site booked without a name is named after its street');
+  perform assert(v_site.city = 'Markham' and v_site.state = 'ON',
+    'and keeps the rest of the address');
+
+  -- A site somebody HAS named keeps that name, which is why this is a
+  -- default and not a removal.
+  v_job := create_job_with_site(
+    null, 'Named site caller', null,
+    null, 'Larkspur Apts — unit 3B', '118 Larkspur Ave', 'Ottawa', 'ON', null,
+    'Unit 3B', assert_day(21, 8), assert_day(21, 16));
+  select * into v_site from sites where id = v_job.site_id;
+
+  perform assert(v_site.label = 'Larkspur Apts — unit 3B',
+    'and one that was given a name keeps it');
+
+  -- The street address is still required: the crew have to drive there.
+  begin
+    perform create_job_with_site(
+      null, 'No address caller', null,
+      null, null, null, 'Ottawa', 'ON', null,
+      'Nowhere', assert_day(22, 8), assert_day(22, 16));
+    perform assert(false, 'but a site with no street address is still refused');
+  exception when others then
+    perform assert(sqlstate = '22023', 'but a site with no street address is still refused');
+  end;
+end $$;
+
+reset role;
+select set_config('request.jwt.claim.sub', '', false);
+\echo 'SITE NAMING ASSERTIONS PASSED'

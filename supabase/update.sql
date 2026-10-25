@@ -26,7 +26,8 @@
 --   0035_what_kind_of_job_it_is.sql
 --   0036_the_office_can_administer_itself.sql
 --   0037_kit_left_on_a_finished_job.sql
--- Generated from c6c1bfa
+--   0038_a_site_is_its_address.sql
+-- Generated from 1cdb370
 
 begin;
 
@@ -3677,6 +3678,124 @@ comment on function job_equipment_on_site(uuid) is
   'Our own units still placed against a job, open assignments only. Definer, '
   'and gated by can_see_job() exactly like the completion gate.';
 
+-- ===========================================================
+-- 0038_a_site_is_its_address.sql
+-- ===========================================================
+-- 0038 A site is its address
+--
+-- Booking asked for two things about a new address: the street address, and
+-- "what the crew will call it". The second made sense when the first screens
+-- were drawn and does not survive contact with the work: the crew call it
+-- the address. Being asked to invent a nickname for 602 Cornell Centre Blvd,
+-- while a customer is on the phone, is a question with no good answer and it
+-- stops the booking until one is typed.
+--
+-- `sites.label` stays NOT NULL — it is on every screen that lists a site and
+-- a nameless row would be a blank in a dropdown. What changes is who supplies
+-- it: when the label is not given, the street address is the label. A site
+-- somebody HAS named ("Larkspur Apts — unit 3B") keeps its name, which is
+-- why this is a default and not a removal.
+
+create or replace function create_job_with_site(
+  -- An existing customer, or the name and number to make one.
+  p_customer_id uuid,
+  p_customer_name text,
+  p_customer_phone text,
+  -- An existing site, or the address to make one. The label is optional:
+  -- leave it out and the street address becomes the name.
+  p_site_id uuid,
+  p_site_label text,
+  p_site_address1 text,
+  p_site_city text,
+  p_site_state text,
+  p_site_postal text,
+  -- The job itself, passed straight through.
+  p_title text,
+  p_scheduled_start timestamptz,
+  p_scheduled_end timestamptz default null,
+  p_description text default null,
+  p_template_id uuid default null,
+  p_priority job_priority default 'normal',
+  p_quoted_price numeric default null,
+  p_crew uuid[] default '{}',
+  p_category job_category default 'remediation'
+)
+returns jobs
+language plpgsql
+security definer
+set search_path = public
+as $fn$
+declare
+  v_org uuid := auth_org_id();
+  v_customer uuid := p_customer_id;
+  v_site uuid := p_site_id;
+  v_label text;
+begin
+  -- Making a customer or a site is the office's job, and a separate one from
+  -- booking work. Someone who may book but not manage customers can still
+  -- book against the ones that exist.
+  if (p_customer_id is null or p_site_id is null)
+     and not has_permission('customer.manage') then
+    raise exception 'Not permitted: adding a customer or site needs customer.manage'
+      using errcode = '42501';
+  end if;
+
+  if v_customer is null then
+    if p_customer_name is null or btrim(p_customer_name) = '' then
+      raise exception 'A new customer needs a name' using errcode = '22023';
+    end if;
+    insert into customers (org_id, name, phone, created_by)
+    values (v_org, btrim(p_customer_name),
+            nullif(btrim(coalesce(p_customer_phone, '')), ''), auth_user_id())
+    returning id into v_customer;
+  else
+    -- An id from somewhere else is not a licence to read somebody else's
+    -- books: this runs with definer rights, so the org check is ours to make.
+    perform 1 from customers
+     where id = v_customer and org_id = v_org and deleted_at is null;
+    if not found then
+      raise exception 'No such customer' using errcode = '02000';
+    end if;
+  end if;
+
+  if v_site is null then
+    if p_site_address1 is null or btrim(p_site_address1) = '' then
+      raise exception 'A new site needs a street address — the crew have to drive there'
+        using errcode = '22023';
+    end if;
+    -- The address is the name unless somebody gave it one.
+    v_label := coalesce(nullif(btrim(coalesce(p_site_label, '')), ''), btrim(p_site_address1));
+
+    insert into sites (org_id, customer_id, label, address_line1, city, state,
+                       postal_code, created_by)
+    values (v_org, v_customer, v_label, btrim(p_site_address1),
+            nullif(btrim(coalesce(p_site_city, '')), ''),
+            nullif(btrim(coalesce(p_site_state, '')), ''),
+            nullif(btrim(coalesce(p_site_postal, '')), ''),
+            auth_user_id())
+    returning id into v_site;
+  else
+    perform 1 from sites
+     where id = v_site and customer_id = v_customer and org_id = v_org
+       and deleted_at is null;
+    if not found then
+      raise exception 'That site does not belong to that customer'
+        using errcode = '22023';
+    end if;
+  end if;
+
+  return create_job(
+    v_customer, v_site, p_title, p_scheduled_start, p_scheduled_end,
+    p_description, p_template_id, p_priority, p_quoted_price, p_crew, p_category
+  );
+end;
+$fn$;
+
+comment on function create_job_with_site(uuid, text, text, uuid, text, text, text, text, text, text, timestamptz, timestamptz, text, uuid, job_priority, numeric, uuid[], job_category) is
+  'Books a job, making the customer and the site first if they are new — all '
+  'in one transaction, so a refused booking leaves nothing behind. A new '
+  'site with no label is named after its street address.';
+
 
 -- ===========================================================
 -- Did it land?
@@ -3701,6 +3820,7 @@ select 'Applied' as result,
   exists (select 1 from information_schema.columns where table_name = 'jobs_safe' and column_name = 'category') as job_category_0035,
   exists (select 1 from pg_proc where proname = 'add_person') as office_admin_0036,
   exists (select 1 from pg_proc where proname = 'job_equipment_on_site') as kit_on_site_0037,
+  exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname = 'create_job_with_site' and p.prosrc like '%coalesce(nullif(btrim(coalesce(p_site_label%') as site_naming_0038,
   (select count(*) from information_schema.tables
     where table_schema = 'public') as tables,
   (select count(*) from pg_policies where schemaname = 'public') as policies;

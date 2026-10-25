@@ -65,6 +65,11 @@ with probe as (
     -- other way: it reads auth.users, which no signed-in user can.
     (select count(*) from pg_proc where proname = 'add_person') as m0036,
     (select count(*) from pg_proc where proname = 'job_equipment_on_site') as m0037,
+    -- 0038 is detected inside the function body: the signature did not
+    -- change, only who supplies a new site's name.
+    (select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+      where n.nspname = 'public' and p.proname = 'create_job_with_site'
+        and p.prosrc like '%coalesce(nullif(btrim(coalesce(p_site_label%') as m0038,
     (select case
        when to_regclass('public.roles') is null then -1
        else (xpath('/row/c/text()', query_to_xml(
@@ -106,7 +111,8 @@ select * from (
     -- The old version collapsed everything from 0022 to 0027 into one alarming
     -- verdict, which said "get help" to an owner whose database was fine and
     -- one file behind.
-    case when m0037 > 0 then 'Up to date (0001–0037)'
+    case when m0038 > 0 then 'Up to date (0001–0038)'
+         when m0037 > 0 then 'At 0037 — run supabase/update-from-0037.sql'
          when m0036 > 0 then 'At 0036 — run supabase/update-from-0036.sql'
          when m0035 > 0 then 'At 0035 — run supabase/update-from-0035.sql'
          when m0034 > 0 then 'At 0034 — run supabase/update-from-0034.sql'
@@ -170,6 +176,14 @@ select * from (
     case when m0026>0 then 'Present' else 'Missing' end,
     case when m0026>0 then 'Asking to buy, and approving it'
          else 'Purchase approvals will fail' end from probe
+
+  union all
+  select 7.97, 'Site naming (0038)',
+    case when m0038 > 0 then 'Present' else 'Missing' end,
+    case when m0038 > 0 then 'Booking a new address does not ask anybody to invent a nickname for it'
+         else 'Booking a new address still demands a label before it will save'
+         end
+  from probe
 
   union all
   select 7.96, 'Kit left on site (0037)',

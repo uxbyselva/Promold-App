@@ -45,6 +45,7 @@ probe_for() {
     0035) echo "exists (select 1 from information_schema.columns where table_name = 'jobs_safe' and column_name = 'category')|job_category_0035" ;;
     0036) echo "exists (select 1 from pg_proc where proname = 'add_person')|office_admin_0036" ;;
     0037) echo "exists (select 1 from pg_proc where proname = 'job_equipment_on_site')|kit_on_site_0037" ;;
+    0038) echo "exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname = 'create_job_with_site' and p.prosrc like '%coalesce(nullif(btrim(coalesce(p_site_label%')|site_naming_0038" ;;
     *)    echo "" ;;
   esac
 }

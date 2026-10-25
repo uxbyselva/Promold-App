@@ -157,7 +157,7 @@ export function JobForm({
     // Some contacts carry an address and most do not. Take whatever came,
     // leave the rest as it was, and never clear the province back to blank.
     setNewSite((v) => ({
-      label: v.label || picked.address1 || picked.name,
+      label: v.label,
       address1: picked.address1 || v.address1,
       city: picked.city || v.city,
       state: picked.state || v.state,
@@ -338,9 +338,7 @@ export function JobForm({
   // once the fields it revealed are filled, or the server does the refusing
   // after the person has already pressed the button.
   const customerReady = addingCustomer ? newCustomer.name.trim().length > 0 : !!draft.customer_id;
-  const siteReady = addingSite
-    ? newSite.label.trim().length > 0 && newSite.address1.trim().length > 0
-    : !!draft.site_id;
+  const siteReady = addingSite ? newSite.address1.trim().length > 0 : !!draft.site_id;
   const ready = !!(customerReady && siteReady && draft.title.trim() && draft.scheduled_start);
 
   // What each step needs before Next lights up. The crew step asks for
@@ -506,25 +504,21 @@ export function JobForm({
 
         {on('where') && addingSite ? (
           <>
-            <div className="cols two">
-              <div className="field">
-                <label htmlFor="site-label">What the crew will call it</label>
-                <input
-                  id="site-label"
-                  value={newSite.label}
-                  onChange={(e) => setNewSite((v) => ({ ...v, label: e.target.value }))}
-                  placeholder="42 Oak St — basement"
-                />
-              </div>
-              <div className="field">
-                <label htmlFor="site-address">Street address</label>
-                <input
-                  id="site-address"
-                  value={newSite.address1}
-                  onChange={(e) => setNewSite((v) => ({ ...v, address1: e.target.value }))}
-                  placeholder="42 Oak St"
-                />
-              </div>
+            {/* No "what the crew will call it" any more. It made sense on
+                paper and not on the phone: being asked to invent a nickname
+                for 602 Cornell Centre Blvd, with a customer on the line, is
+                a question with no good answer — and the crew call it the
+                address anyway. The database names the site after its street
+                address when no label is given, so a site somebody HAS named
+                keeps its name and nobody has to make one up. */}
+            <div className="field">
+              <label htmlFor="site-address">Street address</label>
+              <input
+                id="site-address"
+                value={newSite.address1}
+                onChange={(e) => setNewSite((v) => ({ ...v, address1: e.target.value }))}
+                placeholder="602 Cornell Centre Blvd"
+              />
             </div>
             <div className="cols two">
               <div className="field">
@@ -645,27 +639,36 @@ export function JobForm({
         </div>
 
         <div className="cols two" style={{ display: on('what') ? undefined : 'none' }}>
-          <div className="field">
-            <label htmlFor="template">Kind of work</label>
-            <select
-              id="template"
-              value={draft.template_id}
-              onChange={(e) => set('template_id', e.target.value)}
-            >
-              <option value="">None</option>
-              {categoryTemplates.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
-            <p className="hint">
-              Sets what has to be done before it can be marked complete.
-              {categoryTemplates.length === 0
-                ? ' There are no checklists for this kind of job yet, which is fine — the gate simply asks for nothing.'
-                : ''}
-            </p>
-          </div>
+          {/* The checklist picker is not part of booking.
+              It decides what the completion gate refuses a job for, which is
+              a decision about how work is done — not something to answer
+              while taking down an address, and nine times in ten the answer
+              is "None". It stays on the job page, where a manager can attach
+              one afterwards, and the checklists themselves are managed in
+              admin. */}
+          {wizard ? null : (
+            <div className="field">
+              <label htmlFor="template">Kind of work</label>
+              <select
+                id="template"
+                value={draft.template_id}
+                onChange={(e) => set('template_id', e.target.value)}
+              >
+                <option value="">None</option>
+                {categoryTemplates.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+              <p className="hint">
+                Sets what has to be done before it can be marked complete.
+                {categoryTemplates.length === 0
+                  ? ' There are no checklists for this kind of job yet, which is fine — the gate simply asks for nothing.'
+                  : ''}
+              </p>
+            </div>
+          )}
 
           <div className="field">
             <label htmlFor="priority">Priority</label>
