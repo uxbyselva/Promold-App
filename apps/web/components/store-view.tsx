@@ -232,7 +232,11 @@ export function StoreView({
 
           <p className="lbl">On your jobs</p>
           {onMyJobs.length === 0 ? (
-            <p className="empty">Nothing of ours is on these sites.</p>
+            <p className="empty">
+              {kit.length === 0
+                ? 'No equipment has been added yet.'
+                : 'Nothing of ours is on these sites.'}
+            </p>
           ) : (
             onMyJobs.map((k) => (
               <div key={k.equipment_id} className={`panel${!k.expected_end_at ? ' flag' : ''}`}>
@@ -272,8 +276,16 @@ export function StoreView({
           )}
 
           <p className="lbl">In the warehouse</p>
+          {/* "Everything is out" was shown even when the register was empty,
+              which reads as "we own kit and it is all deployed" to somebody
+              whose answer is "we have not entered any yet". An empty list and
+              an empty register are different facts. */}
           {available.length === 0 ? (
-            <p className="empty">Everything is out.</p>
+            <p className="empty">
+              {kit.length === 0
+                ? 'No equipment has been added yet. The office adds units under Registers.'
+                : 'Everything is out.'}
+            </p>
           ) : (
             available.map((k) => (
               <div key={k.equipment_id} className="panel">

@@ -91,6 +91,7 @@ export function JobDetail({
   crew,
   myAssignment,
   photos,
+  canPlace,
   equipment,
   decision,
   changeOrders,
@@ -108,7 +109,16 @@ export function JobDetail({
   crew: { id: string; userId: string; name: string; acceptance: string }[];
   myAssignment: { id: string; acceptance: string } | null;
   photos: Photo[];
-  equipment: { id: string; asset_tag: string; name: string; expectedEnd: string | null }[];
+  /** equipment.place — the crew hold it, so the Collect button is theirs. */
+  canPlace: boolean;
+  equipment: {
+    id: string;
+    equipmentId: string;
+    assetTag: string;
+    name: string;
+    startedAt: string | null;
+    expectedEnd: string | null;
+  }[];
   decision: {
     status: string;
     reason: string;
@@ -213,6 +223,8 @@ export function JobDetail({
   }
 
   const pending = myAssignment?.acceptance === 'pending';
+  // Finished, whether or not the office has approved or closed it yet.
+  const done = ['work_complete', 'approved', 'closed'].includes(job.status);
   const stepIndex = STEPS.indexOf(job.status as (typeof STEPS)[number]);
   const next = NEXT[job.status];
   const address = siteAddress(site);
@@ -564,24 +576,62 @@ export function JobDetail({
         />
       ) : null}
 
+      {/*
+       * What is still in the building.
+       *
+       * It used to be a list and nothing else, which was fine while the job
+       * was running and useless the moment it finished: a crew could mark a
+       * job done and drive away leaving two dehumidifiers in a basement,
+       * with no screen anywhere saying somebody should go back for them.
+       *
+       * Collecting is deliberately NOT automatic on completion. In this
+       * trade the kit is meant to stay — dehus run for days after the work
+       * is finished — so the job finishes and the units stay listed until
+       * somebody says they are in the van.
+       */}
       {equipment.length ? (
         <div className="panel">
-          <p className="lbl">On this job</p>
+          <p className="lbl">
+            {done ? 'Still on site' : 'On this job'} · {equipment.length}
+          </p>
+          {done ? (
+            <p className="sub" style={{ marginBottom: 8 }}>
+              The job is finished and these are still out. Collect them when you pick them up —
+              until then the job keeps showing them, and so does the office.
+            </p>
+          ) : null}
           {equipment.map((e) => (
             <div key={e.id} className="row between">
               <span className="row" style={{ gap: 8 }}>
                 <span className="mono" style={{ fontSize: 13 }}>
-                  {e.asset_tag}
+                  {e.assetTag}
                 </span>
                 <span className="sub">{e.name}</span>
               </span>
-              {e.expectedEnd ? (
-                <span className="sub mono">till {longDate(dayOf(e.expectedEnd))}</span>
-              ) : (
-                <span className="pill" data-t="warn">
-                  No pickup set
-                </span>
-              )}
+              <span className="row" style={{ gap: 8 }}>
+                {e.expectedEnd ? (
+                  <span className="sub mono">till {longDate(dayOf(e.expectedEnd))}</span>
+                ) : (
+                  <span className="pill" data-t="warn">
+                    No pickup set
+                  </span>
+                )}
+                {canPlace ? (
+                  <button
+                    className="btn ghost sm"
+                    disabled={working}
+                    onClick={() =>
+                      call(
+                        'collect_equipment',
+                        { p_equipment_id: e.equipmentId, p_condition: 'ok' },
+                        `collect-${e.id}`,
+                      )
+                    }
+                  >
+                    {busy === `collect-${e.id}` ? 'Collecting…' : 'Collect'}
+                  </button>
+                ) : null}
+              </span>
             </div>
           ))}
         </div>
@@ -649,9 +699,28 @@ export function JobDetail({
 
       {next && !pending && canComplete ? (
         next.to === 'work_complete' ? (
-          <button className="btn wide" disabled={working} onClick={() => setFinishing(true)}>
-            {next.label}
-          </button>
+          <>
+            {/* Disabled while the gate has something in it. It used to open
+                the sheet regardless, so somebody chose how it was settled,
+                typed a note, pressed the button and was refused — having
+                done all the work of finishing a job that could never
+                finish. The reason is on the card above; this repeats the
+                short version so the dead button explains itself. */}
+            <button
+              className="btn wide"
+              disabled={working || blockers.length > 0}
+              onClick={() => setFinishing(true)}
+            >
+              {next.label}
+            </button>
+            {blockers.length ? (
+              <p className="sub" style={{ textAlign: 'center', marginTop: 6 }}>
+                {blockers.length === 1
+                  ? blockers[0]
+                  : `${blockers.length} things above still to sort out`}
+              </p>
+            ) : null}
+          </>
         ) : (
           <button
             className="btn wide"
@@ -704,6 +773,18 @@ export function JobDetail({
               />
             </div>
 
+            {/* The refusal has to be HERE. It used to render only at the top
+                of the page, and a bottom sheet covers the bottom of the
+                screen — so a crew member tapped "Mark it done", the database
+                refused, and from where they were looking absolutely nothing
+                happened. That is the whole of "I mark it finished and the
+                page stays the same". */}
+            {error ? (
+              <p className="err" style={{ marginTop: 12 }}>
+                {error}
+              </p>
+            ) : null}
+
             <div className="row" style={{ gap: 8, marginTop: 14 }}>
               <button
                 className="btn"
@@ -718,7 +799,14 @@ export function JobDetail({
                     },
                     'advance',
                   );
-                  if (ok) setFinishing(false);
+                  if (!ok) return;
+                  setFinishing(false);
+                  // Back to the board. Finishing a job is the end of that
+                  // job, and leaving the crew on the page they just finished
+                  // reads as a button that did nothing — the sheet closes and
+                  // everything else looks the same. The list is where the
+                  // next one is.
+                  router.push('/my/jobs');
                 }}
               >
                 {busy === 'advance' ? 'Finishing…' : 'Mark it done'}

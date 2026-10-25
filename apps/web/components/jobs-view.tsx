@@ -2,7 +2,16 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { dayOf, daySpan, isoDay, today, clock, longDate, monthName } from '@/lib/format';
+import {
+  dayOf,
+  daySpan,
+  isoDay,
+  today,
+  clock,
+  longDate,
+  monthName,
+  siteAddress,
+} from '@/lib/format';
 
 export type Job = {
   id: string;
@@ -15,7 +24,7 @@ export type Job = {
   customer_id: string | null;
 };
 export type Visit = { id: string; job_id: string; scheduled_start: string; status: string };
-type Site = { id: string; label: string; city: string | null };
+type Site = { id: string; label: string; address_line1: string | null; city: string | null };
 type Customer = { id: string; name: string };
 type Assignment = { id: string; job_id: string; acceptance_status: string };
 
@@ -44,7 +53,11 @@ export function JobsView({
   customers: Customer[];
   assignments: Assignment[];
 }) {
-  const [view, setView] = useState<'cal' | 'list'>('cal');
+  // The list is the board and the board is the default. A calendar answers
+  // "what is on the 14th"; the question somebody opens this app to ask,
+  // standing in a van at eight in the morning, is "what am I doing and what
+  // have I not finished" — which is a list, in that order.
+  const [view, setView] = useState<'list' | 'cal'>('list');
   const now = new Date();
   const [month, setMonth] = useState({ y: now.getFullYear(), m: now.getMonth() });
   const [selected, setSelected] = useState(today());
@@ -111,7 +124,7 @@ export function JobsView({
           </span>
           <h3>{job.title}</h3>
           <span className="sub">
-            {site?.label ?? 'No site'}
+            {siteAddress(site, true) || site?.label || 'No site'}
             {customer ? <br /> : null}
             {customer?.name}
           </span>
@@ -146,11 +159,11 @@ export function JobsView({
   return (
     <>
       <div className="seg" role="tablist" aria-label="View">
-        <button role="tab" aria-selected={view === 'cal'} onClick={() => setView('cal')}>
-          Calendar
-        </button>
         <button role="tab" aria-selected={view === 'list'} onClick={() => setView('list')}>
           List
+        </button>
+        <button role="tab" aria-selected={view === 'cal'} onClick={() => setView('cal')}>
+          Calendar
         </button>
       </div>
 
@@ -184,22 +197,64 @@ export function JobsView({
           )}
         </>
       ) : (
-        <ListView jobs={jobs} card={card} />
+        <ListView jobs={jobs} card={card} acceptanceOf={acceptanceOf} />
       )}
     </>
   );
 }
 
-function ListView({ jobs, card }: { jobs: Job[]; card: (j: Job) => React.ReactNode }) {
+/** Finished with, as far as the crew are concerned. */
+const FINISHED = ['work_complete', 'approved', 'closed', 'cancelled'];
+
+/**
+ * The board, as a list of what is left to do.
+ *
+ * It used to be three groups by date — today, coming up, earlier — which put
+ * a job finished last Tuesday in the same pile as one from last Tuesday that
+ * nobody ever started. Those are opposite things: one is a record and the
+ * other is work.
+ *
+ * So finished jobs come out of the date groups entirely and go to the bottom,
+ * folded away, the way a to-do list treats a ticked item. What is left above
+ * is only work: anything still waiting on an answer first, then overdue, then
+ * today, then what is coming.
+ *
+ * The order is deliberate and is not chronological. Overdue sits ABOVE today,
+ * because a job that should have happened and did not is the thing most
+ * likely to have been forgotten, and the bottom of a list is where things go
+ * to be forgotten.
+ */
+function ListView({
+  jobs,
+  card,
+  acceptanceOf,
+}: {
+  jobs: Job[];
+  card: (j: Job) => React.ReactNode;
+  acceptanceOf: (jobId: string) => string;
+}) {
+  const [showDone, setShowDone] = useState(false);
   const t = today();
-  const group = (test: (d: string) => boolean) =>
-    jobs.filter((j) => j.scheduled_start && test(dayOf(j.scheduled_start)));
+
+  const open = jobs.filter((j) => !FINISHED.includes(j.status));
+  const done = jobs
+    .filter((j) => FINISHED.includes(j.status))
+    .sort((a, b) => (b.scheduled_start ?? '').localeCompare(a.scheduled_start ?? ''));
+
+  const unanswered = open.filter((j) => acceptanceOf(j.id) === 'pending');
+  const rest = open.filter((j) => acceptanceOf(j.id) !== 'pending');
+  const on = (j: Job, test: (d: string) => boolean) =>
+    j.scheduled_start ? test(dayOf(j.scheduled_start)) : false;
 
   const sections: [string, Job[]][] = [
-    ['Today', group((d) => d === t)],
-    ['Coming up', group((d) => d > t)],
-    ['Earlier', group((d) => d < t).reverse()],
+    ['Needs your answer', unanswered],
+    ['Overdue', rest.filter((j) => on(j, (d) => d < t)).reverse()],
+    ['Today', rest.filter((j) => on(j, (d) => d === t))],
+    ['Coming up', rest.filter((j) => on(j, (d) => d > t))],
+    ['Not scheduled', rest.filter((j) => !j.scheduled_start)],
   ];
+
+  const nothingOpen = sections.every(([, rows]) => rows.length === 0);
 
   return (
     <>
@@ -213,6 +268,31 @@ function ListView({ jobs, card }: { jobs: Job[]; card: (j: Job) => React.ReactNo
           </div>
         ) : null,
       )}
+
+      {nothingOpen ? (
+        <div className="panel">
+          <h3>Nothing outstanding</h3>
+          <p className="sub">
+            {done.length
+              ? 'Everything you are on is finished. The ones below are the record of it.'
+              : 'Nothing assigned to you right now.'}
+          </p>
+        </div>
+      ) : null}
+
+      {done.length ? (
+        <div className="stack tight">
+          <button
+            className="btn ghost sm"
+            style={{ marginTop: 10, alignSelf: 'flex-start' }}
+            aria-expanded={showDone}
+            onClick={() => setShowDone((v) => !v)}
+          >
+            {showDone ? 'Hide' : 'Show'} finished · {done.length}
+          </button>
+          {showDone ? done.map(card) : null}
+        </div>
+      ) : null}
     </>
   );
 }

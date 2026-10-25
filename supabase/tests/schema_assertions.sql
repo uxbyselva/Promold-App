@@ -2121,3 +2121,81 @@ end $$;
 reset role;
 select set_config('request.jwt.claim.sub', '', false);
 \echo 'OFFICE ADMIN ASSERTIONS PASSED'
+
+-- ===========================================================================
+-- Equipment left on a finished job (0037)
+-- ===========================================================================
+--
+-- Self-contained: this block makes its own placements rather than reading
+-- whatever the seed left, because the blocks above it collect kit and finish
+-- jobs, and an assertion that depends on what ran before it fails for
+-- reasons that have nothing to do with what it is testing.
+
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000a002', false);
+set role authenticated;
+
+do $$
+declare
+  v_job  uuid := '00000000-0000-0000-0000-00000000bb02';
+  v_org  uuid := '00000000-0000-0000-0000-0000000000a1';
+  v_kit  uuid;
+begin
+  -- Start from nothing on this job.
+  update equipment_assignments set ended_at = now()
+   where job_id = v_job and ended_at is null;
+
+  perform assert((select count(*) from job_equipment_on_site(v_job)) = 0,
+    'a job with no kit on it lists none');
+  perform assert(
+    not exists (select 1 from unnest(job_completion_warnings(v_job)) w
+                 where w like '%our own unit(s)%'),
+    'and says nothing about equipment');
+
+  -- A unit checked out to the job: a warning, never a blocker. It is meant
+  -- to be able to stay.
+  select id into v_kit from equipment
+   where not exists (select 1 from equipment_assignments a
+                      where a.equipment_id = equipment.id and a.ended_at is null)
+   limit 1;
+
+  -- A checkout is to a PERSON and staging is to a SITE — the table has a
+  -- check constraint saying so, which is why both are supplied below.
+  insert into equipment_assignments
+    (org_id, equipment_id, job_id, kind, assigned_to_user_id, started_at)
+  values (v_org, v_kit, v_job, 'checkout',
+          '00000000-0000-0000-0000-00000000a003', now());
+
+  perform assert((select count(*) from job_equipment_on_site(v_job)) = 1,
+    'a job with our kit on it lists that kit');
+  perform assert(
+    exists (select 1 from unnest(job_completion_warnings(v_job)) w
+             where w like '%our own unit(s) still out%'),
+    'and finishing it says so');
+  perform assert(
+    not exists (select 1 from unnest(job_completion_blockers(v_job)) b
+                 where b like '%quipment%'),
+    'but does not refuse it — a unit on hire to the job is meant to stay');
+
+  -- Staged at the site with no pickup date is the other case, and that one
+  -- IS refused. The two must never both fire, or the same job tells the crew
+  -- "this stops you" and "this is fine" at once.
+  update equipment_assignments
+     set kind = 'site_staging',
+         site_id = (select site_id from jobs where id = v_job),
+         assigned_to_user_id = null,
+         expected_end_at = null
+   where job_id = v_job and ended_at is null;
+
+  perform assert(
+    exists (select 1 from unnest(job_completion_blockers(v_job)) b
+             where b like '%staged at site with no pickup%'),
+    'kit staged with no pickup date refuses the completion');
+  perform assert(
+    not exists (select 1 from unnest(job_completion_warnings(v_job)) w
+                 where w like '%our own unit(s)%'),
+    'and is not ALSO a warning, which would say both at once');
+end $$;
+
+reset role;
+select set_config('request.jwt.claim.sub', '', false);
+\echo 'EQUIPMENT ON SITE ASSERTIONS PASSED'

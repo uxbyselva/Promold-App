@@ -64,6 +64,7 @@ with probe as (
     -- 0036 on add_person(), the one of the three that cannot be done any
     -- other way: it reads auth.users, which no signed-in user can.
     (select count(*) from pg_proc where proname = 'add_person') as m0036,
+    (select count(*) from pg_proc where proname = 'job_equipment_on_site') as m0037,
     (select case
        when to_regclass('public.roles') is null then -1
        else (xpath('/row/c/text()', query_to_xml(
@@ -105,7 +106,8 @@ select * from (
     -- The old version collapsed everything from 0022 to 0027 into one alarming
     -- verdict, which said "get help" to an owner whose database was fine and
     -- one file behind.
-    case when m0036 > 0 then 'Up to date (0001–0036)'
+    case when m0037 > 0 then 'Up to date (0001–0037)'
+         when m0036 > 0 then 'At 0036 — run supabase/update-from-0036.sql'
          when m0035 > 0 then 'At 0035 — run supabase/update-from-0035.sql'
          when m0034 > 0 then 'At 0034 — run supabase/update-from-0034.sql'
          when m0033 > 0 then 'At 0033 — run supabase/update-from-0033.sql'
@@ -168,6 +170,14 @@ select * from (
     case when m0026>0 then 'Present' else 'Missing' end,
     case when m0026>0 then 'Asking to buy, and approving it'
          else 'Purchase approvals will fail' end from probe
+
+  union all
+  select 7.96, 'Kit left on site (0037)',
+    case when m0037 > 0 then 'Present' else 'Missing' end,
+    case when m0037 > 0 then 'A finished job keeps showing what is still in the building'
+         else 'A job can be finished with our own equipment still on site and nothing saying so'
+         end
+  from probe
 
   union all
   select 7.95, 'Office admin (0036)',

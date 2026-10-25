@@ -41,7 +41,12 @@ export default async function JobsPage() {
 
   const siteIds = [...new Set((jobs ?? []).map((j) => j.site_id).filter(Boolean))];
   const { data: sites } = siteIds.length
-    ? await supabase.from('sites').select('id, label, city').in('id', siteIds)
+    ? await supabase
+        .from('sites')
+        // The address, because the card leads with it the way the job page
+        // does — everyone here thinks of a job as a place.
+        .select('id, label, address_line1, city')
+        .in('id', siteIds)
     : { data: [] };
 
   const customerIds = [...new Set((jobs ?? []).map((j) => j.customer_id).filter(Boolean))];
