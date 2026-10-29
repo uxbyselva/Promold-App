@@ -42,7 +42,17 @@
 .cols{display:grid;gap:16px;align-items:start}
 .cols.two{grid-template-columns:repeat(auto-fit,minmax(340px,1fr))}
 .cols.aside{grid-template-columns:minmax(260px,340px) minmax(0,1fr)}
-@media (max-width:900px){.cols.aside{grid-template-columns:minmax(0,1fr)}}
+/* Content first, panel second — the job editor's way round. It was written
+ * as an inline style, which beats any media query however the stylesheet is
+ * written, so on a phone the job page kept two columns: a 300px panel and
+ * whatever was left. What was left was about forty pixels, and the editor —
+ * the whole point of the page — was squeezed into a strip down the side,
+ * eight thousand pixels tall and unreadable. It is a class so the breakpoint
+ * below can reach it. */
+.cols.aside.flip{grid-template-columns:minmax(0,1fr) minmax(280px,360px)}
+@media (max-width:900px){
+  .cols.aside,.cols.aside.flip{grid-template-columns:minmax(0,1fr)}
+}
 
 .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
 .tile{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
@@ -91,6 +101,90 @@
 .pickrow[aria-current="page"],.pickrow[aria-pressed="true"]{background:var(--accent-soft)}
 .pickrow b{display:block;font-weight:600;font-size:14px}
 .pickrow span{font-size:12.5px;color:var(--muted)}
+
+/* the board — columns are stages, not hours
+ *
+ * It replaced an hour grid, and the thing the grid did badly was the phone:
+ * eleven rows of empty time, scrolled sideways. Columns of cards scroll
+ * sideways too, but each swipe lands on a question worth answering, so
+ * scroll-snap pins one column at a time and the next peeks in at the edge to
+ * say there is more. On a desk all five fit and nothing scrolls. */
+.kb{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(230px,1fr);gap:12px;
+  padding:14px 18px 24px;align-items:start}
+@media (max-width:900px){
+  .kb{overflow-x:auto;scroll-snap-type:x mandatory;grid-auto-columns:min(78vw,290px);
+    padding-inline:14px;scroll-padding-inline:14px}
+  .kb-lane{scroll-snap-align:start}
+}
+.kb-lane{background:var(--surface-2);border:1px solid var(--line);border-radius:var(--radius);
+  padding:10px;display:flex;flex-direction:column;gap:9px;min-width:0}
+.kb-lane > header{display:flex;align-items:baseline;justify-content:space-between;gap:8px;
+  padding:0 2px 2px}
+.kb-lane h2{margin:0;font-family:var(--font-cond);font-size:12.5px;font-weight:600;
+  text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.kb-count{font-family:var(--font-mono);font-size:12px;color:var(--faint);
+  font-variant-numeric:tabular-nums}
+.kb-empty{margin:0;padding:2px;font-size:12px;color:var(--faint);line-height:1.45}
+
+.kb-card{background:var(--surface);border:1px solid var(--line);border-radius:9px;
+  padding:10px 11px;display:flex;flex-direction:column;gap:2px;cursor:pointer;
+  box-shadow:var(--shadow);text-align:left}
+.kb-card:hover{border-color:var(--line-strong)}
+.kb-card:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* Overdue earns the left edge, not the whole card: a wash of red across four
+ * cards stops meaning anything by the fourth. */
+.kb-card[data-late="1"]{border-left:3px solid var(--crit);padding-left:9px}
+.kb-num{font-size:11px;color:var(--faint);font-variant-numeric:tabular-nums}
+.kb-where{margin:0;font-weight:600;font-size:13.5px;line-height:1.3}
+.kb-what{margin:0;font-size:12.5px;color:var(--muted);line-height:1.35}
+/* The global .mono nowrap is there to keep an asset tag on one line; a date
+ * and a time span is longer than a card is wide and has to be allowed to
+ * fold, so it opts back out. */
+.kb-card .kb-when{margin:2px 0 0;font-size:11.5px;color:var(--muted);
+  font-variant-numeric:tabular-nums;white-space:normal}
+.kb-card .kb-when > span{white-space:nowrap}
+.kb-who{margin:0;font-size:12px;color:var(--ink)}
+.kb-flags{margin:4px 0 0;display:flex;flex-wrap:wrap;gap:5px}
+.kb-flags:empty{display:none}
+.kb-flag{font-family:var(--font-cond);font-size:10.5px;font-weight:600;text-transform:uppercase;
+  letter-spacing:.05em;border-radius:999px;padding:2px 7px;background:var(--surface-2);
+  color:var(--muted);border:1px solid var(--line)}
+.kb-flag.late{background:var(--crit-soft);color:var(--crit);border-color:transparent}
+.kb-flag.warn{background:var(--warn-soft);color:var(--warn);border-color:transparent}
+.kb-away{margin:0;padding:0 18px 4px;font-size:12.5px;color:var(--muted)}
+
+/* booking a job, five steps
+ *
+ * The numbers along the top are also the way back: a step already filled in
+ * is a button, a step ahead is disabled, and the button at the bottom owns
+ * going forwards so it can refuse while a step is incomplete. */
+.wiz{list-style:none;display:flex;margin:0 0 4px;padding:0;gap:2px;overflow-x:auto}
+.wiz li{flex:1 1 0;min-width:0}
+.wiz button{width:100%;display:flex;flex-direction:column;align-items:center;gap:4px;
+  background:none;border:none;padding:2px 2px 7px;cursor:pointer;
+  border-bottom:2px solid var(--line)}
+.wiz button:disabled{cursor:default}
+.wiz li[data-on="1"] button{border-bottom-color:var(--accent)}
+.wiz-bead{width:21px;height:21px;border-radius:50%;display:grid;place-items:center;
+  font-family:var(--font-mono);font-size:11px;font-weight:600;
+  background:var(--surface-2);color:var(--faint);border:1px solid var(--line)}
+.wiz li[data-on="1"] .wiz-bead{background:var(--accent-soft);color:var(--accent-ink);
+  border-color:var(--accent)}
+.wiz li[data-now="1"] .wiz-bead{background:var(--accent);color:#fff;border-color:var(--accent)}
+.wiz-name{font-family:var(--font-cond);font-size:10.5px;font-weight:600;text-transform:uppercase;
+  letter-spacing:.04em;color:var(--faint);white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis;max-width:100%}
+.wiz li[data-now="1"] .wiz-name{color:var(--ink)}
+/* Under about 360px five labels cannot fit however they are truncated, so
+   the beads carry the position on their own and the header says the rest. */
+@media (max-width:359px){.wiz-name{display:none}}
+
+.wiz-sum{margin:2px 0 0;padding:11px 12px;background:var(--surface-2);
+  border:1px solid var(--line);border-radius:9px;display:grid;gap:7px}
+.wiz-sum > div{display:grid;grid-template-columns:86px minmax(0,1fr);gap:10px;align-items:baseline}
+.wiz-sum dt{font-family:var(--font-cond);font-size:10.5px;font-weight:600;
+  text-transform:uppercase;letter-spacing:.05em;color:var(--faint)}
+.wiz-sum dd{margin:0;font-size:13.5px;line-height:1.35;word-break:break-word}
 
 /* audit trail */
 .trail{list-style:none;margin:0;padding:0}

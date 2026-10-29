@@ -60,8 +60,34 @@ export interface Session {
  * not "23503". PostgREST prefixes those, so strip the prefix and keep the
  * sentence.
  */
-export function refusalMessage(error: { message: string } | null | undefined): string | null {
+export function refusalMessage(
+  error: { message: string; code?: string } | null | undefined,
+): string | null {
   if (!error) return null;
+
+  /*
+   * One exception, and it is not a refusal at all.
+   *
+   * PGRST202 is PostgREST saying "no function of that name takes those
+   * arguments". In this system that means one thing: the app has been
+   * deployed and the database has not had its catch-up applied, so the
+   * screen is calling a function with a parameter the database has never
+   * heard of. It surfaces as a wall of parameter names — the real one read
+   *
+   *   Could not find the function public.create_job_with_site(p_category,
+   *   p_crew, p_customer_id, … p_title) in the schema cache
+   *
+   * which tells somebody trying to book a job precisely nothing, and looks
+   * like the app is broken rather than one SQL file behind.
+   */
+  if (error.code === 'PGRST202' || /in the schema cache/i.test(error.message)) {
+    return (
+      'The database has not been updated for this version of the app yet, so this screen is ' +
+      'asking it for something it does not have. Run the newest supabase/update-from-*.sql ' +
+      'in the Supabase SQL editor, then try again. Nothing has been saved.'
+    );
+  }
+
   const message = error.message.replace(/^.*?:\s*/, '').trim();
   return message.length > 0 ? message : error.message;
 }

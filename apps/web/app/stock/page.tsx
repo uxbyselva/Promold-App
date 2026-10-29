@@ -80,6 +80,8 @@ export default async function StockPage() {
         jobs={jobs ?? []}
         people={people ?? []}
         canTransfer={session.can('inventory.transfer')}
+        canAdjust={session.can('inventory.adjust')}
+        orgId={session.orgId}
       />
     </OfficeShell>
   );

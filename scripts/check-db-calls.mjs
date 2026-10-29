@@ -45,7 +45,22 @@ for (const file of files) {
   const text = readFileSync(file, 'utf8');
 
   // .rpc('name', { p_a: …, p_b: … })   — the argument object may span lines.
-  for (const m of text.matchAll(/\.rpc\(\s*'([a-z0-9_]+)'\s*(?:,\s*\{([\s\S]*?)\})?\s*\)/g)) {
+  //
+  // And `call('name', { … })`, which is how most screens invoke a workflow
+  // function: a local helper that wraps supabase.rpc() with the busy flag and
+  // the error banner. Eleven of them were written that way — accepting a job,
+  // starting it, finishing it, every pack operation, both equipment movements
+  // and both change-order decisions — and none of it was checked, because the
+  // pattern below only knew about `.rpc(`. That is most of what the crew
+  // touch, unverified, by a script whose entire job is to verify it.
+  //
+  // The helper takes the name as its first argument, so the call site still
+  // spells it out and this can read it. A helper that took a variable would
+  // be invisible again; there is no way around that short of running the app,
+  // which is what scripts/dev-stack.mjs is for.
+  for (const m of text.matchAll(
+    /(?:\.rpc|\bcall)\(\s*'([a-z0-9_]+)'\s*(?:,\s*\{([\s\S]*?)\})?\s*[,)]/g,
+  )) {
     const [, name, argBlock = ''] = m;
     const args = [...argBlock.matchAll(/^\s*(p_[a-z0-9_]+)\s*:/gm)].map((a) => a[1]);
     rpcCalls.push({ name, args, where: `${file}:${lineOf(text, m.index)}` });

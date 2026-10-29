@@ -4,8 +4,8 @@
  * Two rules, both learned the hard way.
  *
  * **Everything is formatted in the company's timezone, not the viewer's.** A
- * job booked for 08:00 in Springfield reads 08:00 whoever is looking. A crew
- * lead checking the schedule from a hotel in another state should not see the
+ * job booked for 08:00 in Ottawa reads 08:00 whoever is looking. A crew lead
+ * checking the schedule from a hotel in another province should not see the
  * day shift under him.
  *
  * **Nothing is formatted using the machine's locale or zone.** These run on
@@ -17,8 +17,13 @@
 
 // The company's zone. Overridable per deployment; the default is where the
 // work is.
-const ZONE = process.env.NEXT_PUBLIC_ORG_TIMEZONE || 'America/New_York';
+const ZONE = process.env.NEXT_PUBLIC_ORG_TIMEZONE || 'America/Toronto';
+// Dates read as "24 Oct 2026" — day first, month named, no ambiguity about
+// which number is which. Money is the one thing formatted as Canadian,
+// because "$3,400.00" is what the office expects to see and en-GB would put
+// a pound sign on it.
 const LOCALE = 'en-GB';
+const MONEY_LOCALE = 'en-CA';
 
 /**
  * The y-m-d of a `Date` built from calendar fields — `new Date(y, m, d)` — for
@@ -32,7 +37,7 @@ export const isoDay = (d: Date) =>
 
 /*
  * The company's today. `isoDay(new Date())` read the machine's calendar: UTC
- * on the server, the viewer's zone in the browser. After 20:00 in Springfield
+ * on the server, the viewer's zone in the browser. After 20:00 in Ottawa
  * those are different dates, so the page rendered one day and hydrated
  * another.
  */
@@ -81,13 +86,21 @@ export const monthName = (month: string) =>
     timeZone: 'UTC',
   });
 
-export const miles = (n: number) =>
+/**
+ * A distance, to one decimal, with no unit attached.
+ *
+ * It was called `miles()`. The column it formats is `distance`, derived from
+ * an odometer, and an odometer in Ontario reads kilometres — so the number
+ * was always whatever the van said and only the label was wrong. Named for
+ * what it does so the next person cannot reintroduce the assumption.
+ */
+export const distance = (n: number) =>
   n.toLocaleString(LOCALE, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
 export const money = (n: number | null | undefined) =>
   n === null || n === undefined
     ? '—'
-    : Number(n).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+    : Number(n).toLocaleString(MONEY_LOCALE, { style: 'currency', currency: 'CAD' });
 
 export const initials = (name: string) =>
   name
@@ -105,7 +118,7 @@ export const daysBetween = (from: string, to: string) =>
  *
  * The old version walked a `Date` with `setDate` and read the day off the
  * machine's calendar. On a server that is UTC, so a job running 22:13 Monday
- * to 04:13 Tuesday in Springfield was 02:13 to 08:13 Tuesday in UTC and lost
+ * to 04:13 Tuesday in Ottawa was 02:13 to 08:13 Tuesday in UTC and lost
  * its Monday entirely — the crew's calendar had no dot on the day they were
  * actually booked. Days are counted in the zone the work happens in.
  */
@@ -130,7 +143,7 @@ export const daySpan = (startIso: string, endIso?: string | null) => {
  *
  * A filter like `gte('scheduled_start', '2026-09-21T00:00:00')` carries no
  * zone, so Postgres reads it in the database's timezone — UTC on Supabase.
- * A job at 20:00 in Springfield is 00:00 the next day in UTC, so it landed on
+ * A job at 20:00 in Ottawa is 00:00 the next day in UTC, so it landed on
  * the wrong day's board. Bounding the query in real instants fixes that
  * wherever the database happens to be set.
  */
@@ -176,7 +189,7 @@ export function shiftMonth(month: string, delta: number): string {
  * The inverse of `localInput`, and it has to exist because the two halves
  * disagreed: the box was filled from company-zone parts and read back with
  * `new Date(value)`, which interprets the wall-clock text in whatever zone
- * the browser is in. For anyone outside Springfield that meant opening a job,
+ * the browser is in. For anyone outside Ottawa that meant opening a job,
  * pressing Save without touching anything, and silently moving it — by five
  * hours from London, by nine and a half from Chennai.
  *
@@ -213,3 +226,38 @@ export const localInput = (iso: string | null | undefined) => {
   const get = (t: string) => parts.find((p) => p.type === t)?.value ?? '00';
   return `${get('year')}-${get('month')}-${get('day')}T${get('hour')}:${get('minute')}`;
 };
+
+/**
+ * What the crew put into the van's satnav.
+ *
+ * A job is a place before it is anything else — "14 Perry Street" says more
+ * to everyone in this company than its job number or its title do, and the
+ * screens lead with it. Every part is optional except the first line, which
+ * the database insists on, so this drops the blanks rather than leaving a
+ * trail of commas.
+ *
+ * `short` is the version for a heading: street and town, no state or
+ * postcode, because a heading that wraps onto three lines on a phone has
+ * stopped being a heading.
+ */
+export type Addressable = {
+  address_line1?: string | null;
+  address_line2?: string | null;
+  city?: string | null;
+  state?: string | null;
+  postal_code?: string | null;
+};
+
+export const siteAddress = (site: Addressable | null | undefined, short = false) =>
+  site
+    ? [
+        site.address_line1,
+        short ? null : site.address_line2,
+        site.city,
+        short ? null : site.state,
+        short ? null : site.postal_code,
+      ]
+        .map((part) => part?.trim())
+        .filter(Boolean)
+        .join(', ')
+    : '';

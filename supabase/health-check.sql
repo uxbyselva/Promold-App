@@ -48,6 +48,36 @@ with probe as (
     -- reach jobs_safe or the clients cannot read it at all.
     (select count(*) from information_schema.columns
       where table_name = 'jobs_safe' and column_name = 'settlement_method') as m0032,
+    -- 0033 is detected on the trigger, not the function. The function can sit
+    -- there unused; what actually stops a job coming out as J00004 is the
+    -- trigger being attached to the table.
+    (select count(*) from pg_trigger
+      where tgname = 'jobs_number' and not tgisinternal) as m0033,
+    -- 0034 on the column DEFAULT, not on the organisation's own row.
+    --
+    -- It used to read the row, which is wrong in the one case that matters:
+    -- an organisation created from the current setup guide is on Toronto
+    -- time because the guide says to put it there, migration or no
+    -- migration. A database at 0032 then reported "At 0034", and whoever
+    -- believed it would run the 0034 catch-up — skipping 0033 and 0034
+    -- entirely and leaving the schema quietly half-applied. The default on
+    -- the column is set by the migration and by nothing else.
+    (select count(*) from information_schema.columns
+      where table_name = 'organizations' and column_name = 'timezone'
+        and column_default like '%America/Toronto%') as m0034,
+    -- 0035 on the view, for the reason 0032 taught: the column has to reach
+    -- jobs_safe or the clients cannot read it at all.
+    (select count(*) from information_schema.columns
+      where table_name = 'jobs_safe' and column_name = 'category') as m0035,
+    -- 0036 on add_person(), the one of the three that cannot be done any
+    -- other way: it reads auth.users, which no signed-in user can.
+    (select count(*) from pg_proc where proname = 'add_person') as m0036,
+    (select count(*) from pg_proc where proname = 'job_equipment_on_site') as m0037,
+    -- 0038 is detected inside the function body: the signature did not
+    -- change, only who supplies a new site's name.
+    (select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+      where n.nspname = 'public' and p.proname = 'create_job_with_site'
+        and p.prosrc like '%coalesce(nullif(btrim(coalesce(p_site_label%') as m0038,
     (select case
        when to_regclass('public.roles') is null then -1
        else (xpath('/row/c/text()', query_to_xml(
@@ -89,7 +119,13 @@ select * from (
     -- The old version collapsed everything from 0022 to 0027 into one alarming
     -- verdict, which said "get help" to an owner whose database was fine and
     -- one file behind.
-    case when m0032 > 0 then 'Up to date (0001–0032)'
+    case when m0038 > 0 then 'Up to date (0001–0038)'
+         when m0037 > 0 then 'At 0037 — run supabase/update-from-0037.sql'
+         when m0036 > 0 then 'At 0036 — run supabase/update-from-0036.sql'
+         when m0035 > 0 then 'At 0035 — run supabase/update-from-0035.sql'
+         when m0034 > 0 then 'At 0034 — run supabase/update-from-0034.sql'
+         when m0033 > 0 then 'At 0033 — run supabase/update-from-0033.sql'
+         when m0032 > 0 then 'At 0032 — run supabase/update-from-0032.sql'
          when m0031 > 0 then 'At 0031 — run supabase/update-from-0031.sql'
          when m0030 > 0 then 'At 0030 — run supabase/update-from-0030.sql'
          when m0029 > 0 then 'At 0029 — run supabase/update-from-0029.sql'
@@ -150,7 +186,57 @@ select * from (
          else 'Purchase approvals will fail' end from probe
 
   union all
-  select 8.0, 'Job finish (0032)',
+  select 7.97, 'Site naming (0038)',
+    case when m0038 > 0 then 'Present' else 'Missing' end,
+    case when m0038 > 0 then 'Booking a new address does not ask anybody to invent a nickname for it'
+         else 'Booking a new address still demands a label before it will save'
+         end
+  from probe
+
+  union all
+  select 7.96, 'Kit left on site (0037)',
+    case when m0037 > 0 then 'Present' else 'Missing' end,
+    case when m0037 > 0 then 'A finished job keeps showing what is still in the building'
+         else 'A job can be finished with our own equipment still on site and nothing saying so'
+         end
+  from probe
+
+  union all
+  select 7.95, 'Office admin (0036)',
+    case when m0036 > 0 then 'Present' else 'Missing' end,
+    case when m0036 > 0 then 'Staff, settings, roles, registers and checklists are editable in the app'
+         else 'Adding a person or moving the spend threshold still needs the SQL editor'
+         end
+  from probe
+
+  union all
+  select 7.94, 'Job kinds (0035)',
+    case when m0035 > 0 then 'Present' else 'Missing' end,
+    case when m0035 > 0 then 'Jobs are remediation, inspection or other, and the board shows which'
+         else 'Every job looks the same kind, so inspections cannot be counted'
+         end
+  from probe
+
+  union all
+  select 7.93, 'Ontario (0034)',
+    case when m0034 > 0 then 'Present' else 'Missing' end,
+    case when m0034 > 0 then 'Toronto time, dollars as CAD, kilometres, Celsius'
+         else 'Still on New York time with US units — check the organisation row'
+         end
+  from probe
+
+  union all
+  select 7.92, 'Job numbers (0033)',
+    case when m0033 > 0 then 'Present' else 'Missing' end,
+    case when m0033 > 0 then 'New jobs are numbered YYMM-NNNN, which carries no running total'
+         else 'New jobs still count upwards from J00001, which tells anyone holding two of them how much work you have had'
+         end
+  from probe
+
+  union all
+  -- 7.91, not 8.0: the organisation row below is 8, and 8.0 ties with it,
+  -- so a migration numbered 8.0 sorted into the middle of the setup rows.
+  select 7.91, 'Job finish (0032)',
     case when m0032 > 0 then 'Present' else 'Missing' end,
     case when m0032 > 0 then 'The crew record how it was settled and a note when they finish'
          else 'Finishing a job records nothing about how it was settled' end

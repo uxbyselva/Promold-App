@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { requireSession } from '@/lib/session';
 import { supabaseServer } from '@/lib/supabase-server';
 import { jobFormOptions } from '@/lib/office-data';
+import { siteAddress } from '@/lib/format';
 import { OfficeShell } from '@/components/office-shell';
 import { JobForm } from '@/components/job-form';
 import { draftFromJob } from '@/lib/job-draft';
@@ -23,7 +24,7 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
       // deleted_at — asking for it fails the whole query. A deleted job is
       // simply not found here; the recycle bin in admin mode is where it
       // lives and where it comes back from.
-      'id, job_number, title, description, status, priority, scheduled_start, scheduled_end, quoted_price, site_id, customer_id, template_id',
+      'id, job_number, title, description, status, priority, category, scheduled_start, scheduled_end, quoted_price, site_id, customer_id, template_id',
     )
     .eq('id', id)
     .maybeSingle();
@@ -55,6 +56,7 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
   const nameOf = (userId: string) =>
     (crewNames ?? []).find((p) => p.id === userId)?.full_name ?? 'Someone';
 
+  const site = options.sites.find((s) => s.id === job.site_id) ?? null;
   const canEdit = session.can('job.edit');
   const canSeeCosts = session.can('costing.view');
 
@@ -93,14 +95,21 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
 
   return (
     <OfficeShell session={session} mode="office">
+      {/*
+       * The address is the heading. Everyone in this company thinks of a job
+       * as a place — "the one on Perry Street" — so the street goes where the
+       * eye lands, the job's own name under it, and the number and the
+       * customer in the small print where a reference belongs rather than
+       * where a title does.
+       */}
       <div className="page-head">
         <div>
-          <h1>
-            <span className="mono">{job.job_number}</span> · {job.title}
-          </h1>
-          <p>
+          <h1>{siteAddress(site, true) || site?.label || 'No address on this site'}</h1>
+          <p style={{ marginTop: 2, fontSize: 15, color: 'var(--ink)' }}>{job.title}</p>
+          <p className="mono" style={{ fontSize: 12.5 }}>
+            {job.job_number} ·{' '}
             {options.customers.find((c) => c.id === job.customer_id)?.name ?? 'Unknown customer'} ·{' '}
-            {options.sites.find((s) => s.id === job.site_id)?.label ?? 'Unknown site'}
+            {job.category[0]!.toUpperCase() + job.category.slice(1)}
           </p>
         </div>
         {session.can('audit.view') ? (
@@ -110,10 +119,7 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
         ) : null}
       </div>
 
-      <div
-        className="cols aside"
-        style={{ gridTemplateColumns: 'minmax(0,1fr) minmax(280px,360px)' }}
-      >
+      <div className="cols aside flip">
         {canEdit ? (
           <JobForm
             mode="edit"
@@ -156,10 +162,7 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
       </div>
 
       {canSeeCosts ? (
-        <div
-          className="cols aside"
-          style={{ gridTemplateColumns: 'minmax(0,1fr) minmax(280px,360px)', marginTop: 14 }}
-        >
+        <div className="cols aside flip" style={{ marginTop: 14 }}>
           <CrewPay
             jobId={job.id}
             orgId={session.orgId}

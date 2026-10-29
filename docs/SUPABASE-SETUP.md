@@ -48,8 +48,8 @@ runs it on every push.
    - **Database password**: let it generate one, then **save it in your
      password manager**. You cannot see it again, and you need it to connect
      directly.
-   - **Region**: `East US (North Virginia)` — closest to Springfield, so the
-     app feels quicker.
+   - **Region**: `Canada (Central)` — the work is in Ontario, and keeping
+     the data in the country is one less question to answer later.
    - **Plan**: Free.
 3. Provisioning takes about two minutes.
 
@@ -86,7 +86,7 @@ declare
   v_user uuid;
 begin
   insert into organizations (name, timezone)
-  values ('Promold Restoration', 'America/New_York')
+  values ('Promold Restoration', 'America/Toronto')
   returning id into v_org;
 
   perform provision_org(v_org);
@@ -103,6 +103,40 @@ begin
   raise notice 'Organisation % created, you are its owner', v_org;
 end $$;
 ```
+
+> **Run this block once, ever.** It creates an organisation every time, and a
+> second organisation is the most confusing thing that can happen to this
+> system: the login works, the screens render, and they share no customers,
+> jobs or equipment with anybody — because row-level security scopes
+> everything to the organisation you belong to, silently and by design. To add
+> the second person, and the twentieth, use section 4a instead.
+
+## 4a. Everybody else
+
+Each person needs two things, and they are set up in two different places:
+
+1. **A way in.** **Authentication** → **Users** → **Add user**, with their
+   email and a password, **Auto Confirm User** ticked.
+2. **A place in the company.** Edit the three values at the top of
+   **`supabase/add-a-person.sql`** — email, name, role — and run it in the SQL
+   editor.
+
+Only the first is a login. Someone with a login and no profile can sign in
+perfectly and then find every screen empty, which is what the app's "No
+profile for this login" page is telling you.
+
+`add-a-person.sql` joins the organisation that already exists and refuses if
+it cannot tell which one that is, so it cannot produce the mess the warning
+above describes. Running it again with a different role changes that person's
+role.
+
+The roles are `owner`, `manager`, `bookkeeper`, `crew_lead` and `technician`.
+What each may do is in [`04-permissions.md`](04-permissions.md).
+
+**When somebody cannot see what you expect**, run
+**`supabase/who-can-sign-in.sql`**. It is read-only, and it lists everyone who
+can sign in next to what the app makes of them — including the ones with no
+profile, and whether a stray second organisation exists.
 
 ## 5. Optional — put something on the board
 

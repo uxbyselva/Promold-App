@@ -15,8 +15,23 @@
 import { localInput } from '@/lib/format';
 
 export type Customer = { id: string; name: string };
-export type Site = { id: string; customer_id: string; label: string; city: string | null };
-export type Template = { id: string; name: string; default_duration_hours: number };
+export type Site = {
+  id: string;
+  customer_id: string;
+  label: string;
+  address_line1: string | null;
+  address_line2: string | null;
+  city: string | null;
+  state: string | null;
+  postal_code: string | null;
+};
+export type Template = {
+  id: string;
+  name: string;
+  default_duration_hours: number;
+  /** Which kind of job this checklist belongs to — see JobDraft.category. */
+  category: string;
+};
 export type Person = { id: string; full_name: string };
 
 export type JobDraft = {
@@ -24,6 +39,13 @@ export type JobDraft = {
   customer_id: string;
   site_id: string;
   template_id: string;
+  /**
+   * remediation | inspection | other. Never empty: every job is one of the
+   * things this company does, and the database will not store a job without
+   * one. Separate from template_id, which is the completion checklist and is
+   * usually not set at all.
+   */
+  category: string;
   title: string;
   description: string;
   priority: string;
@@ -39,6 +61,7 @@ export function draftFromJob(
     customer_id: string;
     site_id: string;
     template_id: string | null;
+    category: string;
     title: string;
     description: string | null;
     priority: string;
@@ -53,6 +76,7 @@ export function draftFromJob(
     customer_id: job.customer_id,
     site_id: job.site_id,
     template_id: job.template_id ?? '',
+    category: job.category,
     title: job.title,
     description: job.description ?? '',
     priority: job.priority,

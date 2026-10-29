@@ -104,12 +104,28 @@ export async function OfficeShell({
       label: 'Stock',
       when: session.can('inventory.manage') || session.can('inventory.log_usage'),
     },
+    { href: '/mileage', label: 'Mileage', when: session.can('mileage.view_all') },
   ];
   const admin: Tab[] = [
     { href: '/admin', label: 'Overview', when: true },
     { href: '/admin/activity', label: 'Activity', when: true },
     { href: '/admin/deleted', label: 'Deleted', when: true },
     { href: '/admin/roles', label: 'Roles', when: true },
+    { href: '/admin/people', label: 'People', when: session.can('user.manage') },
+    {
+      href: '/admin/registers',
+      label: 'Registers',
+      when:
+        session.can('inventory.manage') ||
+        session.can('vehicle.manage') ||
+        session.can('equipment.manage'),
+    },
+    {
+      href: '/admin/checklists',
+      label: 'Checklists',
+      when: session.can('job.manage_templates'),
+    },
+    { href: '/admin/settings', label: 'Settings', when: session.can('org.manage_settings') },
   ];
   const tabs = (mode === 'admin' ? admin : office).filter((t) => t.when);
   /*

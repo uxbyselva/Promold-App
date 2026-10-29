@@ -64,6 +64,8 @@ export function StockBoard({
   jobs,
   people,
   canTransfer,
+  canAdjust,
+  orgId,
 }: {
   items: Item[];
   locations: Location[];
@@ -73,6 +75,8 @@ export function StockBoard({
   jobs: { id: string; job_number: string }[];
   people: { id: string; full_name: string }[];
   canTransfer: boolean;
+  canAdjust: boolean;
+  orgId: string;
 }) {
   const router = useRouter();
   const [refreshing, startTransition] = useTransition();
@@ -80,6 +84,52 @@ export function StockBoard({
   const [error, setError] = useState<string | null>(null);
 
   const working = busy !== null || refreshing;
+
+  /*
+   * Correcting a count.
+   *
+   * `inventory.adjust` was held by the Owner and the Manager and had no
+   * screen at all, so a van that said five when it held three stayed wrong
+   * for good — the ledger is append-only and there was no way to append.
+   *
+   * The office types what was actually on the shelf, not a difference. Asking
+   * for a delta means asking somebody to do arithmetic with a sign, standing
+   * in a warehouse, and the direction of the correction is exactly what they
+   * will get backwards. The movement is worked out from the count.
+   */
+  const [count, setCount] = useState({ item: '', location: '', counted: '', reason: '' });
+
+  async function correct() {
+    const current = at(count.item, count.location);
+    const counted = Number(count.counted);
+    const delta = counted - current;
+    if (!Number.isFinite(delta) || delta === 0) {
+      setError('That is what the ledger already says, so there is nothing to record.');
+      return;
+    }
+    setBusy('count');
+    setError(null);
+    // Quantity is always positive; which end of the movement the location
+    // sits on is what makes it an increase or a decrease.
+    const { error: err } = await supabaseBrowser()
+      .from('stock_movements')
+      .insert({
+        org_id: orgId,
+        item_id: count.item,
+        kind: 'count',
+        quantity: Math.abs(delta),
+        from_location_id: delta < 0 ? count.location : null,
+        to_location_id: delta > 0 ? count.location : null,
+        reason: count.reason.trim() || 'Counted on the shelf',
+      });
+    setBusy(null);
+    if (err) {
+      setError(refusalMessage(err));
+      return;
+    }
+    setCount({ item: '', location: '', counted: '', reason: '' });
+    startTransition(() => router.refresh());
+  }
   const at = (itemId: string, locationId: string) =>
     Number(levels.find((l) => l.item_id === itemId && l.location_id === locationId)?.quantity ?? 0);
   const total = (itemId: string) =>
@@ -327,6 +377,101 @@ export function StockBoard({
           </table>
         </div>
       </div>
+
+      {canAdjust ? (
+        <div className="box" style={{ marginTop: 14 }}>
+          <header>
+            <h3>Correct a count</h3>
+          </header>
+          <div className="body">
+            <p className="hint" style={{ marginTop: 0 }}>
+              Type what is actually on the shelf. The difference is written to the ledger as a
+              count, with your name and your reason on it — nothing is overwritten, because the
+              level is the sum of everything that ever moved and that is what makes it trustworthy.
+            </p>
+            <div className="cols two">
+              <div className="field">
+                <label htmlFor="count-item">Item</label>
+                <select
+                  id="count-item"
+                  value={count.item}
+                  onChange={(e) => setCount((c) => ({ ...c, item: e.target.value }))}
+                >
+                  <option value="">Choose…</option>
+                  {items.map((i) => (
+                    <option key={i.id} value={i.id}>
+                      {i.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="field">
+                <label htmlFor="count-where">Where</label>
+                <select
+                  id="count-where"
+                  value={count.location}
+                  onChange={(e) => setCount((c) => ({ ...c, location: e.target.value }))}
+                >
+                  <option value="">Choose…</option>
+                  {locations.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="cols two">
+              <div className="field">
+                <label htmlFor="count-n">Counted</label>
+                <input
+                  id="count-n"
+                  type="number"
+                  step="0.01"
+                  inputMode="decimal"
+                  value={count.counted}
+                  onChange={(e) => setCount((c) => ({ ...c, counted: e.target.value }))}
+                />
+                {count.item && count.location ? (
+                  <p className="hint">
+                    The ledger says <b className="mono">{at(count.item, count.location)}</b>
+                    {count.counted.trim() !== '' &&
+                    Number(count.counted) !== at(count.item, count.location) ? (
+                      <>
+                        {' '}
+                        — this records a change of{' '}
+                        <b className="mono">
+                          {Number(count.counted) - at(count.item, count.location) > 0 ? '+' : ''}
+                          {Number(count.counted) - at(count.item, count.location)}
+                        </b>
+                        .
+                      </>
+                    ) : null}
+                  </p>
+                ) : null}
+              </div>
+              <div className="field">
+                <label htmlFor="count-why">Why</label>
+                <input
+                  id="count-why"
+                  value={count.reason}
+                  placeholder="Monthly count, van 1"
+                  onChange={(e) => setCount((c) => ({ ...c, reason: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div>
+              <button
+                className="btn"
+                onClick={correct}
+                disabled={working || !count.item || !count.location || count.counted.trim() === ''}
+              >
+                {busy === 'count' ? 'Recording…' : 'Record the count'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </>
   );
 }

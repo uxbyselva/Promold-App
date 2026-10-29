@@ -771,7 +771,7 @@ select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000a002
 do $$
 declare
   v_d1 uuid := '00000000-0000-0000-0000-0000000000d1';  -- Helen Brooks, has a site
-  v_d3 uuid := '00000000-0000-0000-0000-0000000000d3';  -- Statewide Mutual, has none
+  v_d3 uuid := '00000000-0000-0000-0000-0000000000d3';  -- Dominion Mutual, has none
   v_n int;
 begin
   perform assert_raises(
@@ -1755,8 +1755,8 @@ begin
   select count(*) into v_customers_before from customers;
 
   v_job := create_job_with_site(
-    null, 'Marguerite Okonjo', '555-0199',
-    null, 'Back bedroom', '77 Pine Hollow Rd', 'Springfield', 'MA', '01105',
+    null, 'Marguerite Okonjo', '613-555-0199',
+    null, 'Back bedroom', '77 Pine Hollow Rd', 'Ottawa', 'ON', 'K2P 1L4',
     'Damp behind the wardrobe', assert_day(70), assert_day(70, 16));
 
   perform assert(v_job.id is not null, 'a stranger can be booked in one go');
@@ -1777,7 +1777,7 @@ begin
   begin
     v_job2 := create_job_with_site(
       v_job.customer_id, null, null,
-      null, 'Rental unit', '9 Alder Ct', 'Springfield', 'MA', '01106',
+      null, 'Rental unit', '9 Alder Ct', 'Ottawa', 'ON', 'K1N 7B7',
       'Second property', assert_day(71), assert_day(71, 16));
     perform assert(v_job2.customer_id = v_job.customer_id,
       'a second site goes under the customer who already exists');
@@ -1891,3 +1891,362 @@ end $$;
 reset role;
 select set_config('request.jwt.claim.sub', '', false);
 \echo 'SETTLEMENT ASSERTIONS PASSED'
+
+-- ===========================================================================
+-- Job numbers (0033)
+-- ===========================================================================
+--
+-- The point of the format is what it does NOT say. A sequential number tells
+-- anybody holding two of them how much work came between, which is why these
+-- assertions care about unpredictability as much as about shape.
+
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000a002', false);
+set role authenticated;
+
+do $$
+declare
+  v_org  uuid := '00000000-0000-0000-0000-0000000000a1';
+  v_cust uuid := '00000000-0000-0000-0000-0000000000d1';
+  v_site uuid := '00000000-0000-0000-0000-0000000000e1';
+  v_a    jobs;
+  v_nums text[] := '{}';
+  v_run  int := 0;
+begin
+  -- Five in a row, because one pair proves nothing: two random draws land
+  -- next to each other once in five thousand tries, and a test that fails
+  -- that often teaches people to re-run it rather than read it.
+  for i in 1..5 loop
+    v_a := create_job(v_cust, v_site, 'Numbering ' || i,
+                      assert_day(14, 8 + i), assert_day(14, 9 + i),
+                      null, null, 'normal', null, '{}'::uuid[]);
+    v_nums := v_nums || v_a.job_number;
+  end loop;
+
+  perform assert(v_nums[1] ~ '^[0-9]{4}-[0-9]{4,5}$',
+    'a new job number is YYMM and some digits');
+  perform assert(
+    left(v_nums[1], 4) = to_char(assert_day(14, 9) at time zone
+      (select timezone from organizations where id = v_org), 'YYMM'),
+    'and the month is the month the work is booked for, in the company zone');
+  perform assert(
+    (select count(distinct n) from unnest(v_nums) n) = 5,
+    'five booked back to back, five different numbers');
+
+  -- The one that matters. A sequence hands out n, n+1, n+2 — so if every
+  -- step is +1, the count has leaked back in however the number is dressed
+  -- up. Five draws make a false alarm a one-in-a-trillion event.
+  for i in 2..5 loop
+    if split_part(v_nums[i], '-', 2)::int - split_part(v_nums[i - 1], '-', 2)::int = 1 then
+      v_run := v_run + 1;
+    end if;
+  end loop;
+  perform assert(v_run < 4,
+    'and they do not count upwards, which is the entire point');
+end $$;
+
+do $$
+begin
+  perform assert(
+    not exists (select 1 from pg_class where relname = 'job_number_seq' and relkind = 'S'),
+    'the old counting sequence is gone, not merely unused');
+  perform assert(
+    (select count(*) from jobs where job_number is null or btrim(job_number) = '') = 0,
+    'and every job has a number whoever wrote the insert');
+end $$;
+
+reset role;
+select set_config('request.jwt.claim.sub', '', false);
+\echo 'JOB NUMBER ASSERTIONS PASSED'
+
+-- ===========================================================================
+-- Ontario (0034) and what kind of job it is (0035)
+-- ===========================================================================
+
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000a002', false);
+set role authenticated;
+
+do $$
+declare
+  v_cust uuid := '00000000-0000-0000-0000-0000000000d1';
+  v_site uuid := '00000000-0000-0000-0000-0000000000e1';
+  v_a jobs;
+  v_b jobs;
+begin
+  -- 0034: the company's own settings, not a US stand-in.
+  perform assert(
+    (select timezone from organizations where id = '00000000-0000-0000-0000-0000000000a1')
+      = 'America/Toronto',
+    'the company works on Toronto time');
+  perform assert(
+    not exists (select 1 from sites where state = 'MA'),
+    'and nothing is in Massachusetts any more');
+  perform assert(
+    (select count(*) from form_templates
+      where key = 'moisture_readings' and fields @> '[{"key": "temp_f"}]'::jsonb) = 0,
+    'moisture readings are not asked for in Fahrenheit');
+  perform assert(
+    (select count(*) from form_templates
+      where key = 'moisture_readings' and fields @> '[{"key": "temp_c"}]'::jsonb) > 0,
+    'they are asked for in Celsius');
+
+  -- 0035: a job always has a kind, chosen or defaulted.
+  v_a := create_job(v_cust, v_site, 'An inspection', assert_day(16, 9), assert_day(16, 11),
+                    null, null, 'normal', null, '{}'::uuid[], 'inspection');
+  v_b := create_job(v_cust, v_site, 'Whatever this is', assert_day(16, 13), assert_day(16, 15),
+                    null, null, 'normal', null, '{}'::uuid[]);
+
+  perform assert(v_a.category = 'inspection', 'a job can be booked as an inspection');
+  perform assert(v_b.category = 'remediation',
+    'and one booked without saying is remediation, which is most of them');
+
+  -- The category is the office's, not the crew lead's price flag: it reaches
+  -- the view every client reads, or the pages 404 on it.
+  perform assert(
+    exists (select 1 from information_schema.columns
+             where table_name = 'jobs_safe' and column_name = 'category'),
+    'and it reaches jobs_safe, where the clients can see it');
+
+  -- A checklist belongs to a kind, so the form can narrow the list.
+  perform assert(
+    (select count(*) from job_templates where category = 'inspection') > 0,
+    'the inspection checklists are marked as inspection checklists');
+  perform assert(
+    (select count(*) from job_templates where name ilike '%remediation day%'
+       and category = 'remediation') > 0,
+    'and the remediation ones as remediation');
+end $$;
+
+reset role;
+select set_config('request.jwt.claim.sub', '', false);
+\echo 'ONTARIO AND CATEGORY ASSERTIONS PASSED'
+
+-- ===========================================================================
+-- The office administering itself (0036)
+-- ===========================================================================
+--
+-- Three flags the Owner held with nothing behind them. These assert the
+-- database half: the screens are checked by driving a browser.
+
+-- A login with no profile, for add_person() to attach.
+insert into auth.users (id, email)
+values ('00000000-0000-0000-0000-0000000000f9', 'newhire@promold.test')
+on conflict do nothing;
+
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000a001', false);
+set role authenticated;
+
+do $$
+declare
+  v_lead uuid := '00000000-0000-0000-0000-00000000a003';
+  v_org  organizations;
+  v_new  profiles;
+begin
+  -- Settings merge rather than replace: a screen must not be able to delete
+  -- a key it was never told about.
+  v_org := update_org_settings(p_approval_threshold := 750, p_mileage_rate := 0.73);
+  perform assert((v_org.settings ->> 'approval_threshold')::numeric = 750,
+    'the owner can move the spend threshold');
+  perform assert((v_org.settings ->> 'mileage_rate')::numeric = 0.73,
+    'and the mileage rate');
+  perform assert(v_org.settings ? 'geofence_radius_m',
+    'and a setting the screen never mentioned survives the save');
+
+  -- Read back through profiles_safe, never `profiles`: the column is revoked
+  -- from the client, so the base table raises "permission denied" here just
+  -- as it would on a screen. That it does is the point.
+  perform set_cost_rate(v_lead, 38.50);
+  perform assert((select cost_rate from profiles_safe where id = v_lead) = 38.50,
+    'the owner can set what somebody is paid, and read it back through the view');
+
+  v_new := add_person('newhire@promold.test', 'Dev Patel', 'technician', '613-555-0444');
+  perform assert(v_new.is_active, 'a new hire with a login becomes a member of staff');
+  perform assert(v_new.org_id = auth_org_id(),
+    'in the caller''s own organisation, never a new one');
+
+  -- Re-running is how a promotion is recorded, not an error.
+  v_new := add_person('newhire@promold.test', 'Dev Patel', 'crew_lead');
+  perform assert(
+    (select key from roles where id = v_new.role_id) = 'crew_lead',
+    'and running it again changes their role rather than failing');
+end $$;
+
+-- A timezone the database does not know would make every date wrong at once.
+do $$
+begin
+  begin
+    perform update_org_settings(p_timezone := 'Mars/Olympus');
+    perform assert(false, 'a made-up timezone is refused');
+  exception when others then
+    perform assert(sqlstate = '22023', 'a made-up timezone is refused');
+  end;
+end $$;
+
+-- A manager runs the work and does not administer the company.
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000a002', false);
+
+do $$
+begin
+  begin
+    perform update_org_settings(p_approval_threshold := 10);
+    perform assert(false, 'a manager cannot move the threshold they approve against');
+  exception when others then
+    perform assert(sqlstate = '42501',
+      'a manager cannot move the threshold they approve against');
+  end;
+
+  -- user.manage without user.view_cost_rates: may manage people, may not be
+  -- shown or set what they are paid.
+  begin
+    perform set_cost_rate('00000000-0000-0000-0000-00000000a003', 99);
+    perform assert(false, 'and cannot set a cost rate they are not allowed to see');
+  exception when others then
+    perform assert(sqlstate = '42501',
+      'and cannot set a cost rate they are not allowed to see');
+  end;
+end $$;
+
+-- A crew lead administers nothing at all.
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000a003', false);
+
+do $$
+begin
+  begin
+    perform add_person('newhire@promold.test', 'X', 'technician');
+    perform assert(false, 'a crew lead cannot add staff');
+  exception when others then
+    perform assert(sqlstate = '42501', 'a crew lead cannot add staff');
+  end;
+end $$;
+
+reset role;
+select set_config('request.jwt.claim.sub', '', false);
+\echo 'OFFICE ADMIN ASSERTIONS PASSED'
+
+-- ===========================================================================
+-- Equipment left on a finished job (0037)
+-- ===========================================================================
+--
+-- Self-contained: this block makes its own placements rather than reading
+-- whatever the seed left, because the blocks above it collect kit and finish
+-- jobs, and an assertion that depends on what ran before it fails for
+-- reasons that have nothing to do with what it is testing.
+
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000a002', false);
+set role authenticated;
+
+do $$
+declare
+  v_job  uuid := '00000000-0000-0000-0000-00000000bb02';
+  v_org  uuid := '00000000-0000-0000-0000-0000000000a1';
+  v_kit  uuid;
+begin
+  -- Start from nothing on this job.
+  update equipment_assignments set ended_at = now()
+   where job_id = v_job and ended_at is null;
+
+  perform assert((select count(*) from job_equipment_on_site(v_job)) = 0,
+    'a job with no kit on it lists none');
+  perform assert(
+    not exists (select 1 from unnest(job_completion_warnings(v_job)) w
+                 where w like '%our own unit(s)%'),
+    'and says nothing about equipment');
+
+  -- A unit checked out to the job: a warning, never a blocker. It is meant
+  -- to be able to stay.
+  select id into v_kit from equipment
+   where not exists (select 1 from equipment_assignments a
+                      where a.equipment_id = equipment.id and a.ended_at is null)
+   limit 1;
+
+  -- A checkout is to a PERSON and staging is to a SITE — the table has a
+  -- check constraint saying so, which is why both are supplied below.
+  insert into equipment_assignments
+    (org_id, equipment_id, job_id, kind, assigned_to_user_id, started_at)
+  values (v_org, v_kit, v_job, 'checkout',
+          '00000000-0000-0000-0000-00000000a003', now());
+
+  perform assert((select count(*) from job_equipment_on_site(v_job)) = 1,
+    'a job with our kit on it lists that kit');
+  perform assert(
+    exists (select 1 from unnest(job_completion_warnings(v_job)) w
+             where w like '%our own unit(s) still out%'),
+    'and finishing it says so');
+  perform assert(
+    not exists (select 1 from unnest(job_completion_blockers(v_job)) b
+                 where b like '%quipment%'),
+    'but does not refuse it — a unit on hire to the job is meant to stay');
+
+  -- Staged at the site with no pickup date is the other case, and that one
+  -- IS refused. The two must never both fire, or the same job tells the crew
+  -- "this stops you" and "this is fine" at once.
+  update equipment_assignments
+     set kind = 'site_staging',
+         site_id = (select site_id from jobs where id = v_job),
+         assigned_to_user_id = null,
+         expected_end_at = null
+   where job_id = v_job and ended_at is null;
+
+  perform assert(
+    exists (select 1 from unnest(job_completion_blockers(v_job)) b
+             where b like '%staged at site with no pickup%'),
+    'kit staged with no pickup date refuses the completion');
+  perform assert(
+    not exists (select 1 from unnest(job_completion_warnings(v_job)) w
+                 where w like '%our own unit(s)%'),
+    'and is not ALSO a warning, which would say both at once');
+end $$;
+
+reset role;
+select set_config('request.jwt.claim.sub', '', false);
+\echo 'EQUIPMENT ON SITE ASSERTIONS PASSED'
+
+-- ===========================================================================
+-- A site is its address (0038)
+-- ===========================================================================
+
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000a002', false);
+set role authenticated;
+
+do $$
+declare
+  v_job  jobs;
+  v_site sites;
+begin
+  -- No label given: the street address becomes the name.
+  v_job := create_job_with_site(
+    null, 'Markham caller', null,
+    null, null, '602 Cornell Centre Blvd', 'Markham', 'ON', 'L6B 1M1',
+    'Attic mold', assert_day(20, 8), assert_day(20, 16));
+  select * into v_site from sites where id = v_job.site_id;
+
+  perform assert(v_site.label = '602 Cornell Centre Blvd',
+    'a site booked without a name is named after its street');
+  perform assert(v_site.city = 'Markham' and v_site.state = 'ON',
+    'and keeps the rest of the address');
+
+  -- A site somebody HAS named keeps that name, which is why this is a
+  -- default and not a removal.
+  v_job := create_job_with_site(
+    null, 'Named site caller', null,
+    null, 'Larkspur Apts — unit 3B', '118 Larkspur Ave', 'Ottawa', 'ON', null,
+    'Unit 3B', assert_day(21, 8), assert_day(21, 16));
+  select * into v_site from sites where id = v_job.site_id;
+
+  perform assert(v_site.label = 'Larkspur Apts — unit 3B',
+    'and one that was given a name keeps it');
+
+  -- The street address is still required: the crew have to drive there.
+  begin
+    perform create_job_with_site(
+      null, 'No address caller', null,
+      null, null, null, 'Ottawa', 'ON', null,
+      'Nowhere', assert_day(22, 8), assert_day(22, 16));
+    perform assert(false, 'but a site with no street address is still refused');
+  exception when others then
+    perform assert(sqlstate = '22023', 'but a site with no street address is still refused');
+  end;
+end $$;
+
+reset role;
+select set_config('request.jwt.claim.sub', '', false);
+\echo 'SITE NAMING ASSERTIONS PASSED'

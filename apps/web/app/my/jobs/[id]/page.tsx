@@ -1,10 +1,21 @@
 import { notFound } from 'next/navigation';
 import { requireSession } from '@/lib/session';
 import { supabaseServer } from '@/lib/supabase-server';
+import { siteAddress } from '@/lib/format';
 import { Shell } from '@/components/shell';
 import { JobDetail } from '@/components/job-detail';
 
 export const dynamic = 'force-dynamic';
+
+/** What `job_equipment_on_site()` returns — an RPC has no inferred row type. */
+type OnSite = {
+  assignment_id: string;
+  equipment_id: string;
+  asset_tag: string;
+  name: string;
+  started_at: string | null;
+  expected_end_at: string | null;
+};
 
 export default async function JobPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -46,11 +57,11 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
         .eq('job_id', id)
         .is('deleted_at', null)
         .order('taken_at', { ascending: false }),
-      supabase
-        .from('equipment_assignments')
-        .select('id, started_at, expected_end_at, equipment!inner(asset_tag, name, category)')
-        .eq('job_id', id)
-        .is('ended_at', null),
+      // Through a function rather than an embedded join. `equipment!inner(...)`
+      // asks PostgREST to infer a relationship, which the call checker
+      // cannot verify and which nothing but a live PostgREST would catch —
+      // it was the one query in the whole app marked "check this by hand".
+      supabase.rpc('job_equipment_on_site', { p_job_id: id }),
     ]);
 
   // The gate, and the things worth saying that are not the crew's to fix.
@@ -121,7 +132,14 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
   const mine = (crew ?? []).find((a) => a.user_id === session.userId);
 
   return (
-    <Shell backToOffice={session.can('job.assign')} title={job.job_number} who={job.title}>
+    // Same rule as the office job page: the place first, the job's own name
+    // under it. Somebody standing outside the van wants the street, not a
+    // reference number.
+    <Shell
+      backToOffice={session.can('job.assign')}
+      title={siteAddress(site, true) || site?.label || job.job_number}
+      who={job.title}
+    >
       <JobDetail
         job={job}
         site={site ?? null}
@@ -134,11 +152,14 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
         }))}
         myAssignment={mine ? { id: mine.id, acceptance: mine.acceptance_status } : null}
         photos={(photos ?? []).map((p) => ({ ...p, url: urls[p.storage_path] ?? null }))}
-        equipment={(kit ?? []).map((k) => ({
-          id: k.id,
+        canPlace={session.can('equipment.place')}
+        equipment={((kit ?? []) as OnSite[]).map((k) => ({
+          id: k.assignment_id,
+          equipmentId: k.equipment_id,
+          assetTag: k.asset_tag,
+          name: k.name,
           startedAt: k.started_at,
           expectedEnd: k.expected_end_at,
-          ...(k.equipment as unknown as { asset_tag: string; name: string; category: string }),
         }))}
         decision={
           decided

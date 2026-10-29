@@ -1,281 +1,229 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { clock, longDate, money } from '@/lib/format';
+import { clock, dayOf, longDate, money, siteAddress, today } from '@/lib/format';
 
-const START_HOUR = 7;
-const END_HOUR = 18;
-const ROW = 44;
-
-type Crew = { id: string; full_name: string };
 type Job = {
   id: string;
   job_number: string;
   title: string;
   status: string;
+  category: string;
   scheduled_start: string | null;
   scheduled_end: string | null;
+  site_id: string | null;
   /** Null unless the signed-in user holds price.view — jobs_safe masks it. */
   quoted_price: number | null;
 };
 type Assignment = { job_id: string; user_id: string; acceptance_status: string };
+type Site = {
+  id: string;
+  label: string;
+  address_line1: string | null;
+  address_line2: string | null;
+  city: string | null;
+  state: string | null;
+  postal_code: string | null;
+};
+type Person = { id: string; full_name: string };
 type TimeOff = { user_id: string; kind: string; starts_at: string; ends_at: string };
 
-/*
- * The board had its own copies of these and they used the machine's timezone.
- * On the server that is UTC and in the browser it is wherever the viewer is,
- * so the two rendered different times and React threw the server's HTML away
- * — a hydration error, on the busiest screen in the app.
+/**
+ * The columns, in the order work moves through them.
  *
- * Worse than the error: a job booked for 08:00 in Springfield was drawn on the
- * wrong row for anyone looking from another timezone. The shared formatter
- * pins everything to the company's zone, which is the only reading of "08:00"
- * that means anything to a crew.
+ * Deliberately five and not twelve. The database has twelve statuses because
+ * it has to tell `en_route` from `on_site`; the office has five questions,
+ * and a column per status would mean scrolling sideways past four empty ones
+ * to find the full one.
  */
-const hourOf = (iso: string | null) => {
-  if (!iso) return START_HOUR;
-  const [h, m] = clock(iso).split(':').map(Number);
-  return (h ?? START_HOUR) + (m ?? 0) / 60;
-};
-const hhmm = (iso: string | null) => clock(iso);
-const addDays = (iso: string, n: number) => {
-  // Noon UTC, so adding days never trips over a daylight-saving boundary.
-  const d = new Date(`${iso}T12:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + n);
-  return d.toISOString().slice(0, 10);
+const LANES = [
+  {
+    key: 'unassigned',
+    name: 'Needs a crew',
+    hint: 'Booked, nobody on it yet.',
+  },
+  {
+    key: 'waiting',
+    name: 'Waiting to accept',
+    hint: 'Sent to a crew. Not everybody has said yes.',
+  },
+  { key: 'ready', name: 'Ready', hint: 'Accepted, not started.' },
+  { key: 'onsite', name: 'On site', hint: 'Under way right now.' },
+  { key: 'finished', name: 'Finished', hint: 'Work done, waiting on you.' },
+] as const;
+
+type LaneKey = (typeof LANES)[number]['key'];
+
+const ON_SITE = ['en_route', 'on_site', 'in_progress', 'blocked'];
+
+/* Remediation is most of the work, so it goes unmarked — a badge on nine
+   cards in ten is a badge nobody reads. The two that are not get one. */
+const CATEGORY_FLAG: Record<string, string> = {
+  inspection: 'Inspection',
+  other: 'Other',
 };
 
+/** Which column a job belongs in: where it has got to, then who has it. */
+function laneOf(job: Job, mine: Assignment[]): LaneKey {
+  if (job.status === 'work_complete') return 'finished';
+  if (ON_SITE.includes(job.status)) return 'onsite';
+  if (mine.length === 0) return 'unassigned';
+  return mine.every((a) => a.acceptance_status === 'accepted') ? 'ready' : 'waiting';
+}
+
 export function Board({
-  day,
-  crew,
   jobs,
   assignments,
+  sites,
+  people,
   timeOff,
 }: {
-  day: string;
-  crew: Crew[];
   jobs: Job[];
   assignments: Assignment[];
+  sites: Site[];
+  people: Person[];
   timeOff: TimeOff[];
 }) {
   const router = useRouter();
-  const rows = END_HOUR - START_HOUR;
-  const go = (d: string) => router.push(`/dispatch?date=${d}`);
+  const now = today();
 
-  const unassigned = jobs.filter((j) => !assignments.some((a) => a.job_id === j.id));
-  // Price is masked for anyone without price.view, so the column only appears
-  // for the people it is meant for rather than showing a row of blanks.
+  const nameOf = (id: string) => people.find((p) => p.id === id)?.full_name ?? 'Someone';
+  const siteOf = (id: string | null) => sites.find((s) => s.id === id) ?? null;
+
+  // Price is masked for anyone without price.view, so it only appears for the
+  // people it is meant for rather than leaving a row of blanks.
   const showsPrice = jobs.some((j) => j.quoted_price !== null);
+
+  const cards = jobs.map((job) => {
+    const mine = assignments.filter((a) => a.job_id === job.id);
+    const day = job.scheduled_start ? dayOf(job.scheduled_start) : null;
+    return {
+      job,
+      mine,
+      lane: laneOf(job, mine),
+      day,
+      // Past its day and still not finished. The timeline hid these by
+      // showing one date at a time, which is how a job goes quiet.
+      late: day !== null && day < now && job.status !== 'work_complete',
+      declined: mine.some((a) => a.acceptance_status === 'declined'),
+      reschedule: mine.some((a) => a.acceptance_status === 'reschedule_requested'),
+    };
+  });
+
+  const away = timeOff.map((t) => ({ ...t, name: nameOf(t.user_id) }));
 
   return (
     <>
-      {/*
-       * Just the day navigator. The board sits inside the office shell, which
-       * already carries the wordmark, the signed-in name and sign-out — this
-       * header used to repeat all three, so the page showed two headers
-       * stacked on top of each other.
-       */}
-      <header
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 10,
-          padding: '12px 18px 2px',
-        }}
-      >
-        <button
-          className="btn ghost"
-          style={{ padding: '6px 11px' }}
-          onClick={() => go(addDays(day, -1))}
-          aria-label="Previous day"
-        >
-          ‹
-        </button>
-        <h1
-          style={{ margin: 0, fontSize: 15, fontWeight: 600, minWidth: 190, textAlign: 'center' }}
-        >
-          {longDate(day)}
-        </h1>
-        <button
-          className="btn ghost"
-          style={{ padding: '6px 11px' }}
-          onClick={() => go(addDays(day, 1))}
-          aria-label="Next day"
-        >
-          ›
-        </button>
-      </header>
-
-      <div style={{ padding: '14px 18px 24px', display: 'grid', gap: 14 }}>
-        {jobs.length === 0 ? (
-          <div className="card" style={{ padding: 18 }}>
-            <p className="lbl" style={{ marginBottom: 6 }}>
-              Nothing scheduled
-            </p>
-            <p style={{ color: 'var(--muted)' }}>
-              No jobs on this day. If you expected some, check you are looking at the right date —
-              or that the seed data was loaded.
-            </p>
-          </div>
-        ) : null}
-
-        {unassigned.length ? (
-          <div className="card" style={{ padding: 14 }}>
-            <p className="lbl" style={{ marginBottom: 8 }}>
-              Unassigned · {unassigned.length}
-            </p>
-            <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap' }}>
-              {unassigned.map((j) => (
-                <div
-                  key={j.id}
-                  style={{
-                    border: '1px solid var(--line-strong)',
-                    borderRadius: 9,
-                    padding: '8px 10px',
-                    background: 'var(--surface-2)',
-                    minWidth: 190,
-                  }}
-                >
-                  <span className="mono" style={{ fontSize: 11.5, color: 'var(--faint)' }}>
-                    {j.job_number} · {hhmm(j.scheduled_start)}
-                  </span>
-                  <p style={{ fontWeight: 600, fontSize: 13.5 }}>{j.title}</p>
-                  {showsPrice && j.quoted_price !== null ? (
-                    <span className="mono num" style={{ fontSize: 12.5, color: 'var(--muted)' }}>
-                      {money(j.quoted_price)}
-                    </span>
-                  ) : null}
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : null}
-
-        <div className="card" style={{ overflowX: 'auto' }}>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: `54px repeat(${Math.max(crew.length, 1)}, minmax(158px, 1fr))`,
-              minWidth: 'max-content',
-            }}
-          >
-            <div
-              style={{
-                borderRight: '1px solid var(--line)',
-                borderBottom: '1px solid var(--line-strong)',
-              }}
-            />
-            {crew.map((c) => (
-              <div
-                key={c.id}
-                style={{
-                  padding: '9px 10px',
-                  borderBottom: '1px solid var(--line-strong)',
-                  fontWeight: 600,
-                  fontSize: 13.5,
-                }}
-              >
-                {c.full_name}
-              </div>
-            ))}
-
-            <div style={{ borderRight: '1px solid var(--line)' }}>
-              {Array.from({ length: rows }, (_, i) => (
-                <div
-                  key={i}
-                  className="mono"
-                  style={{
-                    height: ROW,
-                    borderBottom: '1px solid var(--line)',
-                    fontSize: 11,
-                    color: 'var(--faint)',
-                    padding: '2px 6px 0',
-                    textAlign: 'right',
-                  }}
-                >
-                  {String(START_HOUR + i).padStart(2, '0')}
-                </div>
-              ))}
-            </div>
-
-            {crew.map((c) => {
-              const mine = jobs.filter((j) =>
-                assignments.some((a) => a.job_id === j.id && a.user_id === c.id),
-              );
-              const away = timeOff.find((t) => t.user_id === c.id);
-              return (
-                <div
-                  key={c.id}
-                  style={{ position: 'relative', borderRight: '1px solid var(--line)' }}
-                >
-                  {Array.from({ length: rows }, (_, i) => (
-                    <div key={i} style={{ height: ROW, borderBottom: '1px solid var(--line)' }} />
-                  ))}
-
-                  {away ? (
-                    <div
-                      style={{
-                        position: 'absolute',
-                        inset: `0 4px`,
-                        borderRadius: 8,
-                        border: '1px dashed var(--line-strong)',
-                        background:
-                          'repeating-linear-gradient(45deg,var(--idle-soft),var(--idle-soft) 6px,transparent 6px,transparent 12px)',
-                        display: 'grid',
-                        placeItems: 'center',
-                        fontFamily: 'var(--font-cond)',
-                        fontSize: 11,
-                        textTransform: 'uppercase',
-                        letterSpacing: '.06em',
-                        color: 'var(--muted)',
-                      }}
-                    >
-                      {away.kind}
-                    </div>
-                  ) : null}
-
-                  {mine.map((j) => {
-                    const top = (hourOf(j.scheduled_start) - START_HOUR) * ROW;
-                    const height = (hourOf(j.scheduled_end) - hourOf(j.scheduled_start)) * ROW - 4;
-                    const accepted =
-                      assignments.find((a) => a.job_id === j.id && a.user_id === c.id)
-                        ?.acceptance_status === 'accepted';
-                    return (
-                      <div
-                        key={j.id}
-                        style={{
-                          position: 'absolute',
-                          left: 4,
-                          right: 4,
-                          top: top + 2,
-                          height: Math.max(height, 26),
-                          borderRadius: 8,
-                          padding: '6px 8px',
-                          overflow: 'hidden',
-                          border: `1px solid ${accepted ? 'var(--accent)' : 'var(--warn)'}`,
-                          background: accepted ? 'var(--accent-soft)' : 'var(--warn-soft)',
-                          color: accepted ? 'var(--accent-ink)' : 'var(--warn)',
-                        }}
-                      >
-                        <span className="mono" style={{ fontSize: 10.5, opacity: 0.75 }}>
-                          {j.job_number} · {hhmm(j.scheduled_start)}–{hhmm(j.scheduled_end)}
-                        </span>
-                        <p style={{ fontWeight: 600, fontSize: 12.5, lineHeight: 1.2 }}>
-                          {j.title}
-                        </p>
-                        {!accepted ? (
-                          <p style={{ fontSize: 11.5, fontWeight: 600 }}>Not accepted yet</p>
-                        ) : null}
-                      </div>
-                    );
-                  })}
-                </div>
-              );
-            })}
-          </div>
+      <div className="page-head" style={{ padding: '14px 18px 0' }}>
+        <div>
+          <h1>The board</h1>
+          <p>
+            Every job that is not signed off yet, by where it has got to. Approved and closed jobs
+            are in <a href="/jobs">the job list</a>.
+          </p>
         </div>
       </div>
+
+      {away.length ? (
+        <p className="kb-away">
+          <b>Away today:</b>{' '}
+          {away.map((a) => `${a.name} (${a.kind.replace(/_/g, ' ')})`).join(', ')}
+        </p>
+      ) : null}
+
+      <div className="kb">
+        {LANES.map((lane) => {
+          const inLane = cards.filter((c) => c.lane === lane.key);
+          return (
+            <section key={lane.key} className="kb-lane" aria-label={lane.name}>
+              <header>
+                <h2>{lane.name}</h2>
+                <span className="kb-count">{inLane.length}</span>
+              </header>
+
+              {inLane.length === 0 ? (
+                <p className="kb-empty">{lane.hint}</p>
+              ) : (
+                inLane.map(({ job, mine, day, late, declined, reschedule }) => {
+                  const site = siteOf(job.site_id);
+                  return (
+                    <article
+                      key={job.id}
+                      className="kb-card"
+                      data-late={late ? 1 : 0}
+                      tabIndex={0}
+                      role="link"
+                      onClick={() => router.push(`/jobs/${job.id}`)}
+                      onKeyDown={(e) =>
+                        e.key === 'Enter' ? router.push(`/jobs/${job.id}`) : undefined
+                      }
+                    >
+                      <span className="kb-num mono">{job.job_number}</span>
+
+                      {/* The address is the heading on every job screen, so
+                          it is the heading here too. */}
+                      <p className="kb-where">
+                        {siteAddress(site, true) || site?.label || 'No address'}
+                      </p>
+                      <p className="kb-what">{job.title}</p>
+
+                      {/* Two spans, so the line folds between the date and
+                          the hours rather than through "03:00–11:00". */}
+                      <p className="kb-when mono">
+                        <span>{day ? longDate(day) : 'Not scheduled'}</span>
+                        {job.scheduled_start ? (
+                          <>
+                            {' · '}
+                            <span>
+                              {clock(job.scheduled_start)}
+                              {job.scheduled_end ? `–${clock(job.scheduled_end)}` : ''}
+                            </span>
+                          </>
+                        ) : null}
+                      </p>
+
+                      {mine.length ? (
+                        <p className="kb-who">
+                          {[...new Set(mine.map((a) => a.user_id))].map(nameOf).join(', ')}
+                        </p>
+                      ) : null}
+
+                      <p className="kb-flags">
+                        {CATEGORY_FLAG[job.category] ? (
+                          <span className="kb-flag">{CATEGORY_FLAG[job.category]}</span>
+                        ) : null}
+                        {late ? <span className="kb-flag late">Overdue</span> : null}
+                        {job.status === 'blocked' ? (
+                          <span className="kb-flag late">Blocked</span>
+                        ) : null}
+                        {declined ? <span className="kb-flag late">Declined</span> : null}
+                        {reschedule ? (
+                          <span className="kb-flag warn">Wants another day</span>
+                        ) : null}
+                        {showsPrice && job.quoted_price !== null ? (
+                          <span className="kb-flag mono num">{money(job.quoted_price)}</span>
+                        ) : null}
+                      </p>
+                    </article>
+                  );
+                })
+              )}
+            </section>
+          );
+        })}
+      </div>
+
+      {jobs.length === 0 ? (
+        <div className="card" style={{ padding: 18, margin: '0 18px 24px' }}>
+          <p className="lbl" style={{ marginBottom: 6 }}>
+            Nothing live
+          </p>
+          <p style={{ color: 'var(--muted)' }}>
+            Every job is signed off or cancelled. Book one from the calendar and it lands in the
+            first column.
+          </p>
+        </div>
+      ) : null}
     </>
   );
 }

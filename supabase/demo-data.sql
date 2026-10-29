@@ -37,30 +37,30 @@ begin
   -- Customers and their properties -----------------------------------------
   insert into customers (org_id, name, kind, primary_contact, phone, email)
   values (v_org, 'Helen Brooks', 'residential', 'Helen Brooks',
-          '555-0201', 'hbrooks@example.test')
+          '613-555-0201', 'hbrooks@example.test')
   returning id into v_cust;
 
   insert into sites (org_id, customer_id, label, address_line1, city, state,
                      postal_code, access_notes)
-  values (v_org, v_cust, '42 Oak St — basement', '42 Oak St', 'Springfield',
-          'MA', '01103', 'Side gate code 4471. Dog in the yard.')
+  values (v_org, v_cust, '42 Oak St — basement', '42 Oak St', 'Ottawa',
+          'ON', 'K1S 3G6', 'Side gate code 4471. Dog in the yard.')
   returning id into v_site;
 
   insert into customers (org_id, name, kind, primary_contact, phone)
   values (v_org, 'Cardinal Property Group', 'property_manager', 'Nina Cross',
-          '555-0202')
+          '613-555-0202')
   returning id into v_cust;
 
   insert into sites (org_id, customer_id, label, address_line1, city, state,
                      postal_code, access_notes)
   values (v_org, v_cust, 'Larkspur Apts — unit 3B', '118 Larkspur Ave',
-          'Springfield', 'MA', '01104', 'Keys at the leasing office, 9-5.')
+          'Ottawa', 'ON', 'K1Y 4E9', 'Keys at the leasing office, 9-5.')
   returning id into v_site2;
 
   -- A job type, so the completion gate has something to ask for -------------
-  insert into job_templates (org_id, name, default_duration_hours, default_crew_size,
+  insert into job_templates (org_id, name, category, default_duration_hours, default_crew_size,
                              completion_requirements)
-  values (v_org, 'Remediation Day', 8, 3,
+  values (v_org, 'Remediation Day', 'remediation', 8, 3,
           jsonb_build_object('photos_before', true, 'photos_after', true,
                              'customer_signature', true, 'materials_logged', true,
                              'forms', jsonb_build_array()))
