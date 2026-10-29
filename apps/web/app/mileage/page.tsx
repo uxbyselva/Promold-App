@@ -47,7 +47,7 @@ export default async function OfficeMileagePage() {
         people={people ?? []}
         vehicles={vehicles ?? []}
         jobs={jobs ?? []}
-        rate={Number(settings.mileage_rate ?? 0.72)}
+        rate={Number(settings.mileage_rate ?? 0.73)}
         canEdit={session.can('mileage.edit_all')}
       />
     </OfficeShell>
