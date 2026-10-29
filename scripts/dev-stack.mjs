@@ -343,7 +343,40 @@ const server = createServer(async (req, res) => {
       const table = rest;
       const prefer = String(req.headers.prefer ?? '');
 
-      if (req.method === 'GET') {
+      /*
+       * HEAD is a GET that answers with the count and no rows.
+       *
+       * `.select('id', { count: 'exact', head: true })` — which is how every
+       * tile on a dashboard and the "Waiting on you" badge ask "how many?" —
+       * sends an HTTP HEAD with `Prefer: count=exact` and reads the total off
+       * `content-range`. This server had no HEAD branch at all, so all of
+       * them fell through to a 404, supabase-js reported a count of null, and
+       * the screens showed zero. Silently: a tile reading 0 looks exactly
+       * like a tile that is correctly 0.
+       *
+       * The badge has been in the masthead for weeks and could never have
+       * been checked here.
+       */
+      if (req.method === 'GET' || req.method === 'HEAD') {
+        const wantsCount = /count=(exact|planned|estimated)/.test(prefer);
+        let total = null;
+        if (wantsCount) {
+          const c = buildQuery(table, url.searchParams, { count: true });
+          const got = await asUser(sub, (cl) => cl.query(c.sql, c.vals));
+          total = Number(got.rows[0]?.count ?? 0);
+        }
+
+        if (req.method === 'HEAD') {
+          // No body, by definition. The number rides on the header.
+          res.writeHead(200, {
+            'content-type': 'application/json',
+            'access-control-allow-origin': '*',
+            'access-control-expose-headers': 'content-range',
+            'content-range': `*/${total ?? 0}`,
+          });
+          return res.end();
+        }
+
         const { sql, vals } = buildQuery(table, url.searchParams);
         const out = await asUser(sub, (c) => c.query(sql, vals));
         const single = /vnd\.pgrst\.object/.test(String(req.headers.accept ?? ''));
@@ -353,7 +386,7 @@ const server = createServer(async (req, res) => {
           return json(res, 406, { message: 'more than one row returned' });
         }
         return json(res, 200, out.rows, {
-          'content-range': `0-${Math.max(out.rows.length - 1, 0)}/${out.rows.length}`,
+          'content-range': `0-${Math.max(out.rows.length - 1, 0)}/${total ?? out.rows.length}`,
         });
       }
 

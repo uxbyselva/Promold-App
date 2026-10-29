@@ -18,16 +18,17 @@ export async function requireSession(): Promise<Session> {
  * Where this person's day starts.
  *
  * One app serves the office and the crew, so the front door has to know which
- * one you are. Whoever assigns work gets the calendar. A bookkeeper, who sees
- * everything and schedules nothing, gets the job list. Everyone else is on
- * site, and starts at their own jobs.
+ * one you are. The office gets the dashboard — what is waiting on a decision
+ * and what has gone quiet. The crew get their own day, in their own shell.
  *
  * This is a courtesy, not a rule: nothing stops a technician typing /calendar,
  * and nothing needs to — the database sends them the same three rows either
  * way. It just means nobody has to learn a URL.
  */
 export function homeFor(session: Session): string {
-  if (session.can('job.assign')) return '/calendar';
-  if (session.can('job.view_all')) return '/jobs';
-  return '/my/jobs';
+  // Anybody who can see the whole board gets the dashboard: what needs them
+  // today, with the calendar and the board one tap away. Everyone else is on
+  // site, and starts on their own day.
+  if (session.can('job.view_all')) return '/';
+  return '/my';
 }

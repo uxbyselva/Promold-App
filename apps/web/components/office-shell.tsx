@@ -4,52 +4,8 @@ import { SignOut } from './sign-out';
 import { NavLink, ModeLink } from './nav-link';
 import { OfficeMenu } from './office-menu';
 import { supabaseServer } from '@/lib/supabase-server';
+import { decisionCount } from '@/lib/dashboard';
 import type { Session } from '@/lib/session';
-
-/**
- * How many requests are sitting unanswered.
- *
- * Counted on every page rather than only on the approvals page: the point of
- * the badge is that somebody notices without going to look.
- */
-async function waitingCount(session: Session): Promise<number> {
-  if (
-    !session.can('reschedule.decide') &&
-    !session.can('timeoff.manage') &&
-    !session.can('purchase.approve') &&
-    !session.can('changeorder.manage')
-  ) {
-    return 0;
-  }
-  const supabase = await supabaseServer();
-  const [moves, off, buys, changes] = await Promise.all([
-    session.can('reschedule.decide')
-      ? supabase
-          .from('reschedule_requests')
-          .select('id', { count: 'exact', head: true })
-          .eq('status', 'pending')
-      : Promise.resolve({ count: 0 }),
-    session.can('timeoff.manage')
-      ? supabase
-          .from('time_off')
-          .select('id', { count: 'exact', head: true })
-          .eq('status', 'requested')
-      : Promise.resolve({ count: 0 }),
-    session.can('purchase.approve')
-      ? supabase
-          .from('purchase_requests')
-          .select('id', { count: 'exact', head: true })
-          .in('status', ['submitted', 'under_review'])
-      : Promise.resolve({ count: 0 }),
-    session.can('changeorder.manage')
-      ? supabase
-          .from('change_orders')
-          .select('id', { count: 'exact', head: true })
-          .in('status', ['draft', 'presented'])
-      : Promise.resolve({ count: 0 }),
-  ]);
-  return (moves.count ?? 0) + (off.count ?? 0) + (buys.count ?? 0) + (changes.count ?? 0);
-}
 
 interface Tab {
   href: string;
@@ -77,9 +33,10 @@ export async function OfficeShell({
   children: ReactNode;
 }) {
   const canAdmin = session.can('audit.view');
-  const waiting = await waitingCount(session);
+  const waiting = await decisionCount(session);
 
   const office: Tab[] = [
+    { href: '/', label: 'Today', when: true },
     { href: '/calendar', label: 'Calendar', when: session.can('job.assign') },
     { href: '/dispatch', label: 'Board', when: session.can('job.assign') },
     { href: '/jobs', label: 'Jobs', when: true },
@@ -136,7 +93,10 @@ export async function OfficeShell({
    * the right thing for a bookkeeper — who has no calendar and no board, and
    * whose first two are Jobs and Waiting on you.
    */
-  const PRIMARY_ON_PHONE = 2;
+  // Three now that Today exists, so the phone bar still carries Today,
+  // Calendar and Board — the three asked for on page one. Everything else
+  // lives behind the menu.
+  const PRIMARY_ON_PHONE = 3;
   const overflow = tabs.slice(PRIMARY_ON_PHONE);
 
   return (

@@ -60,6 +60,19 @@
 .tile .fig{font-size:26px;font-weight:600;letter-spacing:-.02em;line-height:1.1;
   font-variant-numeric:tabular-nums}
 .tile a{font-size:12.5px}
+/* A whole tile is a link on the dashboard, and a link underlines everything
+   inside it — label, figure and note alike, which reads as three separate
+   links rather than one card. The card keeps the hover. */
+a.tile,a.tile *{text-decoration:none}
+a.tile:hover{border-color:var(--line-strong)}
+/* The same for a whole panel or list row used as a link: underlining every
+   line inside a card reads as several links rather than one target. */
+a.panel,a.panel *,.box .body a.between,.box .body a.between *,
+.panel a.between,.panel a.between *{text-decoration:none}
+a.panel:hover,.box .body a.between:hover,.panel a.between:hover{border-color:var(--line-strong)}
+.box .body a.between,.panel a.between{padding:7px 0;border-bottom:1px solid var(--line);
+  color:inherit}
+.box .body a.between:last-child,.panel a.between:last-child{border-bottom:none}
 
 /* office month grid */
 /* minmax(0,1fr), not 1fr. A grid column is min-content wide by default, so a
