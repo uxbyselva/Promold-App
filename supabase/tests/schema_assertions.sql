@@ -2250,3 +2250,62 @@ end $$;
 reset role;
 select set_config('request.jwt.claim.sub', '', false);
 \echo 'SITE NAMING ASSERTIONS PASSED'
+
+-- ===========================================================================
+-- Your own name and number (0039)
+-- ===========================================================================
+--
+-- The point of the migration is the thing that must now FAIL: a technician
+-- writing their own role_id. The policy that allowed it was never used by any
+-- screen, so the test that matters is the refusal.
+
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000a004', false);
+set role authenticated;
+
+do $$
+declare
+  v_tech  uuid := '00000000-0000-0000-0000-00000000a004';
+  v_owner uuid := '00000000-0000-0000-0000-00000000a001';
+  v_name  text;
+  v_phone text;
+  v_role  uuid;
+  v_owner_role uuid;
+  v_rows  int;
+begin
+  perform update_my_profile('Tomas R. Reyes', '  613-555-9999 ');
+  select full_name, phone into v_name, v_phone from profiles_safe where id = v_tech;
+  perform assert(v_name = 'Tomas R. Reyes', 'a technician can fix their own name');
+  perform assert(v_phone = '613-555-9999', 'and their own number, trimmed');
+
+  -- A blank box means "no number", not an empty string, or every crew list
+  -- grows a column of nothings.
+  perform update_my_profile('Tomas R. Reyes', '   ');
+  select phone into v_phone from profiles_safe where id = v_tech;
+  perform assert(v_phone is null, 'and clearing the box stores nothing, not a blank');
+
+  begin
+    perform update_my_profile('   ', '613-555-9999');
+    perform assert(false, 'but a nameless profile is refused');
+  exception when others then
+    perform assert(sqlstate = '22023', 'but a nameless profile is refused');
+  end;
+
+  -- The hole 0039 closes. The UPDATE finds no row to write, because the
+  -- self-update policy is gone and user.manage is not held here.
+  select role_id into v_role from profiles_safe where id = v_tech;
+  select role_id into v_owner_role from profiles_safe where id = v_owner;
+  update profiles set role_id = v_owner_role where id = v_tech;
+  get diagnostics v_rows = row_count;
+  perform assert(v_rows = 0, 'a technician cannot promote themselves');
+  perform assert((select role_id from profiles_safe where id = v_tech) = v_role,
+    'and their role is unchanged');
+
+  -- Nor anybody else's details, which profiles_admin_write already covered.
+  update profiles set full_name = 'Not Dana' where id = v_owner;
+  get diagnostics v_rows = row_count;
+  perform assert(v_rows = 0, 'nor rename the owner');
+end $$;
+
+reset role;
+select set_config('request.jwt.claim.sub', '', false);
+\echo 'OWN DETAILS ASSERTIONS PASSED'

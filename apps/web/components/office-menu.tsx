@@ -4,31 +4,39 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { SignOut } from './sign-out';
+import { Icon, type IconName } from './icons';
 
-export type MenuTab = { href: string; label: string; badge?: number };
+export type MenuTab = { href: string; label: string; badge?: number; icon: IconName };
+
+/** Same rule as the rail: /admin exactly, everything else by prefix. */
+function isCurrent(path: string, href: string) {
+  if (href === '/' || href === '/admin') return path === href;
+  return path === href || path.startsWith(`${href}/`);
+}
 
 /**
- * Everything the office header cannot fit on a phone.
+ * The office on a phone.
  *
- * On a desk the masthead carries the mode switch, who you are and a sign-out
- * button, with a row of tabs underneath. On a phone that row scrolled
- * sideways and the whole right-hand group ate the top of the screen, so half
- * the app was behind a swipe nobody knew to make — including, in one report,
- * the Customers tab, which is where the work starts.
+ * On a desk the navigation is the dark rail down the left and nothing here
+ * renders. Below the breakpoint the rail is gone and this takes over: four
+ * tabs along the bottom where a thumb is, and everything else — the rest of
+ * the sections, the admin side, settings, sign out — behind More.
  *
- * The first couple of tabs stay on the bar. The rest come in here, with the
- * mode switch and the sign-out, behind one button. Above the breakpoint this
- * whole component is display:none and the header behaves as it always did.
+ * It replaced a row of tabs that scrolled sideways, which hid half the app
+ * behind a swipe nobody knew to make, including Customers, which is where
+ * the work starts.
  */
 export function OfficeMenu({
-  tabs,
+  primary,
+  rest,
   mode,
   canAdmin,
   who,
   role,
   showCrewView,
 }: {
-  tabs: MenuTab[];
+  primary: MenuTab[];
+  rest: MenuTab[];
   mode: 'office' | 'admin';
   canAdmin: boolean;
   who: string;
@@ -59,21 +67,40 @@ export function OfficeMenu({
     return () => window.removeEventListener('keydown', onKey);
   }, [open]);
 
-  // A badge on something hidden is a badge nobody sees, so it comes out here.
-  const hiddenBadges = tabs.reduce((sum, t) => sum + (t.badge ?? 0), 0);
+  // A badge on something hidden is a badge nobody sees, so it comes out onto
+  // the More tab.
+  const hiddenBadges = rest.reduce((sum, t) => sum + (t.badge ?? 0), 0);
 
   return (
     <div className="om">
-      <button
-        className="om-button"
-        aria-expanded={open}
-        aria-haspopup="menu"
-        onClick={() => setOpen((v) => !v)}
-      >
-        <span aria-hidden="true">☰</span>
-        <span className="om-button-label">Menu</span>
-        {hiddenBadges > 0 && !open ? <span className="nav-badge">{hiddenBadges}</span> : null}
-      </button>
+      <nav className="tabbar wide" aria-label="Sections">
+        {primary.map((t) => (
+          <Link
+            key={t.href}
+            href={t.href}
+            aria-current={isCurrent(path, t.href) ? 'page' : undefined}
+          >
+            <span className="ic">
+              <Icon name={t.icon} size={20} />
+            </span>
+            {t.label}
+            {t.badge ? <span className="badge">{t.badge}</span> : null}
+          </Link>
+        ))}
+        <button
+          type="button"
+          className="om-more"
+          aria-expanded={open}
+          aria-haspopup="menu"
+          onClick={() => setOpen((v) => !v)}
+        >
+          <span className="ic">
+            <Icon name="more" size={20} />
+          </span>
+          More
+          {hiddenBadges > 0 && !open ? <span className="badge">{hiddenBadges}</span> : null}
+        </button>
+      </nav>
 
       {open ? (
         <>
@@ -84,43 +111,53 @@ export function OfficeMenu({
               <span>{role}</span>
             </div>
 
-            {canAdmin ? (
-              <nav className="modes om-modes" aria-label="Mode">
-                <Link
-                  href="/calendar"
-                  data-mode="office"
-                  aria-current={mode === 'office' ? 'page' : undefined}
-                >
-                  Office
-                </Link>
-                <Link
-                  href="/admin"
-                  data-mode="admin"
-                  aria-current={mode === 'admin' ? 'page' : undefined}
-                >
-                  Admin
-                </Link>
-              </nav>
-            ) : null}
-
-            {tabs.length ? (
+            {rest.length ? (
               <div className="om-links">
-                {tabs.map((t) => (
-                  <Link key={t.href} href={t.href} role="menuitem">
-                    {t.label}
+                {rest.map((t) => (
+                  <Link
+                    key={t.href}
+                    href={t.href}
+                    role="menuitem"
+                    aria-current={isCurrent(path, t.href) ? 'page' : undefined}
+                  >
+                    <span className="row" style={{ gap: 10 }}>
+                      <Icon name={t.icon} />
+                      {t.label}
+                    </span>
                     {t.badge ? <span className="nav-badge">{t.badge}</span> : null}
                   </Link>
                 ))}
               </div>
             ) : null}
 
-            {showCrewView ? (
-              <div className="om-links">
-                <Link href="/my/jobs" role="menuitem">
-                  Crew view ↗
+            <div className="om-links">
+              {canAdmin ? (
+                <Link
+                  href={mode === 'admin' ? '/' : '/admin'}
+                  role="menuitem"
+                  aria-current={mode === 'admin' ? 'page' : undefined}
+                >
+                  <span className="row" style={{ gap: 10 }}>
+                    <Icon name="admin" />
+                    {mode === 'admin' ? 'Back to the office' : 'Records and history'}
+                  </span>
                 </Link>
-              </div>
-            ) : null}
+              ) : null}
+              <Link href="/settings" role="menuitem">
+                <span className="row" style={{ gap: 10 }}>
+                  <Icon name="settings" />
+                  Settings
+                </span>
+              </Link>
+              {showCrewView ? (
+                <Link href="/my" role="menuitem">
+                  <span className="row" style={{ gap: 10 }}>
+                    <Icon name="today" />
+                    Crew view ↗
+                  </span>
+                </Link>
+              ) : null}
+            </div>
 
             <div className="om-foot">
               <SignOut />

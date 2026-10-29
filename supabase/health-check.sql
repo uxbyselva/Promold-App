@@ -78,6 +78,7 @@ with probe as (
     (select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
       where n.nspname = 'public' and p.proname = 'create_job_with_site'
         and p.prosrc like '%coalesce(nullif(btrim(coalesce(p_site_label%') as m0038,
+    (select count(*) from pg_proc where proname = 'update_my_profile') as m0039,
     (select case
        when to_regclass('public.roles') is null then -1
        else (xpath('/row/c/text()', query_to_xml(
@@ -119,7 +120,8 @@ select * from (
     -- The old version collapsed everything from 0022 to 0027 into one alarming
     -- verdict, which said "get help" to an owner whose database was fine and
     -- one file behind.
-    case when m0038 > 0 then 'Up to date (0001–0038)'
+    case when m0039 > 0 then 'Up to date (0001–0039)'
+         when m0038 > 0 then 'At 0038 — run supabase/update-from-0038.sql'
          when m0037 > 0 then 'At 0037 — run supabase/update-from-0037.sql'
          when m0036 > 0 then 'At 0036 — run supabase/update-from-0036.sql'
          when m0035 > 0 then 'At 0035 — run supabase/update-from-0035.sql'
@@ -184,6 +186,13 @@ select * from (
     case when m0026>0 then 'Present' else 'Missing' end,
     case when m0026>0 then 'Asking to buy, and approving it'
          else 'Purchase approvals will fail' end from probe
+
+  union all
+  select 7.98, 'Your own details (0039)',
+    case when m0039 > 0 then 'Present' else 'MISSING — security fix' end,
+    case when m0039 > 0 then 'Everyone can fix their own name and number, and nothing else'
+         else 'Without it any signed-in user can write their own role_id' end
+  from probe
 
   union all
   select 7.97, 'Site naming (0038)',

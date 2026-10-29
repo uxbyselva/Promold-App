@@ -29,7 +29,7 @@ export const viewport: Viewport = {
   viewportFit: 'cover',
   themeColor: [
     { media: '(prefers-color-scheme: light)', color: '#FFFFFF' },
-    { media: '(prefers-color-scheme: dark)', color: '#18211F' },
+    { media: '(prefers-color-scheme: dark)', color: '#111A2B' },
   ],
 };
 
@@ -40,7 +40,25 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link
           rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Mono:wght@500;600&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+        />
+        {/*
+         * The theme, before the first paint.
+         *
+         * Settings writes one of 'light', 'dark' or 'system' to
+         * localStorage; the stylesheet reads it off <html data-theme>. Doing
+         * it here rather than in a component is the whole point: a React
+         * effect runs after the browser has already painted, so a dark-theme
+         * user gets a white flash on every navigation. Wrapped in try/catch
+         * because storage throws in a private window, and the catch is the
+         * correct behaviour anyway — fall back to the system setting.
+         */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "try{var t=localStorage.getItem('promold.theme');" +
+              "if(t==='light'||t==='dark')document.documentElement.dataset.theme=t;}catch(e){}",
+          }}
         />
       </head>
       <body>{children}</body>

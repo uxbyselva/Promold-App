@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { requireSession } from '@/lib/session';
 import { supabaseServer } from '@/lib/supabase-server';
 import { OfficeShell } from '@/components/office-shell';
@@ -58,11 +57,6 @@ export default async function JobsPage({
           <h1>Jobs</h1>
           <p>Everything booked, newest first. The calendar is the same jobs laid out by day.</p>
         </div>
-        {session.can('job.edit') ? (
-          <Link className="btn sm" href="/jobs/new">
-            New job
-          </Link>
-        ) : null}
       </div>
       <JobsTable
         jobs={jobs ?? []}

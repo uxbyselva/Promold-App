@@ -1,29 +1,78 @@
-/* Same tokens as the prototypes, so the built app and the mocks stay one
-   system rather than drifting apart. */
+/* The design system, taken from the screen set in Promold_App_Screens.
+ *
+ * Slate for the page and the chrome, teal for anything you can act on, Inter
+ * throughout. The token NAMES are the old ones on purpose: every component in
+ * both halves of the app already reads them, so retuning the palette here
+ * re-skins the whole app rather than touching sixty files.
+ *
+ * Three rules the screens follow and the tokens encode:
+ *   - a card is a border, not a shadow;
+ *   - a divider inside a card is --line-soft, the card's own edge is --line,
+ *     and a control's edge is --line-strong;
+ *   - status is a soft fill with its own dark ink, never a tint of the accent.
+ */
 :root{
-  --ground:#EFF3F2; --surface:#FFFFFF; --surface-2:#F7FAF9;
-  --ink:#16211F; --muted:#5E6E6C; --faint:#8A9997;
-  --line:#DBE3E1; --line-strong:#C3CFCD;
-  --accent:#0F6B62; --accent-soft:#DDEDEA; --accent-ink:#0B4F48;
-  --ok:#2F7D4F; --ok-soft:#DFEFE4;
-  --warn:#A8690F; --warn-soft:#FAEBD3;
-  --crit:#A93524; --crit-soft:#F8E2DE;
-  --idle:#5E6E6C; --idle-soft:#E6EBEA;
-  --shadow:0 1px 2px rgba(22,33,31,.06), 0 4px 14px rgba(22,33,31,.05);
-  --radius:10px;
-  --font-ui:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
-  --font-cond:'IBM Plex Sans Condensed','IBM Plex Sans',system-ui,sans-serif;
-  --font-mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+  --ground:#F8FAFC; --ground-deep:#F1F5F9; --surface:#FFFFFF; --surface-2:#F8FAFC;
+  --ink:#0F172A; --muted:#475569; --faint:#64748B;
+  --line:#E2E8F0; --line-soft:#F1F5F9; --line-strong:#CBD5E1;
+  --accent:#0F766E; --accent-ink:#115E59; --accent-soft:#F0FDFA; --accent-wash:#CCFBF1;
+  --ok:#166534; --ok-soft:#DCFCE7;
+  --warn:#92400E; --warn-soft:#FEF3C7;
+  --crit:#991B1B; --crit-soft:#FEE2E2;
+  --info:#1E40AF; --info-soft:#DBEAFE;
+  --plum:#5B21B6; --plum-soft:#EDE9FE;
+  --idle:#334155; --idle-soft:#F1F5F9;
+  /* The dark rail down the left of the office and across the top of the crew
+     app. It does not flip with the theme — it is dark in both. */
+  --rail:#0F172A; --rail-2:#1E293B; --rail-ink:#CBD5E1; --rail-faint:#94A3B8;
+  /* The ink that goes ON a filled accent or crit surface, which is not always
+     white: the dark theme's accent is a bright mint. */
+  --on-accent:#FFFFFF; --on-crit:#FFFFFF;
+  --shadow:0 1px 2px rgba(15,23,42,.04);
+  --shadow-lift:0 1px 2px rgba(15,23,42,.08);
+  --radius:8px; --radius-lg:12px; --radius-sm:6px;
+  --font-ui:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --font-cond:'Inter',system-ui,sans-serif;
+  --font-mono:ui-monospace,'SFMono-Regular',Menlo,monospace;
 }
+/* The same palette reached two ways: by the system setting, and by the choice
+   made in Settings. The two declaration lists have to stay identical — if you
+   add a token to one, add it to the other. */
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --ground:#0E1514; --surface:#18211F; --surface-2:#1E2826;
-  --ink:#E7EDEB; --muted:#9AAAA7; --faint:#7A8987;
-  --line:#2B3735; --line-strong:#3A4846;
-  --accent:#45B3A5; --accent-soft:#16332F; --accent-ink:#8FD8CD;
-  --ok:#5FC087; --ok-soft:#14301F; --warn:#E0A44A; --warn-soft:#332614;
-  --crit:#E8796A; --crit-soft:#331A16; --idle:#9AAAA7; --idle-soft:#242F2D;
-  --shadow:0 1px 2px rgba(0,0,0,.4), 0 4px 14px rgba(0,0,0,.3);
+  --ground:#0B1220; --ground-deep:#0F172A; --surface:#111A2B; --surface-2:#162033;
+  --ink:#E7EDF5; --muted:#9AA8BC; --faint:#7E8CA3;
+  --line:#1E293B; --line-soft:#1A2436; --line-strong:#334155;
+  --accent:#2DD4BF; --accent-ink:#5EEAD4; --accent-soft:#10302E; --accent-wash:#134E4A;
+  --ok:#6EE7A0; --ok-soft:#0F2A1C;
+  --warn:#FBBF24; --warn-soft:#33270C;
+  --crit:#FCA5A5; --crit-soft:#3A1518;
+  --info:#A5C0FD; --info-soft:#16244A;
+  --plum:#C9B8FD; --plum-soft:#251A4A;
+  --idle:#9AA8BC; --idle-soft:#1E293B;
+  --on-accent:#04201C; --on-crit:#3A0B0E;
+  --shadow:0 1px 2px rgba(0,0,0,.35);
+  --shadow-lift:0 1px 3px rgba(0,0,0,.5);
 }}
+:root[data-theme="dark"]{
+  --ground:#0B1220; --ground-deep:#0F172A; --surface:#111A2B; --surface-2:#162033;
+  --ink:#E7EDF5; --muted:#9AA8BC; --faint:#7E8CA3;
+  --line:#1E293B; --line-soft:#1A2436; --line-strong:#334155;
+  --accent:#2DD4BF; --accent-ink:#5EEAD4; --accent-soft:#10302E; --accent-wash:#134E4A;
+  --ok:#6EE7A0; --ok-soft:#0F2A1C;
+  --warn:#FBBF24; --warn-soft:#33270C;
+  --crit:#FCA5A5; --crit-soft:#3A1518;
+  --info:#A5C0FD; --info-soft:#16244A;
+  --plum:#C9B8FD; --plum-soft:#251A4A;
+  --idle:#9AA8BC; --idle-soft:#1E293B;
+  --on-accent:#04201C; --on-crit:#3A0B0E;
+  --shadow:0 1px 2px rgba(0,0,0,.35);
+  --shadow-lift:0 1px 3px rgba(0,0,0,.5);
+}
+/* Native controls — a date picker, a scrollbar, a select's dropdown — follow
+   this rather than the page's own colours, so it has to track the choice. */
+:root{color-scheme:light dark}
+:root[data-theme="light"]{color-scheme:light}
+:root[data-theme="dark"]{color-scheme:dark}
 *{box-sizing:border-box}
 /* Checkboxes and radios draw themselves in the browser's blue otherwise, which
    is the one bit of chrome that never matched the rest of the app. */
@@ -34,28 +83,37 @@ body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--font-u
 p{margin:0}
 button{font:inherit;color:inherit;cursor:pointer;border:none;background:none}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
-a{color:var(--accent-ink)}
+a{color:var(--accent)}
+a:hover{color:var(--accent-ink)}
 
-.lbl{font-family:var(--font-cond);font-weight:600;text-transform:uppercase;
-  letter-spacing:.09em;font-size:11.5px;color:var(--faint)}
-.mono{font-family:var(--font-mono)}
+.lbl{font-weight:500;font-size:13px;color:var(--muted)}
+/* "Mono" means read it character by character — an asset tag, a job number,
+   a figure in a column — not "in a monospace face". The screen set has one
+   family and this is how it does it: Inter with tabular figures, so columns
+   of numbers still line up and a tag still cannot fold. A real monospace is
+   kept for the audit diff, where the content is a stored value. */
+.mono{font-variant-numeric:tabular-nums;letter-spacing:.01em}
 .num{font-variant-numeric:tabular-nums}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
   box-shadow:var(--shadow)}
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:10px 15px;
-  border-radius:9px;font-weight:600;font-size:14px;background:var(--accent);color:#fff;
-  border:1px solid var(--accent)}
+/* 36px and a 6px corner on a desk; the crew's own .big is the 52px version.
+   Filled teal is the one thing on a screen you are meant to press. */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:36px;
+  padding:0 14px;border-radius:var(--radius-sm);font-weight:500;font-size:14px;
+  background:var(--accent);color:var(--on-accent);border:1px solid var(--accent);
+  white-space:nowrap;
+  text-decoration:none}
 .btn:disabled{opacity:.55;cursor:not-allowed}
 .btn.ghost{background:var(--surface);color:var(--ink);border-color:var(--line-strong)}
 .field{display:flex;flex-direction:column;gap:5px}
-.field label{font-family:var(--font-cond);font-weight:600;font-size:11.5px;
-  text-transform:uppercase;letter-spacing:.07em;color:var(--faint)}
-.field input,.field select{font:inherit;color:var(--ink);background:var(--surface-2);
-  border:1px solid var(--line-strong);border-radius:8px;padding:10px 11px;width:100%}
-.err{background:var(--crit-soft);color:var(--crit);border:1px solid var(--crit);
-  border-radius:8px;padding:9px 11px;font-size:13.5px}
+.field label{font-weight:500;font-size:13px;color:var(--ink)}
+.field input,.field select{font:inherit;color:var(--ink);background:var(--surface);
+  border:1px solid var(--line-strong);border-radius:var(--radius-sm);height:38px;
+  padding:0 12px;width:100%}
+.err{background:var(--crit-soft);color:var(--crit);border:1px solid var(--crit-soft);
+  border-radius:var(--radius-sm);padding:9px 11px;font-size:13.5px}
 .note{background:var(--warn-soft);color:var(--warn);border:1px solid var(--warn);
-  border-radius:8px;padding:11px 13px;font-size:13.5px;line-height:1.5}
+  border-radius:var(--radius-sm);padding:11px 13px;font-size:13.5px;line-height:1.5}
 
 /* --------------------------------------------------------------------------
    Shared beyond the two apps' own layouts.
@@ -80,18 +138,19 @@ a{color:var(--accent-ink)}
 .truncate{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 h1,h2,h3,h4{margin:0;font-weight:600;letter-spacing:-.01em}
-h1{font-size:20px} h2{font-size:18px} h3{font-size:15.5px} h4{font-size:14px}
+h1{font-size:22px} h2{font-size:16px} h3{font-size:15px} h4{font-size:14px}
 
-.pill{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;
-  font-family:var(--font-cond);font-weight:600;font-size:12px;text-transform:uppercase;
-  letter-spacing:.06em;white-space:nowrap;background:var(--idle-soft);color:var(--idle)}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:999px;
+  font-weight:500;font-size:12px;white-space:nowrap;background:var(--idle-soft);color:var(--idle)}
 .pill[data-t="ok"]{background:var(--ok-soft);color:var(--ok)}
 .pill[data-t="warn"]{background:var(--warn-soft);color:var(--warn)}
 .pill[data-t="crit"]{background:var(--crit-soft);color:var(--crit)}
-.pill[data-t="accent"]{background:var(--accent-soft);color:var(--accent-ink)}
+.pill[data-t="accent"]{background:var(--accent-wash);color:var(--accent-ink)}
+.pill[data-t="info"]{background:var(--info-soft);color:var(--info)}
+.pill[data-t="plum"]{background:var(--plum-soft);color:var(--plum)}
 .dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex:none}
 
-.btn.sm{padding:7px 11px;font-size:13px}
+.btn.sm{height:30px;padding:0 10px;font-size:13px}
 .btn.wide{width:100%}
 .btn.warn{background:var(--surface);color:var(--warn);border-color:var(--warn)}
 .btn.danger{background:var(--surface);color:var(--crit);border-color:var(--crit)}
@@ -99,35 +158,38 @@ h1{font-size:20px} h2{font-size:18px} h3{font-size:15.5px} h4{font-size:14px}
 .btn-row{display:flex;gap:8px}
 .btn-row .btn{flex:1}
 
-.field textarea{font:inherit;color:var(--ink);background:var(--surface-2);
-  border:1px solid var(--line-strong);border-radius:8px;padding:10px 11px;width:100%;
-  resize:vertical;min-height:62px}
+.field textarea{font:inherit;color:var(--ink);background:var(--surface);
+  border:1px solid var(--line-strong);border-radius:var(--radius-sm);padding:10px 12px;
+  width:100%;resize:vertical;min-height:62px}
 .field input[readonly]{background:var(--accent-soft);border-color:var(--accent);
   font-family:var(--font-mono);font-weight:600}
 .field-row{display:flex;gap:8px}
 .field-row .field{flex:1}
 fieldset{border:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px}
 
-.ok-note{background:var(--ok-soft);color:var(--ok);border:1px solid var(--ok);
-  border-radius:8px;padding:9px 11px;font-size:13.5px}
+.ok-note{background:var(--ok-soft);color:var(--ok);border:1px solid var(--ok-soft);
+  border-radius:var(--radius-sm);padding:9px 11px;font-size:13.5px}
 .empty{font-size:13px;color:var(--faint);padding:16px 12px;text-align:center;
   border:1px dashed var(--line-strong);border-radius:var(--radius)}
 
-.av{width:26px;height:26px;border-radius:50%;background:var(--accent-soft);color:var(--accent-ink);
-  display:grid;place-items:center;font-size:11px;font-weight:700;flex:none;
-  font-family:var(--font-cond);letter-spacing:.02em}
+.av{width:28px;height:28px;border-radius:50%;background:var(--accent-wash);color:var(--accent-ink);
+  display:grid;place-items:center;font-size:11px;font-weight:600;flex:none}
 
-table{width:100%;border-collapse:collapse;font-size:13.5px}
-th,td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
-thead th{font-family:var(--font-cond);font-weight:600;text-transform:uppercase;
-  letter-spacing:.07em;font-size:11px;color:var(--faint);background:var(--surface-2);
-  border-bottom:1px solid var(--line-strong);white-space:nowrap}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{padding:11px 16px;text-align:left;border-bottom:1px solid var(--line-soft);
+  vertical-align:top}
+thead th{font-weight:600;font-size:12px;color:var(--muted);background:var(--surface-2);
+  border-bottom:1px solid var(--line);white-space:nowrap}
 td.r,th.r{text-align:right}
+/* A link in a cell IS the row — underlining it makes a table of thirty rows
+   read as sixty links. The hover says it is still a link. */
+td a{text-decoration:none}
+td a:hover{text-decoration:underline}
 tbody tr:last-child td{border-bottom:none}
 .tablewrap{overflow-x:auto}
 
 .scrim{position:fixed;inset:0;background:rgba(10,18,17,.5);z-index:40}
-.sheet{position:fixed;left:0;right:0;bottom:0;z-index:50;background:var(--ground);
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:50;background:var(--ground-deep);
   border-radius:18px 18px 0 0;max-height:92dvh;display:flex;flex-direction:column;
   max-width:520px;margin:0 auto;box-shadow:0 -6px 30px rgba(10,18,17,.22)}
 .sheet-head{padding:12px 16px;border-bottom:1px solid var(--line);background:var(--surface);
