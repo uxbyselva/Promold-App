@@ -48,7 +48,9 @@ export type IconName =
   | 'search'
   | 'plus'
   | 'more'
-  | 'bell';
+  | 'bell'
+  | 'history'
+  | 'trash';
 
 const PATHS: Record<IconName, ReactNode> = {
   today: <path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" />,
@@ -125,6 +127,13 @@ const PATHS: Record<IconName, ReactNode> = {
     </>
   ),
   bell: <path d="M6 8a6 6 0 0 1 12 0c0 7 3 8 3 8H3s3-1 3-8M10 20a2 2 0 0 0 4 0" />,
+  history: (
+    <>
+      <path d="M3.5 12a8.5 8.5 0 1 0 2.5-6M3 4v4h4" />
+      <path d="M12 7.5V12l3 2" />
+    </>
+  ),
+  trash: <path d="M4 7h16M9.5 7V4.5h5V7M6.5 7l.9 12.5h9.2L17.5 7" />,
 };
 
 export function Icon({ name, size }: { name: IconName; size?: number }) {

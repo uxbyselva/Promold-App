@@ -86,9 +86,9 @@ export async function OfficeShell({
     },
   ];
   const admin: Tab[] = [
-    { href: '/admin', label: 'Overview', icon: 'admin', when: true },
-    { href: '/admin/activity', label: 'Activity', icon: 'reports', when: true },
-    { href: '/admin/deleted', label: 'Deleted', icon: 'stock', when: true },
+    { href: '/admin', label: 'Overview', icon: 'reports', when: true },
+    { href: '/admin/activity', label: 'Activity', icon: 'history', when: true },
+    { href: '/admin/deleted', label: 'Deleted', icon: 'trash', when: true },
     { href: '/admin/roles', label: 'Roles', icon: 'admin', when: true },
     { href: '/admin/people', label: 'People', icon: 'people', when: session.can('user.manage') },
     {
@@ -108,7 +108,7 @@ export async function OfficeShell({
     },
     {
       href: '/admin/settings',
-      label: 'Settings',
+      label: 'The company',
       icon: 'settings',
       when: session.can('org.manage_settings'),
     },
