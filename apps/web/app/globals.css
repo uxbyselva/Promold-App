@@ -257,8 +257,10 @@ a.panel:hover,.box .body a.between:hover,.panel a.between:hover{border-color:var
 .om-more{flex:1;padding:8px 4px 10px;display:flex;flex-direction:column;align-items:center;
   gap:3px;color:var(--faint);font-size:11.5px;font-weight:600;background:none;border:none;
   position:relative}
-.om-more[aria-expanded="true"]{color:var(--accent)}
-.om-more .ic{display:flex}
+.om-more[aria-expanded="true"]{color:var(--accent-ink)}
+.om-more .ic{display:flex;width:34px;height:34px;align-items:center;
+  justify-content:center;border-radius:999px}
+.om-more[aria-expanded="true"] .ic{background:var(--accent);color:var(--on-accent)}
 
 /* A real button rather than a div, so Escape and a tap both close it and the
    thing is reachable from a keyboard. */
@@ -352,8 +354,10 @@ main{flex:1;padding:16px;display:flex;flex-direction:column;gap:14px}
 .tabbar a{flex:1;padding:8px 4px 10px;display:flex;flex-direction:column;align-items:center;
   gap:3px;color:var(--faint);font-size:11.5px;font-weight:500;text-decoration:none;
   min-height:44px;position:relative}
-.tabbar a[aria-current="page"]{color:var(--accent);font-weight:600}
-.tabbar .ic{display:flex;line-height:1}
+.tabbar a[aria-current="page"]{color:var(--accent-ink);font-weight:600}
+.tabbar .ic{display:flex;line-height:1;width:34px;height:34px;align-items:center;
+  justify-content:center;border-radius:999px}
+.tabbar a[aria-current="page"] .ic{background:var(--accent);color:var(--on-accent)}
 .tabbar .badge{position:absolute;top:2px;left:56%;background:var(--crit);color:var(--on-crit);
   font-size:10px;font-weight:700;border-radius:999px;padding:0 5px;line-height:15px}
 
@@ -366,15 +370,15 @@ main{flex:1;padding:16px;display:flex;flex-direction:column;gap:14px}
   height:46px;border-radius:10px;font-size:15px}
 .shell .field textarea,.sheet .field textarea{border-radius:10px;font-size:15px}
 
-.seg{display:flex;gap:2px;margin-top:11px}
-.seg{background:var(--idle-soft);padding:4px;border-radius:10px;gap:4px}
-.seg button{flex:1;padding:8px 4px;border-radius:8px;font-size:13.5px;font-weight:500;
-  color:var(--muted);background:transparent;border:1px solid transparent}
+.seg{display:flex;gap:6px;margin-top:11px}
+.seg button{flex:1;padding:9px 4px;border-radius:var(--radius);font-size:13.5px;
+  font-weight:500;color:var(--accent-ink);background:var(--accent-wash);
+  border:1px solid transparent}
 /* aria-selected is the tab-list attribute; a group of toggles uses
    aria-pressed. Both read as chosen, so both get the chosen look. */
 .seg button[aria-selected="true"],.seg button[aria-pressed="true"]{
-  background:var(--surface);color:var(--ink);border-color:var(--line);font-weight:600;
-  box-shadow:var(--shadow-lift)}
+  background:var(--accent);color:var(--on-accent);border-color:var(--accent);
+  font-weight:600}
 
 /* A sheet over the job, for the one question asked at the end. Bottom-anchored
    because that is where a thumb is, and it keeps the safe-area inset. */
